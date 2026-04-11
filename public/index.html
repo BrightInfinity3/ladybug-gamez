@@ -100,11 +100,12 @@
     }
 
     .logo-bug {
-      width: 64px;
-      height: 64px;
+      width: 52px;
+      height: 52px;
+      align-self: center;
     }
 
-    .logo {
+    .logo-word {
       font-family: 'Orbitron', monospace;
       font-weight: 900;
       font-size: clamp(2.5rem, 7vw, 4.5rem);
@@ -113,19 +114,38 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
+      display: inline-block;
+    }
+
+    .gamez-wrap {
       position: relative;
       display: inline-block;
     }
 
-    .logo::after {
+    /* A's right leg → underline → Z's bottom leg */
+    .gamez-wrap::after {
       content: '';
       position: absolute;
-      bottom: -8px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 80%;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, var(--neon-orange), var(--neon-red), var(--neon-pink), transparent);
+      left: 35%;
+      right: 0;
+      top: 100%;
+      height: 10px;
+      border-left: 2.5px solid;
+      border-bottom: 2.5px solid;
+      border-right: 2.5px solid;
+      border-top: none;
+      border-image: linear-gradient(to right, var(--neon-orange), var(--neon-red), var(--neon-pink)) 1;
+    }
+
+    /* A's left leg */
+    .gamez-wrap::before {
+      content: '';
+      position: absolute;
+      left: 23%;
+      top: 100%;
+      width: 2.5px;
+      height: 7px;
+      background: var(--neon-orange);
     }
 
     .tagline {
@@ -338,7 +358,7 @@
       .games { grid-template-columns: 1fr; gap: 20px; }
       .card { padding: 24px 20px 20px; }
       .card-play { opacity: 1; transform: translateX(0); }
-      .logo-bug { width: 48px; height: 48px; }
+      .logo-bug { width: 36px; height: 36px; }
     }
   </style>
 </head>
@@ -352,10 +372,11 @@
 
   <div class="page">
     <header class="header">
-      <div class="logo-row">
-        <canvas class="logo-bug" id="ladybug-logo" width="64" height="64"></canvas>
-        <h1 class="logo">LADYBUG GAMEZ</h1>
-      </div>
+      <h1 class="logo-row">
+        <span class="logo-word">LADYBUG</span>
+        <canvas class="logo-bug" id="ladybug-logo" width="52" height="52"></canvas>
+        <span class="logo-word gamez-wrap">GAMEZ</span>
+      </h1>
       <p class="tagline">Select your game</p>
     </header>
 
@@ -432,83 +453,95 @@
     (function() {
       const c = document.getElementById('ladybug-logo');
       const x = c.getContext('2d');
-      const W = 64, CX = W / 2, CY = W / 2 + 4;
+      const W = 52, CX = W / 2, CY = W / 2 + 4;
 
       // Body (red oval)
       x.shadowColor = '#ff3b30';
-      x.shadowBlur = 8;
+      x.shadowBlur = 6;
       x.fillStyle = '#e02020';
       x.beginPath();
-      x.ellipse(CX, CY, 20, 22, 0, 0, Math.PI * 2);
+      x.ellipse(CX, CY, 16, 18, 0, 0, Math.PI * 2);
       x.fill();
 
       // Center line
       x.shadowBlur = 0;
       x.strokeStyle = '#1a1a1a';
-      x.lineWidth = 2;
+      x.lineWidth = 1.8;
       x.beginPath();
-      x.moveTo(CX, CY - 22);
-      x.lineTo(CX, CY + 22);
+      x.moveTo(CX, CY - 18);
+      x.lineTo(CX, CY + 18);
       x.stroke();
 
-      // Spots
+      // 4 spots per side, all same size (radius 3)
       x.fillStyle = '#1a1a1a';
+      const spotR = 3;
       const spots = [
-        [CX - 9, CY - 8, 4],
-        [CX + 9, CY - 8, 4],
-        [CX - 7, CY + 6, 3.5],
-        [CX + 7, CY + 6, 3.5],
-        [CX - 12, CY + 1, 3],
-        [CX + 12, CY + 1, 3],
+        // Left side (4 dots)
+        [CX - 7, CY - 10],
+        [CX - 10, CY - 2],
+        [CX - 9, CY + 6],
+        [CX - 6, CY + 13],
+        // Right side (4 dots, mirrored)
+        [CX + 7, CY - 10],
+        [CX + 10, CY - 2],
+        [CX + 9, CY + 6],
+        [CX + 6, CY + 13],
       ];
-      spots.forEach(([sx, sy, sr]) => {
+      spots.forEach(([sx, sy]) => {
         x.beginPath();
-        x.arc(sx, sy, sr, 0, Math.PI * 2);
+        x.arc(sx, sy, spotR, 0, Math.PI * 2);
         x.fill();
       });
 
       // Head
       x.fillStyle = '#1a1a1a';
       x.beginPath();
-      x.arc(CX, CY - 22, 10, 0, Math.PI * 2);
+      x.arc(CX, CY - 18, 8, 0, Math.PI * 2);
       x.fill();
 
-      // Eyes
+      // Eyes (white with black pupils)
       x.fillStyle = '#ffffff';
       x.beginPath();
-      x.arc(CX - 5, CY - 24, 3, 0, Math.PI * 2);
+      x.arc(CX - 4, CY - 20, 2.5, 0, Math.PI * 2);
       x.fill();
       x.beginPath();
-      x.arc(CX + 5, CY - 24, 3, 0, Math.PI * 2);
+      x.arc(CX + 4, CY - 20, 2.5, 0, Math.PI * 2);
       x.fill();
       x.fillStyle = '#1a1a1a';
       x.beginPath();
-      x.arc(CX - 4.5, CY - 24, 1.5, 0, Math.PI * 2);
+      x.arc(CX - 3.5, CY - 20, 1.2, 0, Math.PI * 2);
       x.fill();
       x.beginPath();
-      x.arc(CX + 5.5, CY - 24, 1.5, 0, Math.PI * 2);
+      x.arc(CX + 4.5, CY - 20, 1.2, 0, Math.PI * 2);
       x.fill();
+
+      // Smile
+      x.strokeStyle = '#ffffff';
+      x.lineWidth = 1.2;
+      x.lineCap = 'round';
+      x.beginPath();
+      x.arc(CX, CY - 16, 3, 0.2, Math.PI - 0.2);
+      x.stroke();
 
       // Antennae
       x.strokeStyle = '#1a1a1a';
-      x.lineWidth = 1.5;
-      x.lineCap = 'round';
+      x.lineWidth = 1.3;
       x.beginPath();
-      x.moveTo(CX - 4, CY - 30);
-      x.quadraticCurveTo(CX - 14, CY - 42, CX - 10, CY - 44);
+      x.moveTo(CX - 3, CY - 25);
+      x.quadraticCurveTo(CX - 12, CY - 36, CX - 8, CY - 38);
       x.stroke();
       x.beginPath();
-      x.moveTo(CX + 4, CY - 30);
-      x.quadraticCurveTo(CX + 14, CY - 42, CX + 10, CY - 44);
+      x.moveTo(CX + 3, CY - 25);
+      x.quadraticCurveTo(CX + 12, CY - 36, CX + 8, CY - 38);
       x.stroke();
 
       // Antenna tips
       x.fillStyle = '#1a1a1a';
       x.beginPath();
-      x.arc(CX - 10, CY - 44, 2, 0, Math.PI * 2);
+      x.arc(CX - 8, CY - 38, 1.8, 0, Math.PI * 2);
       x.fill();
       x.beginPath();
-      x.arc(CX + 10, CY - 44, 2, 0, Math.PI * 2);
+      x.arc(CX + 8, CY - 38, 1.8, 0, Math.PI * 2);
       x.fill();
     })();
   </script>
