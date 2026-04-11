@@ -1,0 +1,4541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <title>LASERMAN</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    button, .key, .char-option, .color-btn, .perf-btn, .game-btn, .menu-btn, #toggle-cat-btn, #toggle-vis-btn, .online-options-toggle {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      outline: none;
+    }
+    button:focus, .key:focus, .char-option:focus, .color-btn:focus, .perf-btn:focus,
+    .game-btn:focus, .menu-btn:focus, .online-options-toggle:focus,
+    button:focus-visible, .char-option:focus-visible, .perf-btn:focus-visible {
+      outline: none !important;
+      -webkit-appearance: none;
+    }
+    .char-option:not(.selected):focus,
+    .perf-btn:not(.selected):focus,
+    .color-btn:not(.selected):focus {
+      border-color: rgba(255, 255, 255, 0.3);
+      box-shadow: none;
+    }
+
+    :root {
+      --cyan: #00f0ff;
+      --pink: #ff0066;
+      --purple: #7b2fff;
+      --green: #00ff88;
+      --amber: #ffaa00;
+      --red: #ff0044;
+      --blue: #4488ff;
+      --dark: #0a0a1a;
+      --darker: #050510;
+    }
+
+    body {
+      /* Background grid applied directly as body background (not a pseudo-element)
+         to avoid iOS touch-blocking issues with positioned overlays */
+      background-color: var(--darker);
+      background-image:
+        linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      color: #fff;
+      font-family: 'Share Tech Mono', 'Courier New', monospace;
+      min-height: 100vh;
+      min-height: 100dvh; /* iPad Safari: use dynamic viewport height (excludes toolbar) */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      position: relative;
+      touch-action: manipulation; /* eliminate 300ms click delay, prevent double-tap zoom */
+      overscroll-behavior: none;  /* prevent iOS bounce scroll */
+      -webkit-touch-callout: none;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+
+    /* Scanlines + vignette: applied as pseudo-elements on .screen so they
+       overlay the content visually but can't block touch events on children.
+       The separate #scanlines div is hidden — iOS ignores pointer-events:none
+       on position:fixed overlays, making them eat all taps. */
+    #scanlines { display: none !important; }
+
+    .screen::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.08) 2px,
+        rgba(0, 0, 0, 0.08) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    .screen::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.6) 100%);
+      pointer-events: none;
+      z-index: 9998;
+    }
+
+    /* ===== SCREENS ===== */
+    .screen {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 700px;
+      padding: 20px;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 12px;
+      max-height: 100dvh;
+      max-height: 100vh;
+    }
+    .screen.active { display: flex; }
+
+    /* ===== TITLE ===== */
+    .game-title {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: 3.2rem;
+      letter-spacing: 8px;
+      color: #fff;
+      text-shadow:
+        0 0 5px #fff,
+        0 0 10px #fff,
+        0 0 20px var(--cyan),
+        0 0 40px var(--cyan),
+        0 0 80px var(--cyan),
+        0 0 120px rgba(0, 240, 255, 0.4);
+      animation: titlePulse 3s ease-in-out infinite;
+      text-align: center;
+      user-select: none;
+    }
+
+    @keyframes titlePulse {
+      0%, 100% { text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px var(--cyan), 0 0 40px var(--cyan), 0 0 80px var(--cyan); }
+      50% { text-shadow: 0 0 5px #fff, 0 0 15px #fff, 0 0 30px var(--cyan), 0 0 60px var(--cyan), 0 0 100px var(--cyan), 0 0 140px rgba(0, 240, 255, 0.3); }
+    }
+
+    /* ===== TITLE SCREEN ===== */
+    #title-screen {
+      justify-content: center;
+      min-height: 80vh;
+      gap: 30px;
+    }
+
+    #title-screen .game-title {
+      font-size: 4rem;
+      margin-bottom: 20px;
+    }
+
+    .menu-subtitle {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.75rem;
+      letter-spacing: 6px;
+      color: rgba(0, 240, 255, 0.5);
+      margin-top: -20px;
+    }
+
+    .menu-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    .menu-btn {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 5px;
+      padding: 16px 50px;
+      background: transparent;
+      border: 2px solid var(--cyan);
+      border-radius: 8px;
+      color: var(--cyan);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.4);
+      width: 300px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .menu-btn:active {
+      background: rgba(0, 240, 255, 0.15);
+      box-shadow: 0 0 25px rgba(0, 240, 255, 0.3), inset 0 0 15px rgba(0, 240, 255, 0.05);
+    }
+    @media (hover: hover) {
+      .menu-btn:hover {
+        background: rgba(0, 240, 255, 0.1);
+        box-shadow: 0 0 25px rgba(0, 240, 255, 0.3), inset 0 0 15px rgba(0, 240, 255, 0.05);
+        transform: scale(1.05);
+      }
+    }
+
+    .menu-btn.purple {
+      border-color: var(--purple);
+      color: var(--purple);
+      text-shadow: 0 0 8px rgba(123, 47, 255, 0.4);
+    }
+
+    .menu-btn.purple:active {
+      background: rgba(123, 47, 255, 0.15);
+      box-shadow: 0 0 25px rgba(123, 47, 255, 0.3), inset 0 0 15px rgba(123, 47, 255, 0.05);
+    }
+    @media (hover: hover) {
+      .menu-btn.purple:hover {
+        background: rgba(123, 47, 255, 0.1);
+        box-shadow: 0 0 25px rgba(123, 47, 255, 0.3), inset 0 0 15px rgba(123, 47, 255, 0.05);
+      }
+    }
+
+    .menu-btn#btn-online:active {
+      background: rgba(0, 255, 136, 0.15);
+      box-shadow: 0 0 25px rgba(0, 255, 136, 0.3), inset 0 0 15px rgba(0, 255, 136, 0.05);
+    }
+    @media (hover: hover) {
+      .menu-btn#btn-online:hover {
+        background: rgba(0, 255, 136, 0.1);
+        box-shadow: 0 0 25px rgba(0, 255, 136, 0.3), inset 0 0 15px rgba(0, 255, 136, 0.05);
+      }
+    }
+
+    .menu-btn.white {
+      border-color: #ffffff;
+      color: #ffffff;
+      text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+    }
+
+    .menu-btn.white:active {
+      background: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 0 25px rgba(255, 255, 255, 0.3), inset 0 0 15px rgba(255, 255, 255, 0.05);
+    }
+    @media (hover: hover) {
+      .menu-btn.white:hover {
+        background: rgba(255, 255, 255, 0.1);
+        box-shadow: 0 0 25px rgba(255, 255, 255, 0.3), inset 0 0 15px rgba(255, 255, 255, 0.05);
+      }
+    }
+
+    /* ===== OPTIONS SCREEN ===== */
+    #options-screen {
+      justify-content: center;
+      min-height: 80vh;
+      gap: 18px;
+      padding-top: 20px;
+    }
+
+    .character-select {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .char-option {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: 4px;
+      padding: 14px 30px;
+      width: 300px;
+      text-align: center;
+      background: transparent;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      color: rgba(255, 255, 255, 0.5);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    @media (hover: hover) {
+      .char-option:hover {
+        border-color: rgba(255, 255, 255, 0.6);
+        color: rgba(255, 255, 255, 0.8);
+        background: rgba(255, 255, 255, 0.05);
+      }
+    }
+
+    .char-option.selected {
+      border-color: var(--cyan);
+      color: var(--cyan);
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.4);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.2), inset 0 0 10px rgba(0, 240, 255, 0.05);
+    }
+
+    .char-lives {
+      font-size: 0.65rem;
+      letter-spacing: 2px;
+      opacity: 0.7;
+      margin-top: 2px;
+    }
+
+    .color-section {
+      margin-top: 8px;
+    }
+    .color-label {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.75rem;
+      letter-spacing: 6px;
+      color: rgba(0, 240, 255, 0.5);
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .color-options {
+      display: flex;
+      gap: 18px;
+      justify-content: center;
+    }
+    .color-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 3px solid rgba(255,255,255,0.3);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    .color-btn:active {
+      border-color: rgba(255,255,255,0.6);
+    }
+    @media (hover: hover) {
+      .color-btn:hover {
+        border-color: rgba(255,255,255,0.6);
+        transform: scale(1.1);
+      }
+    }
+    .color-btn.selected {
+      border-color: #ffffff;
+      box-shadow: 0 0 15px currentColor, 0 0 30px currentColor;
+      transform: scale(1.15);
+    }
+    .color-btn[data-color="green"] { background: #00ff88; color: #00ff88; }
+    .color-btn[data-color="blue"] { background: #4488ff; color: #4488ff; }
+    .color-btn[data-color="yellow"] { background: #ffcc00; color: #ffcc00; }
+
+    /* ===== WORD ENTRY SCREEN ===== */
+    #word-entry-screen {
+      justify-content: center;
+      min-height: 80vh;
+      gap: 20px;
+    }
+
+    .entry-heading {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1rem;
+      letter-spacing: 4px;
+      color: var(--purple);
+      text-shadow: 0 0 10px rgba(123, 47, 255, 0.5);
+    }
+
+    .online-options-panel {
+      margin: 0 auto 12px;
+      padding: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.3);
+      max-width: 380px;
+    }
+    .online-options-panel .character-select {
+      gap: 8px;
+    }
+    .online-options-panel .char-option {
+      padding: 10px 20px;
+      font-size: 0.8rem;
+      width: 260px;
+    }
+    .online-options-panel .color-section {
+      margin-top: 12px;
+    }
+    .online-options-toggle {
+      font-size: 0.85rem;
+      padding: 10px 30px;
+    }
+
+    #word-input, .word-input-styled {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: 6px;
+      padding: 14px 20px;
+      background: rgba(0, 240, 255, 0.04);
+      border: 2px solid rgba(0, 240, 255, 0.25);
+      border-radius: 8px;
+      color: var(--cyan);
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+      outline: none;
+      width: 280px;
+      text-align: left;
+      text-transform: uppercase;
+      transition: all 0.3s ease;
+    }
+
+    #word-input:focus, .word-input-styled:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.15);
+    }
+
+    #word-input::placeholder, .word-input-styled::placeholder {
+      color: rgba(0, 240, 255, 0.2);
+      letter-spacing: 3px;
+      font-size: 0.9rem;
+    }
+
+    #toggle-vis-btn {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      padding: 10px 14px;
+      background: rgba(123, 47, 255, 0.08);
+      border: 1px solid rgba(123, 47, 255, 0.35);
+      border-radius: 6px;
+      color: var(--purple);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      min-width: 60px;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #toggle-vis-btn:hover {
+      background: rgba(123, 47, 255, 0.15);
+      border-color: var(--purple);
+    }
+
+    .word-input-row {
+      display: flex;
+      align-items: stretch;
+      gap: 10px;
+      width: 380px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .word-input-row #word-input,
+    .word-input-row .word-input-styled {
+      flex: 1;
+      width: auto;
+      min-width: 0;
+    }
+
+    .entry-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+      width: 380px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .entry-actions .menu-btn,
+    .entry-actions .game-btn {
+      flex: 1;
+      min-width: 0;
+      width: auto;
+      font-size: clamp(0.7rem, 2.5vw, 0.95rem);
+      letter-spacing: clamp(1px, 0.5vw, 3px);
+      padding: 14px clamp(8px, 2vw, 16px);
+      white-space: nowrap;
+    }
+
+    /* ===== GAME SCREEN ===== */
+    #game-screen {
+      gap: clamp(2px, 0.8dvh, 10px);
+      max-height: 100dvh;
+      max-height: 100vh;
+      justify-content: center;
+      padding: clamp(4px, 1dvh, 20px) 20px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    #game-screen .game-title {
+      font-size: clamp(1.6rem, 5vw, 3.6rem);
+      letter-spacing: clamp(3px, 1vw, 8px);
+      margin-bottom: clamp(2px, 0.5dvh, 8px);
+    }
+
+    /* ===== CANVAS ===== */
+    #canvas-container {
+      position: relative;
+      width: min(460px, 85vw, 48dvh);
+      height: min(460px, 85vw, 48dvh);
+      flex-shrink: 1;
+    }
+
+    #gameCanvas {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      touch-action: none; /* prevent iPad Safari gestures on canvas */
+      border: 2px solid rgba(0, 240, 255, 0.15);
+      box-shadow:
+        0 0 15px rgba(0, 240, 255, 0.1),
+        inset 0 0 30px rgba(0, 240, 255, 0.05);
+    }
+
+    #skip-hint {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: clamp(0.5rem, 1.2vw, 0.65rem);
+      color: rgba(0, 240, 255, 0.4);
+      text-align: center;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      height: 16px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    #skip-hint.visible {
+      opacity: 1;
+    }
+
+    /* ===== CATEGORY ROW ===== */
+    #category-row {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      justify-content: center;
+    }
+    #category-text {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: clamp(0.55rem, 1.5vw, 0.7rem);
+      color: rgba(0, 240, 255, 0.45);
+      letter-spacing: 2px;
+    }
+    #toggle-cat-btn {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.55rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      padding: 6px 12px;
+      background: rgba(123, 47, 255, 0.08);
+      border: 1px solid rgba(123, 47, 255, 0.35);
+      border-radius: 4px;
+      color: var(--purple);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    #toggle-cat-btn:hover {
+      background: rgba(123, 47, 255, 0.15);
+      border-color: var(--purple);
+    }
+
+    /* ===== WORD DISPLAY ===== */
+    #word-display {
+      display: flex;
+      gap: clamp(4px, 1.5vw, 10px);
+      justify-content: center;
+      flex-wrap: wrap;
+      padding: clamp(2px, 0.8dvh, 10px) 0;
+      min-height: 0;
+    }
+
+    .letter-slot {
+      width: clamp(22px, 6vw, 38px);
+      height: clamp(32px, 7vw, 50px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(1rem, 3vw, 1.6rem);
+      font-weight: 700;
+      border-bottom: 3px solid rgba(0, 240, 255, 0.3);
+      color: transparent;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    .letter-slot.revealed {
+      color: #fff;
+      text-shadow: 0 0 8px var(--cyan), 0 0 20px rgba(0, 240, 255, 0.4);
+      border-bottom-color: var(--cyan);
+      animation: letterReveal 0.5s ease-out;
+    }
+
+    .letter-slot.lost-reveal {
+      color: var(--red);
+      text-shadow: 0 0 8px rgba(255, 0, 68, 0.6);
+      border-bottom-color: var(--red);
+      animation: letterReveal 0.5s ease-out;
+    }
+
+    @keyframes letterReveal {
+      0% { transform: scale(1.5); opacity: 0; }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* Laser-etch reveal animation for correct guesses */
+    .letter-slot.laser-etch {
+      color: #fff !important;
+      text-shadow:
+        0 0 8px #fff,
+        0 0 20px #fff,
+        0 0 40px var(--green),
+        0 0 70px rgba(0, 255, 65, 0.8);
+      border-bottom-color: var(--green);
+      animation: laserEtch 1.2s ease-out forwards;
+    }
+    @keyframes laserEtch {
+      0% { opacity: 0; transform: scale(1.8); }
+      30% { opacity: 1; transform: scale(1.2); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* Screen darken overlay during correct letter reveal */
+    #reveal-darken {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0);
+      pointer-events: none;
+      transition: background 0.3s ease;
+      z-index: 5;
+      border-radius: 50%;
+    }
+    #reveal-darken.active {
+      background: rgba(0, 0, 0, 0.9);
+    }
+
+    /* ===== KEYBOARD ===== */
+    #keyboard {
+      display: flex;
+      flex-direction: column;
+      gap: clamp(2px, 0.6dvh, 6px);
+      align-items: center;
+    }
+
+    .kb-row {
+      display: flex;
+      gap: clamp(2px, 0.8vw, 5px);
+      justify-content: center;
+    }
+
+    .key {
+      width: clamp(26px, 7vw, 40px);
+      height: clamp(30px, 4.5dvh, 44px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(0.6rem, 2vw, 0.85rem);
+      font-weight: 700;
+      background: rgba(0, 240, 255, 0.05);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      border-radius: 6px;
+      color: var(--cyan);
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: all 0.2s ease;
+      text-shadow: 0 0 5px rgba(0, 240, 255, 0.3);
+    }
+
+    .key:active:not(.used):not(.correct):not(.wrong) {
+      background: rgba(0, 240, 255, 0.2);
+      border-color: var(--cyan);
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.3), inset 0 0 10px rgba(0, 240, 255, 0.1);
+    }
+    @media (hover: hover) {
+      .key:hover:not(.used):not(.correct):not(.wrong) {
+        background: rgba(0, 240, 255, 0.15);
+        border-color: var(--cyan);
+        box-shadow: 0 0 15px rgba(0, 240, 255, 0.3), inset 0 0 10px rgba(0, 240, 255, 0.1);
+        transform: scale(1.08);
+      }
+    }
+
+    .key.correct {
+      background: rgba(0, 255, 136, 0.15);
+      border-color: var(--green);
+      color: var(--green);
+      text-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+      box-shadow: 0 0 10px rgba(0, 255, 136, 0.2);
+      cursor: default;
+      pointer-events: none;
+    }
+
+    .key.wrong {
+      background: rgba(255, 0, 68, 0.1);
+      border-color: rgba(255, 0, 68, 0.3);
+      color: rgba(255, 0, 68, 0.4);
+      cursor: default;
+      pointer-events: none;
+      opacity: 0.5;
+    }
+
+    /* Keyboard locked during animations — no hover effects, default cursor */
+    #keyboard.locked .key:not(.correct):not(.wrong) {
+      cursor: default;
+      pointer-events: none;
+      opacity: 0.3;
+    }
+
+    /* Keyboard after game ends — no hover, no interaction */
+    #keyboard.game-over .key {
+      cursor: default;
+      pointer-events: none;
+    }
+    #keyboard.game-over .key:not(.correct):not(.wrong) {
+      opacity: 0.3;
+    }
+
+    /* ===== MESSAGE OVERLAY (inside canvas-container) ===== */
+    #message-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 50;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+
+    #message-overlay.show {
+      opacity: 1;
+    }
+
+    /* Win layout: top above head, bottom below feet, equidistant from circle edge */
+    #message-overlay.win-layout {
+      justify-content: flex-start;
+      padding-top: 17%;
+      padding-bottom: 17%;
+    }
+
+    /* Lose layout: same positioning */
+    #message-overlay.lose-layout {
+      justify-content: flex-start;
+      padding-top: 17%;
+      padding-bottom: 17%;
+    }
+
+    #message-text-bottom {
+      margin-top: auto;
+    }
+
+    .msg-line {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      letter-spacing: 4px;
+      text-align: center;
+      line-height: 1.4;
+      white-space: nowrap;
+    }
+
+    .msg-line.win {
+      font-size: clamp(1rem, 4vw, 2rem);
+      color: #ffffff;
+      text-shadow: 0 0 8px var(--cyan), 0 0 20px var(--cyan), 0 0 40px var(--cyan), 0 0 80px rgba(0,240,255,0.5);
+    }
+
+    .msg-line.lose {
+      font-size: clamp(1rem, 4vw, 2rem);
+      color: #ffffff;
+      text-shadow: 0 0 8px var(--purple), 0 0 20px var(--purple), 0 0 40px var(--purple), 0 0 80px rgba(123,47,255,0.5);
+    }
+
+    /* ===== GAME BUTTONS ===== */
+    .game-buttons {
+      display: flex;
+      gap: clamp(6px, 2vw, 12px);
+      margin-top: clamp(1px, 0.4dvh, 4px);
+      max-width: 90vw;
+      justify-content: center;
+    }
+
+    .game-btn {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(0.5rem, 1.5vw, 0.7rem);
+      font-weight: 700;
+      letter-spacing: clamp(1px, 0.5vw, 3px);
+      padding: clamp(6px, 1dvh, 10px) clamp(10px, 2.5vw, 22px);
+      background: transparent;
+      border: 1px solid var(--cyan);
+      border-radius: 6px;
+      color: var(--cyan);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-shadow: 0 0 5px rgba(0, 240, 255, 0.3);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 45vw;
+    }
+
+    .game-btn:active {
+      background: rgba(0, 240, 255, 0.15);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+    }
+    @media (hover: hover) {
+      .game-btn:hover {
+        background: rgba(0, 240, 255, 0.1);
+        box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+        transform: scale(1.05);
+      }
+    }
+
+    .game-btn.purple {
+      border-color: var(--purple);
+      color: var(--purple);
+      text-shadow: 0 0 5px rgba(123, 47, 255, 0.3);
+    }
+
+    .game-btn.purple:active {
+      background: rgba(123, 47, 255, 0.15);
+      box-shadow: 0 0 20px rgba(123, 47, 255, 0.3);
+    }
+    @media (hover: hover) {
+      .game-btn.purple:hover {
+        border-color: var(--purple);
+        color: var(--purple);
+        background: rgba(123, 47, 255, 0.1);
+        box-shadow: 0 0 20px rgba(123, 47, 255, 0.3);
+      }
+    }
+
+    /* ===== SCREEN SHAKE ===== */
+    @keyframes shake {
+      0%, 100% { transform: translate(0, 0); }
+      10% { transform: translate(-5px, -3px); }
+      20% { transform: translate(5px, 3px); }
+      30% { transform: translate(-4px, 2px); }
+      40% { transform: translate(4px, -2px); }
+      50% { transform: translate(-3px, 3px); }
+      60% { transform: translate(3px, -1px); }
+      70% { transform: translate(-2px, 1px); }
+      80% { transform: translate(2px, -2px); }
+      90% { transform: translate(-1px, 1px); }
+    }
+
+    .shake { animation: shake 0.5s ease-in-out; }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 600px) {
+      .game-title { font-size: 2rem; letter-spacing: 4px; }
+      #title-screen .game-title { font-size: 2.6rem; }
+      .menu-btn { width: 260px; font-size: 0.9rem; padding: 14px 30px; }
+      .char-option { width: 260px; font-size: 0.8rem; padding: 12px 25px; }
+      #word-input { font-size: 1.2rem; }
+      .word-input-row, .entry-actions { width: min(320px, 90vw); }
+      #toggle-vis-btn { font-size: 0.75rem; }
+    }
+
+    @media (max-width: 400px) {
+      .menu-btn { width: 220px; font-size: 0.8rem; padding: 12px 20px; letter-spacing: 3px; }
+      .char-option { width: 220px; font-size: 0.7rem; padding: 10px 20px; }
+      .word-input-row, .entry-actions { width: min(280px, 92vw); }
+    }
+
+    /* Touch devices: ensure finger-friendly targets */
+    @media (pointer: coarse) {
+      .key { min-width: min(36px, 8vw); min-height: min(42px, 5dvh); }
+      .game-btn { padding: clamp(8px, 1.2dvh, 12px) clamp(16px, 4vw, 24px); }
+      #toggle-cat-btn { padding: 8px 14px; font-size: 0.6rem; }
+      #toggle-vis-btn { padding: 12px 16px; min-width: 70px; }
+      .color-btn { width: 48px; height: 48px; }
+      .perf-btn { padding: 12px 22px; min-width: 90px; }
+    }
+
+    /* Performance tier CSS toggles */
+    body.perf-no-grid {
+      background-image: none !important;
+    }
+    body.perf-no-scanlines .screen::before {
+      display: none !important;
+    }
+
+    /* Confirmation modal */
+    #confirm-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0, 0, 0, 0.85);
+      align-items: center;
+      justify-content: center;
+    }
+    #confirm-modal.show, #rematch-modal.show {
+      display: flex;
+    }
+    #rematch-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0, 0, 0, 0.85);
+      align-items: center;
+      justify-content: center;
+    }
+    .confirm-box {
+      text-align: center;
+      padding: 30px 40px;
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      border-radius: 12px;
+      background: rgba(5, 5, 20, 0.95);
+      max-width: 340px;
+    }
+    .confirm-text {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: var(--cyan);
+      margin-bottom: 8px;
+    }
+    .confirm-subtext {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.65rem;
+      color: rgba(255, 255, 255, 0.5);
+      letter-spacing: 2px;
+      margin-bottom: 24px;
+    }
+    .confirm-buttons {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    /* Toast notification */
+    #toast {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 9998;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: var(--red);
+      text-shadow: 0 0 10px rgba(255, 0, 102, 0.5);
+      padding: 20px 30px;
+      border: 1px solid rgba(255, 0, 102, 0.3);
+      border-radius: 10px;
+      background: rgba(5, 5, 20, 0.95);
+      text-align: center;
+      white-space: nowrap;
+    }
+    #toast.show { display: block; }
+
+    /* Performance selector in Options */
+    .perf-options {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+    .perf-btn {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      padding: 10px 20px;
+      background: transparent;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      color: rgba(255, 255, 255, 0.5);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      min-width: 80px;
+      text-align: center;
+    }
+    @media (hover: hover) {
+      .perf-btn:hover {
+        border-color: rgba(255, 255, 255, 0.6);
+        color: rgba(255, 255, 255, 0.8);
+        background: rgba(255, 255, 255, 0.05);
+      }
+    }
+    .perf-btn.selected {
+      border-color: var(--cyan);
+      color: var(--cyan);
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.4);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.2), inset 0 0 10px rgba(0, 240, 255, 0.05);
+    }
+    .perf-auto-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.55rem;
+      color: rgba(0, 240, 255, 0.35);
+      letter-spacing: 2px;
+      text-align: center;
+      margin-top: 4px;
+    }
+  </style>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+
+  <div id="scanlines"></div>
+
+  <!-- ===== TITLE SCREEN ===== -->
+  <div id="title-screen" class="screen active">
+    <h1 class="game-title">LASERMAN</h1>
+    <div class="menu-subtitle">SELECT MODE</div>
+    <div class="menu-buttons">
+      <button class="menu-btn" id="btn-solo">SOLO</button>
+      <button class="menu-btn purple" id="btn-multi">MULTIPLAYER</button>
+      <button class="menu-btn" id="btn-online" style="border-color:var(--green);color:var(--green);text-shadow:0 0 8px rgba(0,255,136,0.4)">ONLINE</button>
+      <button class="menu-btn white" id="btn-options">OPTIONS</button>
+    </div>
+  </div>
+
+  <!-- ===== OPTIONS SCREEN ===== -->
+  <div id="options-screen" class="screen">
+    <h1 class="game-title" style="font-size:2.2rem; margin-bottom:24px">OPTIONS</h1>
+    <div class="menu-subtitle">SELECT CHARACTER</div>
+    <div class="character-select">
+      <div class="char-option selected" data-char="laserman">
+        LASERMAN
+        <div class="char-lives">6 LIVES</div>
+      </div>
+      <div class="char-option" data-char="laserwoman">
+        LASERWOMAN
+        <div class="char-lives">8 LIVES</div>
+      </div>
+      <div class="char-option" data-char="lasercat">
+        LASERCAT
+        <div class="char-lives">9 LIVES</div>
+      </div>
+    </div>
+    <div class="color-section">
+      <div class="color-label">SELECT COLOR</div>
+      <div class="color-options">
+        <div class="color-btn" data-color="yellow"></div>
+        <div class="color-btn selected" data-color="green"></div>
+        <div class="color-btn" data-color="blue"></div>
+      </div>
+    </div>
+    <div class="color-section">
+      <div class="color-label">PERFORMANCE</div>
+      <div class="perf-options">
+        <div class="perf-btn" data-perf="low">LOW</div>
+        <div class="perf-btn" data-perf="high">HIGH</div>
+      </div>
+    </div>
+    <div class="perf-auto-label" id="perf-auto-label"></div>
+    <button class="menu-btn purple" id="btn-options-back" style="margin-top: 8px">MAIN MENU</button>
+  </div>
+
+  <!-- ===== WORD ENTRY SCREEN ===== -->
+  <div id="word-entry-screen" class="screen">
+    <h1 class="game-title" style="font-size:2.4rem">LASERMAN</h1>
+    <div class="entry-heading">ENTER TARGET WORD</div>
+    <div class="word-input-row">
+      <input type="text" id="word-input" placeholder="TYPE WORD..." maxlength="20" autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="characters">
+      <button id="toggle-vis-btn">HIDE</button>
+    </div>
+    <div id="word-error" style="color:var(--red);font-family:'Orbitron',sans-serif;font-size:0.7rem;letter-spacing:2px;min-height:1.2em;"></div>
+    <div class="entry-actions">
+      <button class="menu-btn" id="btn-start-multi">START</button>
+      <button class="menu-btn purple" id="btn-entry-back">MAIN MENU</button>
+    </div>
+  </div>
+
+  <!-- ===== ONLINE LOBBY SCREEN ===== -->
+  <div id="online-screen" class="screen">
+    <h1 class="game-title" style="margin-bottom:4px">LASERMAN</h1>
+    <h1 class="game-title" style="font-size:2.2rem; margin-bottom:24px">ONLINE</h1>
+
+    <!-- Name entry (shown first) -->
+    <div id="online-name-entry" style="text-align:center">
+      <div class="menu-subtitle" style="margin-bottom:12px">ENTER YOUR NAME</div>
+      <div class="word-input-row" style="justify-content:center">
+        <input type="text" id="online-name-input" class="word-input-styled" placeholder="YOUR NAME..." maxlength="12" autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="characters" style="text-align:center;width:280px">
+      </div>
+      <button class="menu-btn" id="btn-name-continue" style="margin-top:16px">CONTINUE</button>
+    </div>
+
+    <!-- Role selection (shown after name entry) -->
+    <div id="online-role-select" style="display:none;text-align:center">
+      <div class="menu-buttons" style="margin-top:8px">
+        <button class="menu-btn" id="btn-host" style="border-color:var(--green);color:var(--green);text-shadow:0 0 8px rgba(0,255,136,0.4)">HOST GAME</button>
+        <button class="menu-btn" id="btn-join">JOIN GAME</button>
+      </div>
+    </div>
+
+    <!-- Host waiting view -->
+    <div id="online-host-view" style="display:none;text-align:center">
+      <div class="menu-subtitle">YOUR ROOM CODE:</div>
+      <div id="room-code-display" style="font-family:'Orbitron',sans-serif;font-size:2.2rem;font-weight:900;letter-spacing:10px;color:var(--green);text-shadow:0 0 15px rgba(0,255,136,0.5);margin:16px 0">----</div>
+      <div style="font-size:0.7rem;color:rgba(255,255,255,0.4);letter-spacing:2px;margin-bottom:12px">SHARE THIS CODE WITH YOUR FRIEND</div>
+      <div id="online-host-status" style="font-family:'Orbitron',sans-serif;font-size:0.75rem;letter-spacing:3px;color:var(--amber);margin-bottom:16px">WAITING FOR PLAYER...</div>
+
+      <!-- Host role choice (shown after connection) -->
+      <div id="host-role-choice" style="display:none;margin-top:40px;text-align:center">
+        <div class="menu-subtitle" style="margin-bottom:12px">CHOOSE YOUR ROLE:</div>
+        <div class="menu-buttons">
+          <button class="menu-btn" id="btn-host-set" style="border-color:var(--green);color:var(--green);text-shadow:0 0 8px rgba(0,255,136,0.4)">SET WORD</button>
+          <button class="menu-btn" id="btn-host-guess">GUESS WORD</button>
+        </div>
+      </div>
+
+      <!-- Host word entry (shown after host picks "set word") -->
+      <div id="host-word-entry" style="display:none;margin-top:12px;text-align:center">
+        <div class="entry-heading" style="margin-bottom:8px">ENTER WORD FOR OPPONENT</div>
+        <button class="menu-btn white online-options-toggle" id="btn-host-options" style="margin:4px auto 8px">OPTIONS</button>
+        <div class="online-options-panel" id="host-options-panel" style="display:none">
+          <div class="color-label" style="margin-top:0">SELECT CHARACTER</div>
+          <div class="character-select" id="host-char-select">
+            <div class="char-option selected" data-char="laserman">LASERMAN<div class="char-lives">6 LIVES</div></div>
+            <div class="char-option" data-char="laserwoman">LASERWOMAN<div class="char-lives">8 LIVES</div></div>
+            <div class="char-option" data-char="lasercat">LASERCAT<div class="char-lives">9 LIVES</div></div>
+          </div>
+          <div class="color-section">
+            <div class="color-label">SELECT COLOR</div>
+            <div class="color-options" id="host-color-select">
+              <div class="color-btn" data-color="yellow"></div>
+              <div class="color-btn selected" data-color="green"></div>
+              <div class="color-btn" data-color="blue"></div>
+            </div>
+          </div>
+        </div>
+        <div class="word-input-row">
+          <input type="text" id="host-word-input" class="word-input-styled" placeholder="TYPE WORD..." maxlength="20" autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="characters">
+        </div>
+        <div id="host-word-error" style="color:var(--red);font-family:'Orbitron',sans-serif;font-size:0.7rem;letter-spacing:2px;min-height:1.2em;"></div>
+        <button class="menu-btn" id="btn-host-start" style="margin-top:8px;border-color:var(--green);color:var(--green);text-shadow:0 0 8px rgba(0,255,136,0.4)">SEND WORD</button>
+      </div>
+    </div>
+
+    <!-- Join view -->
+    <div id="online-join-view" style="display:none;text-align:center">
+      <div class="menu-subtitle">ENTER ROOM CODE</div>
+      <div class="word-input-row" style="margin-top:12px">
+        <input type="text" id="join-code-input" placeholder="ROOM CODE..." maxlength="6" autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="characters" style="text-transform:uppercase;letter-spacing:6px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:1.4rem;background:rgba(0,240,255,0.04);border:1px solid rgba(0,240,255,0.25);border-radius:6px;color:var(--cyan);padding:12px 16px;width:100%;box-sizing:border-box">
+      </div>
+      <div id="join-error" style="color:var(--red);font-family:'Orbitron',sans-serif;font-size:0.7rem;letter-spacing:2px;min-height:1.2em;margin-top:4px"></div>
+      <button class="menu-btn" id="btn-join-connect" style="margin-top:12px;border-color:var(--green);color:var(--green);text-shadow:0 0 8px rgba(0,255,136,0.4)">CONNECT</button>
+      <div id="join-status" style="font-family:'Orbitron',sans-serif;font-size:0.75rem;letter-spacing:3px;color:var(--amber);margin-top:8px;min-height:1.2em"></div>
+    </div>
+
+    <!-- Waiting for word (joiner sees this after connecting, before role is chosen) -->
+    <div id="online-wait-word" style="display:none;text-align:center">
+      <div class="connected-msg" style="font-family:'Orbitron',sans-serif;font-size:0.85rem;letter-spacing:3px;color:var(--green);margin:20px 0">CONNECTED!</div>
+      <div id="wait-word-status" style="font-family:'Orbitron',sans-serif;font-size:0.75rem;letter-spacing:3px;color:var(--amber)">WAITING FOR HOST...</div>
+    </div>
+
+    <!-- Joiner word entry (shown when host picks "guess word") -->
+    <div id="joiner-word-entry" style="display:none;text-align:center">
+      <div id="joiner-turn-msg" style="font-family:'Orbitron',sans-serif;font-size:0.85rem;letter-spacing:3px;color:var(--green);margin-bottom:12px;display:none">YOUR TURN TO SET THE WORD!</div>
+      <div class="entry-heading" style="margin-bottom:8px">ENTER WORD FOR OPPONENT</div>
+      <button class="menu-btn white online-options-toggle" id="btn-joiner-options" style="margin:4px auto 8px">OPTIONS</button>
+      <div class="online-options-panel" id="joiner-options-panel" style="display:none">
+        <div class="color-label" style="margin-top:0">SELECT CHARACTER</div>
+        <div class="character-select" id="joiner-char-select">
+          <div class="char-option selected" data-char="laserman">LASERMAN<div class="char-lives">6 LIVES</div></div>
+          <div class="char-option" data-char="laserwoman">LASERWOMAN<div class="char-lives">8 LIVES</div></div>
+          <div class="char-option" data-char="lasercat">LASERCAT<div class="char-lives">9 LIVES</div></div>
+        </div>
+        <div class="color-section">
+          <div class="color-label">SELECT COLOR</div>
+          <div class="color-options" id="joiner-color-select">
+            <div class="color-btn" data-color="yellow"></div>
+            <div class="color-btn selected" data-color="green"></div>
+            <div class="color-btn" data-color="blue"></div>
+          </div>
+        </div>
+      </div>
+      <div class="word-input-row">
+        <input type="text" id="joiner-word-input" class="word-input-styled" placeholder="TYPE WORD..." maxlength="20" autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="characters">
+      </div>
+      <div id="joiner-word-error" style="color:var(--red);font-family:'Orbitron',sans-serif;font-size:0.7rem;letter-spacing:2px;min-height:1.2em;"></div>
+      <button class="menu-btn" id="btn-joiner-start" style="margin-top:8px;border-color:var(--green);color:var(--green);text-shadow:0 0 8px rgba(0,255,136,0.4)">SEND WORD</button>
+    </div>
+
+    <button class="menu-btn purple" id="btn-online-back" style="margin-top:16px">MAIN MENU</button>
+  </div>
+
+  <!-- ===== GAME SCREEN ===== -->
+  <div id="game-screen" class="screen">
+    <h1 class="game-title">LASERMAN</h1>
+
+    <div id="canvas-container">
+      <canvas id="gameCanvas"></canvas>
+      <div id="reveal-darken"></div>
+      <div id="message-overlay">
+        <div id="message-text-top" class="msg-line"></div>
+        <div id="message-text-bottom" class="msg-line"></div>
+      </div>
+    </div>
+
+    <div id="skip-hint">Press spacebar or tap canvas to skip</div>
+    <div id="category-row">
+      <span id="category-text">CATEGORY: ●●●●●●●●</span>
+      <button id="toggle-cat-btn">SHOW</button>
+    </div>
+    <div id="word-display"></div>
+    <div id="keyboard"></div>
+
+    <div class="game-buttons">
+      <button class="game-btn" id="new-game-btn">NEW GAME</button>
+      <button class="game-btn purple" id="main-menu-btn">MAIN MENU</button>
+    </div>
+  </div>
+
+  <!-- Toast notification -->
+  <div id="toast"></div>
+
+  <!-- Confirmation modal -->
+  <div id="confirm-modal">
+    <div class="confirm-box">
+      <div class="confirm-text">LEAVE GAME?</div>
+      <div class="confirm-subtext">THIS WILL DISCONNECT YOU FROM THE ROOM</div>
+      <div class="confirm-buttons">
+        <button class="menu-btn" id="confirm-yes" style="font-size:0.85rem;padding:10px 24px;border-color:var(--red);color:var(--red);text-shadow:0 0 8px rgba(255,0,102,0.4)">LEAVE</button>
+        <button class="menu-btn" id="confirm-no" style="font-size:0.85rem;padding:10px 24px">STAY</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rematch modal -->
+  <div id="rematch-modal">
+    <div class="confirm-box">
+      <div class="confirm-text" id="rematch-modal-text">PLAY AGAIN?</div>
+      <div class="confirm-subtext" id="rematch-modal-sub">OPPONENT WANTS ANOTHER ROUND</div>
+      <div class="confirm-buttons">
+        <button class="menu-btn" id="rematch-yes" style="font-size:0.85rem;padding:10px 24px">YES</button>
+        <button class="menu-btn" id="rematch-no" style="font-size:0.85rem;padding:10px 24px;border-color:var(--red);color:var(--red);text-shadow:0 0 8px rgba(255,0,102,0.4)">NO</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===========================
+    // CONFIGURATION
+    // ===========================
+    const CHARACTER_CONFIGS = {
+      laserman:   { name: 'LASERMAN',   lives: 6 },
+      laserwoman: { name: 'LASERWOMAN', lives: 8 },
+      lasercat:   { name: 'LASERCAT',   lives: 9 },
+    };
+    let selectedCharacter = 'laserman';
+    let selectedColor = 'green';
+    function getConfig() { return CHARACTER_CONFIGS[selectedCharacter]; }
+    function getMaxWrong() { return getConfig().lives; }
+
+    const CANVAS_SIZE = 500;
+    const LASER_SPEED = 0.024;
+    const PARTICLE_COUNT_HIT = 30;
+    const PARTICLE_COUNT_WIN = 240;
+
+    const COL = {
+      cyan: '#00f0ff',
+      pink: '#ff0066',
+      red: '#ff0044',
+      green: '#00ff88',
+      purple: '#7b2fff',
+      amber: '#ffaa00',
+      white: '#ffffff',
+      laserCore: '#ff2244',
+      laserGlow: 'rgba(255, 34, 68, 0.6)',
+      bodyRed: '#ff4466',
+      bodyGreen: '#00ff88',
+      greenGlow: 'rgba(0, 255, 136, 0.6)',
+      redGlow: 'rgba(255, 0, 68, 0.6)',
+      coreGreen: '#88ffbb',
+    };
+
+    const COLOR_PALETTES = {
+      green:  { primary: '#00ff88', accent: '#00f0ff', body: '#00ff88', glow: 'rgba(0,255,136,0.6)',   core: '#88ffbb', rgb: [0, 255, 136] },
+      blue:   { primary: '#4488ff', accent: '#66ccff', body: '#4488ff', glow: 'rgba(68,136,255,0.6)',  core: '#99bbff', rgb: [68, 136, 255] },
+      yellow: { primary: '#ffcc00', accent: '#ffee44', body: '#ffcc00', glow: 'rgba(255,204,0,0.6)',   core: '#ffee88', rgb: [255, 204, 0] },
+    };
+
+    function applyColorPalette(color) {
+      const p = COLOR_PALETTES[color] || COLOR_PALETTES.green;
+      COL.green = p.primary;
+      COL.cyan = p.accent;
+      COL.bodyGreen = p.body;
+      COL.greenGlow = p.glow;
+      COL.coreGreen = p.core;
+    }
+
+    // ===========================
+    // PERFORMANCE TIER SYSTEM
+    // ===========================
+    function detectPerfTier() {
+      const isTouchDevice = navigator.maxTouchPoints > 0;
+      const screenW = Math.min(window.screen.width, window.screen.height);
+      const isSmallScreen = screenW <= 480;
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      const isMobile = (isSmallScreen && isTouchDevice) || isAndroid;
+      if (isMobile) return 'low';
+      return 'high';
+    }
+
+    const PERF_PRESETS = {
+      high: {
+        shadowScale: 1,
+        starCount: 60,
+        particleScale: 1,
+        maxParticles: 999,
+        tickMarks: 12,
+        showScanlines: true,
+        showGrid: true,
+        outerRings: true,
+        cornerBrackets: true,
+        bodyCorePass: true,
+        staticStars: false,
+        reducedBeam: false,
+        reducedEffects: false,
+        canvasScale: 1,
+        fpsLimit: 0,
+        simpleTurrets: false,
+        skipDangerGlow: false,
+        skipContainmentField: false,
+      },
+      low: {
+        shadowScale: 0,
+        starCount: 10,
+        particleScale: 0.1,
+        maxParticles: 15,
+        tickMarks: 0,
+        showScanlines: false,
+        showGrid: false,
+        outerRings: true,       // show all 3 turret rings (using simple draw)
+        cornerBrackets: false,
+        bodyCorePass: false,
+        staticStars: true,
+        reducedBeam: true,
+        reducedEffects: true,
+        canvasScale: 0.5,      // half-resolution canvas (250x250)
+        fpsLimit: 30,           // cap at 30fps
+        simpleTurrets: true,    // lightweight ring+dot per turret
+        skipDangerGlow: true,   // skip per-frame gradient
+        skipContainmentField: true, // skip containment rings entirely
+      },
+    };
+
+    let perfTier = localStorage.getItem('laserman_perfTier') || detectPerfTier();
+    // Migrate old 'medium' tier to 'high'
+    if (!PERF_PRESETS[perfTier]) perfTier = 'high';
+    let PERF = { ...PERF_PRESETS[perfTier] };
+
+    function applyPerfTier(tier) {
+      perfTier = tier;
+      PERF = { ...PERF_PRESETS[tier] };
+      localStorage.setItem('laserman_perfTier', tier);
+      // Toggle CSS overlays (scanlines now via .screen::before, grid via body background)
+      document.body.classList.toggle('perf-no-scanlines', !PERF.showScanlines);
+      document.body.classList.toggle('perf-no-grid', !PERF.showGrid);
+      // Apply canvas resolution scaling
+      applyCanvasScale();
+      // Reinitialize stars with new count
+      initStars();
+    }
+
+    function applyCanvasScale() {
+      const scale = PERF.canvasScale || 1;
+      canvas.width = CANVAS_SIZE * scale;
+      canvas.height = CANVAS_SIZE * scale;
+      if (scale !== 1) {
+        ctx.setTransform(scale, 0, 0, scale, 0, 0);
+      } else {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+      }
+      // Re-apply shadowBlur interceptor after canvas resize
+      Object.defineProperty(ctx, 'shadowBlur', {
+        set(v) { _sbDesc.set.call(this, v * PERF.shadowScale); },
+        get() { return _sbDesc.get.call(this); },
+        configurable: true,
+      });
+    }
+
+    // ===========================
+    // WORD LIST (Solo mode)
+    // ===========================
+    const WORDS = {
+      TECHNOLOGY: [
+        // Easy (3-5 letters)
+        'APP','BUG','CPU','DNS','GPU','HUB','KEY','LAN','LOG','NET','PIN','RAM','TAB','URL',
+        'WEB','WIFI','BYTE','CHAT','CHIP','CODE','DATA','DISK','FILE','HACK','ICON','JAVA',
+        'LINK','LOAD','LOOP','MODE','NODE','PAGE','PLUG','PORT','SAVE','SCAN','SITE','SYNC',
+        'TEXT','TYPE','USER','ZOOM','CLICK','CLOUD','CRASH','DEBUG','DRIVE','EMAIL','FIBER',
+        'FLASH','INBOX','INPUT','LASER','LINUX','MACRO','MODEM','MOUSE','PASTE','PIXEL',
+        'PRINT','PROXY','ROBOT','ROUTE','SETUP','SHARE','SHELL','SMART','STORE','THUMB',
+        'TOKEN','TOOLS','TRACK','TREND','UNITY','VIDEO','VIRUS',
+        // Medium
+        'ALGORITHM','CYBERSECURITY','ENCRYPTION','QUANTUM','HOLOGRAM','FIREWALL','BANDWIDTH',
+        'MALWARE','PROCESSOR','DATABASE','COMPILER','TERMINAL','PROTOCOL','DEBUGGER','FRAMEWORK',
+        'ETHERNET','BLUETOOTH','SATELLITE','ROBOTICS','SOFTWARE','FIRMWARE','MOTHERBOARD',
+        'OVERCLOCKED','HYPERLINK','DOWNLOAD','RENDERING','THUMBNAIL','VIRTUALIZE',
+        'INTERFACE','MAINFRAME','HARDWARE','WIRELESS','BROADBAND','STREAMING','GIGABYTE',
+        'MEGAPIXEL','TOUCHSCREEN','MICROCHIP','RANSOMWARE','PHISHING','CRYPTOGRAPHY','BINARY',
+        'DARKWEB','BLOCKCHAIN','METADATA','KEYSTROKE','TRACKPAD','BIOMETRIC','PERMALINK',
+        'TRANSISTOR','CAPACITOR','SEMICONDUCTOR','AMPLIFIER','TERABYTE','PETABYTE',
+        'OVERWRITE','SUBROUTINE','RECURSION','ITERATION','PIPELINE','DEBUGGING','KERNEL',
+        'BOOTLOADER','PARTITION','DEFRAGMENT','BENCHMARK','LATENCY','THROTTLE','HANDSHAKE',
+        'LOCALHOST','CLOUDSTORE','DEEPFAKE','CHATBOT','NEURAL','PIXELATED','DASHBOARD',
+        'TELEMETRY','SYSADMIN','TIMESTAMP','CHECKSUM','HASHCODE','SANDBOXED','COMPILER',
+        'EMULATOR','ASSEMBLY','REGISTRY','SINGLETON','FRONTEND','BACKEND','FULLSTACK',
+        'CONTAINER','WEBHOOK','ENDPOINT','PAYLOAD','SCRAPING','CAPTCHA','TOKENIZE',
+        'OBFUSCATE','SERIALIZE','BITSTREAM',
+      ],
+      SPACE: [
+        // Easy
+        'SUN','SKY','STAR','MOON','MARS','VOID','DARK','GLOW','RING','DUST','FUEL','BEAM',
+        'CREW','DOCK','LIFT','LAND','WARP','LUNA','NOVA','COMET','EARTH','ORBIT','ROVER',
+        'SPACE','VENUS','FLARE','LIGHT','PLUTO','PROBE','RADAR','RADIO','SOLAR','TITAN',
+        'CRASH','ALIEN','ASTRO','LUNAR','WORLD','PHASE','BLAST',
+        // Medium+
+        'ASTEROID','NEBULA','SUPERNOVA','GALAXY','CONSTELLATION','METEOR','QUASAR','PULSAR',
+        'ECLIPSE','COSMOS','GRAVITY','VOYAGER','MERCURY','NEPTUNE','JUPITER','SATURN',
+        'PHOTON','NEUTRON','PLASMA','WORMHOLE','STARLIGHT','MOONRISE','SOLSTICE',
+        'EQUINOX','LIGHTYEAR','TELESCOPE','ASTRONAUT','MAGNETIC','RADIATION','EXOPLANET',
+        'BLACKHOLE','SPACETIME','INTERSTELLAR','STARDUST','CELESTIAL','TWILIGHT','ZENITH',
+        'APOGEE','CRATER','CAPSULE','LAUNCHPAD','PAYLOAD','DOCKING','STELLAR','GALACTIC',
+        'TERRAFORM','INFRARED','SPECTRUM',
+        'PERIHELION','MAGNETAR','STARGAZER','COSMOLOGY','AEROSPACE','PROPULSION','THRUSTER',
+        'PERIGEE','SIDEREAL','RETROGRADE','PARALLAX','REDSHIFT','BLUESHIFT','CHROMATIC',
+        'SUNSPOT','PROMINENCE','IONOSPHERE','MESOSPHERE','STRATOSPHERE','THERMOSPHERE',
+        'SATELLITE','SPACESUIT','AIRLOCK','RENDEZVOUS','FLYWHEEL','GYROSCOPE','ASTROLABE',
+        'SOLARWIND','DARKSIDE','MOONWALK','STARSHIP','SPACEPORT','COSMONAUT','LIFTOFF',
+        'COUNTDOWN','REENTRY','ABLATION','HEATSHIELD','RINGWORLD',
+        'FIRMAMENT','ASTERISM','DEEPSPACE','ORBITER',
+        'STARFIELD','MOONBEAM','SUNBURST',
+      ],
+      SCIENCE: [
+        // Easy
+        'AIR','GAS','ICE','ION','LAB','MIX','OHM','PH','RAY','WAX','ACID','ATOM','BASE',
+        'BOND','BURN','CELL','CLAY','CORE','DOSE','DROP','FERN','FLOW','FOAM','FUEL','GENE',
+        'GERM','GLOW','GOLD','HEAT','IRON','LEAD','LENS','LIME','LUNG','MASS','MELT','MOLD',
+        'OOZE','SALT','SEED','SKIN','STEM','TEST','TUBE','VENT','VOLT','WAVE','WIRE','ZINC',
+        'BRAIN','BLAST','BLOOD','CHAOS','CLONE','CORAL','DECAY','EARTH','FIELD','FLAME',
+        'FLUID','FORCE','FROST','FUNGI','LASER','LIVER','MAGMA','METAL','NERVE','ORGAN',
+        'OXIDE','OZONE','PHASE','PLANT','POWER','PULSE','SCALE','SOLID','SOUND','SPARK',
+        'SPEED','SPORE','STEAM','STEEL','STONE','SWAMP','TOXIN','VAPOR',
+        // Medium+
+        'MOLECULE','VELOCITY','CATALYST','ELECTRON','ISOTOPE','SPECTRUM','NUCLEUS','ELEMENT',
+        'VOLTAGE','CIRCUIT','FUSION','ENTROPY','PRISM','GENOME','ENZYME','MITOSIS','OSMOSIS',
+        'THERMAL','KINETIC','REACTOR','POLYMER','COMPOUND','BACTERIA','FRACTAL','MAGNETIC',
+        'PARTICLE','WAVELENGTH','FREQUENCY','COVALENT','TURBINE','MOMENTUM','CENTRIFUGE',
+        'SYRINGE','MICROSCOPE','SPECIMEN','CHEMICAL','INERTIA','DENSITY','SOLVENT','CHLORINE',
+        'HYDROGEN','NITROGEN','TITANIUM','SILICON','CARBON','ATOMIC','FORMULA','CRYSTAL',
+        'DIAMOND','GRAPHENE',
+        'NEUTRON','POSITRON','ANTIMATTER','SYNAPSE','CHROMOSOME','RIBOSOME','CYTOPLASM',
+        'MEMBRANE','ORGANISM','EVOLUTION','MUTATION','HEREDITY','DOMINANT','RECESSIVE',
+        'SYMBIOSIS','PHOTOSYNTHESIS','CHLOROPHYLL','ECOSYSTEM','BIOSPHERE','TAXONOMY',
+        'PERIODIC','ALKALINE','CORROSION','OXIDATION','REDUCTION','ELECTRODE','CATHODE',
+        'FILAMENT','SUPERCONDUCTOR','AMPLITUDE','RESONANCE','DIFFRACTION','REFRACTION',
+        'DISPERSION','VISCOSITY','BUOYANCY','CONVECTION','CONDUCTION','RADIATION','CAPACITOR',
+        'CALIBRATE','HYPOTHESIS','EMPIRICAL','ANOMALY','SYNTHESIS','DISTILLATION','TITRATION',
+        'CENTRIPETAL','COMBUSTION','SUBLIMATION',
+      ],
+      GAMING: [
+        // Easy
+        'AIM','BOT','DPS','FPS','GUN','HIT','HP','MAP','MOB','MOD','NPC','PVP','RNG','RPG',
+        'RUN','WIN','XP','AMMO','ARMS','BASH','BOMB','BOSS','BUFF','CAMP','CLAN','COOP',
+        'DASH','DEMO','DROP','DUEL','FARM','FLAG','FRAG','FURY','GATE','GEAR','GRID','GRIND',
+        'HEAL','HERO','HUNT','ITEM','JUMP','KILL','KING','LAVA','LEVEL','LIFE','LOOT','MAGE',
+        'MINE','MOVE','ORCS','PICK','PLAY','PUSH','RAGE','RAID','RANK','RARE','RUSH','RUNE',
+        'SKIN','SLOT','SPAM','TANK','TEAM','TRAP','TURN','UNIT','WALL','WAND','ZONE',
+        'ARMOR','ARENA','BLADE','BLOCK','BONUS','BUILD','CHAIN','CHASE','CHEST','CLASS',
+        'COMBO','CRAFT','CRATE','DODGE','DWARF','ELITE','ENEMY','EVENT','FIGHT','FINAL',
+        'FLAME','FORGE','GHOST','GIANT','GUILD','LANCE','MATCH','MELEE','MOUNT','NINJA',
+        'PARTY','PATCH','QUEST','ROUND','ROGUE','SCORE','SIEGE','SKILL','SLASH','SPAWN',
+        'SPELL','SQUAD','STAFF','STAGE','STORM','SWORD','THIEF','TITAN','TOWER','TRIAL',
+        'TROLL','VAULT','WAGER',
+        // Medium+
+        'DUNGEON','RESPAWN','ARTIFACT','CHECKPOINT','STRATEGY','POWERUP','MULTIPLAYER',
+        'CRAFTING','STEALTH','CONSOLE','HITPOINT','SHIELD','RELOAD','UPGRADE','MISSION',
+        'WARZONE','BATTLE','LOOTBOX','PRESTIGE','SURVIVAL','HEADSHOT','COOLDOWN','GRENADE',
+        'INVENTORY','SIDEQUEST','CAMPAIGN','SANDBOX','ROGUELIKE','FRAMERATE','JOYSTICK',
+        'CROSSHAIR','KILLSTREAK','WAYPOINT','GARRISON','LOADOUT','BACKPACK','CUTSCENE',
+        'STAMINA','ULTIMATE','RAGDOLL','TUTORIAL','LEADERBOARD','MINIBOSS','SPELLCAST',
+        'TEAMMATE','DEATHMATCH','SNIPER','FLANKING','GRAPPLE','RESPAWNING',
+        'SORCERER','PALADIN','BERSERKER','ASSASSIN','BARBARIAN','WARLORD','CHAMPION',
+        'SUMMONER','NECROMANCER','ENCHANTMENT','SPELLBOOK','ALCHEMY','POTION','TALISMAN',
+        'BOSSRAID','QUESTLINE','HARDCORE','PERMADEATH','NIGHTFALL','BARRICADE',
+        'METAGAME','SPEEDRUN','GLITCHLESS','FIRSTBLOOD','RAMPAGE','DOMINATION',
+        'SKIRMISH','DEMOLITION','OVERTIME','SCOREBOARD','MERCENARY','VANGUARD',
+        'WARPZONE','TELEPORTER','MANAPOOL','DEBUFF','OVERSHIELD','AIRSTRIKE','DROPSHIP',
+        'OUTFLANK','SABOTEUR','COMMANDER','ARMAMENT','BATTALION','PLATOON','WARBAND',
+        'STAGGERED','RIPOSTE','PARRYING',
+      ],
+      CINEMA: [
+        // Easy
+        'ACT','CUT','DUB','FAN','GIG','HIT','SET','ACTION','ACTOR','AWARD','CAMEO',
+        'CHASE','CRANE','CROWD','DEBUT','DRAMA','DREAM','EXTRA','FABLE','FAIRY','FARCE',
+        'FEAST','GENRE','HEIST','INDIE','MOVIE','OSCAR','PILOT','PITCH','PROPS','RECAP',
+        'SCENE','SCORE','SHORT','SHOOT','STUNT','TAKES','THEME','TWIST','USHER','VOICE',
+        'BRIEF','CABLE','FOCUS','FRAME','LIGHT','NOVEL','PANEL','POWER','PRINT','RADIO',
+        'SHOCK','SIGHT','SOUND','STAGE','STORY','STYLE','SUPER','TEASE','TEMPO','TITLE',
+        'TRAGIC','TROPE','VIDEO',
+        // Medium+
+        'DIRECTOR','MONTAGE','THRILLER','DYSTOPIA','ANDROID','CYBORG','MATRIX','SEQUEL',
+        'VILLAIN','PHANTOM','ECLIPSE','GENESIS','VORTEX','PARADOX','MIRAGE','ENIGMA',
+        'REQUIEM','HORIZON','NEMESIS','INFERNO','BLOCKBUSTER','PREMIERE','SCREENPLAY',
+        'STUNTWORK','PLOTTWIST','SUSPENSE','CLIMAX','PROLOGUE','EPILOGUE','CLIFFHANGER',
+        'FLASHBACK','DIALOGUE','NARRATOR','CLOSEUP','PANORAMA','SILHOUETTE','SPOTLIGHT',
+        'TRACKING','BACKSTORY','ANTIHERO','ENSEMBLE','REBOOT','SPINOFF','VOICEOVER',
+        'COMPOSER','FRANCHISE','PREQUEL','TIMELAPSE','JUMPCUT','DISSOLVE',
+        'PRODUCER','ANIMATOR','STORYBOARD','CINEMATICS','WIDESCREEN','RENDERING','DUBBING',
+        'SUBTITLE','SURROUND','DOLBY','ACOUSTIC','SLAPSTICK','SATIRICAL','MELODRAMA',
+        'SUSPICION','INTRIGUE','ALIBI','AUTOPSY','FORENSIC','CROSSOVER',
+        'UNDERBOSS','SYNDICATE','VIGILANTE','MERCENARY','FUGITIVE','SABOTEUR','OPERATIVE',
+        'DECEPTION','ESPIONAGE','INFILTRATE','SHOWDOWN','STANDOFF','SPECTACLE',
+        'CRESCENDO','OVERTURE','INTERLUDE','SOLILOQUY','MONOLOGUE','SCENARIO','TREATMENT',
+        'GREENSCREEN','POSTMORTEM','MOCKUMENTARY','BIOPIC','DOCUDRAMA','WHODUNIT','HEISTFILM',
+        'TECHNOTHRILLER','MINISERIES','SHOWRUNNER',
+      ],
+      ADVENTURE: [
+        // Easy
+        'AXE','BAY','BOW','DIG','FOG','GEM','HUT','ICE','JAR','KEY','MAP','OAR','PIT','RUN',
+        'SEA','ARCH','BEAR','BOAT','CAMP','CAPE','CAVE','CREW','DEER','DIRT','DUNE','EDGE',
+        'FIRE','FLAG','FORD','FORT','GATE','GOLD','GULF','HAWK','HELM','HIDE','HILL','HUNT',
+        'ISLE','JADE','KEEP','LAKE','LORE','MASK','MAST','MAZE','MIST','MOAT','OATH','PATH',
+        'PEAK','RAFT','RAID','REEF','RIDE','RISK','ROCK','ROPE','RUIN','SAIL','SAND','SIGN',
+        'SNOW','TALE','TIDE','TOMB','TREK','VINE','WILD','WOLF','BLADE','BLAZE','CANOE',
+        'CHASE','CLIFF','COAST','CREST','CROWN','DENSE','DREAM','EAGLE','FEAST','FLAME',
+        'FLEET','FORGE','FROST','GORGE','GROVE','GUIDE','HAVEN','HORSE','JEWEL','MARSH',
+        'OCEAN','QUEST','RIDGE','RIVER','SCOUT','SHORE','SIEGE','SPEAR','STONE','STORM',
+        'SWAMP','TORCH','TOWER','TRAIL','TROVE','VALOR',
+        // Medium+
+        'COMPASS','TREASURE','PIRATE','SHIPWRECK','VOLCANO','AVALANCHE','BLIZZARD',
+        'EXPEDITION','FORTRESS','LABYRINTH','CATAPULT','CROSSBOW','HORSEBACK','AMBUSH',
+        'CAMPFIRE','LANTERN','SMUGGLER','BANDIT','OUTPOST','CARAVAN','QUICKSAND','WATERFALL',
+        'CAVERN','GLACIER','MONUMENT','TEMPLE','PYRAMID','OBELISK','DRAWBRIDGE','DAGGER',
+        'MUSKET','SEXTANT','FLAGSHIP','MUTINY','PLUNDER','MARAUDER','BOUNTY',
+        'FUGITIVE','VAGABOND','NOMAD','SENTINEL','GUARDIAN','OUTLAW','WANDERER','PHANTOM',
+        'CORSAIR','BUCCANEER','SABOTAGE','MACHETE',
+        'TRAILBLAZER','PATHFINDER','WAYFINDER','HARBINGER','LONGITUDE','LATITUDE',
+        'CARTOGRAPH','EXPLORER','CONQUEROR','COLONNADE','STRONGHOLD','BATTLEMENT','RAMPART',
+        'DUNGEON','CATACOMBS','UNDERTOW','MAELSTROM','WHIRLWIND','SANDSTORM','TYPHOON',
+        'ANCHORAGE','STOWAWAY','DECKHAND','FIGUREHEAD','BARNACLE','BOWSPRIT',
+        'GALLEON','SCHOONER','BRIGANTINE','PRIVATEER','FREEBOOTER','SWASHBUCKLER','CUTLASS',
+        'BROADSWORD','LONGBOW','HALBERD','GAUNTLET','CHAINMAIL','TREBUCHET','PORTCULLIS',
+        'STOCKADE','GARRISON','PALISADE','BARRICADE','ESCARPMENT',
+        'TORCHLIGHT','STALWART',
+      ],
+      NATURE: [
+        // Easy
+        'AIR','BAT','BEE','BUD','DAM','DEW','EEL','ELK','ELM','FIG','FIN','FIR','FLY','FOG',
+        'FOX','HAY','HEN','ICE','IVY','JAY','LOG','MUD','OAK','OWL','PEA','PIG','PIN','POD',
+        'RAM','RAT','RAY','RIB','ROD','SAP','SKY','SUN','TAN','YAM','YEW',
+        'BARK','BEAR','BIRD','BLOOM','BONE','BULL','BUSH','CALM','CLAY','CLAW','COLT','CONE',
+        'CRAB','CROW','DAWN','DEER','DOVE','DROP','DUCK','DUSK','DUST','FAWN','FISH','FROG',
+        'GALE','GOAT','GUST','HAIL','HARE','HAWK','HAZE','HERB','HIVE','JADE','KELP','LARK',
+        'LEAF','LILY','LION','MIST','MOTH','MOSS','NEST','PEAR','PELT','PINE','POND','RAIN',
+        'REED','ROOT','ROSE','SAND','SEAL','SLUG','SOIL','SWAN','THORN','TIDE','TOAD','TREE',
+        'TWIG','VINE','WASP','WAVE','WEED','WIND','WING','WORM',
+        'ACORN','BEACH','BIRCH','BLOOM','BLUFF','BROOK','BRIAR','CEDAR','CLIFF','CLOUD',
+        'CREEK','DELTA','EAGLE','FERN','FIELD','FLOOD','FLORA','FROST','GOOSE','GRASS',
+        'GROVE','HERON','HONEY','MARSH','MAPLE','OCEAN','OTTER','PEACH','PETAL','PLUME',
+        'RIDGE','RIVER','ROBIN','SHORE','SLEET','SNAIL','SNAKE','SPINE','STONE','STORK',
+        'SWAMP','TROUT','TULIP','WHALE',
+        // Medium+
+        'THUNDER','LIGHTNING','HURRICANE','TORNADO','MONSOON','TSUNAMI','WILDFIRE','DROUGHT',
+        'EROSION','TUNDRA','SAVANNA','MARSHLAND','RAINFOREST','EVERGREEN','REDWOOD','BAMBOO',
+        'MANGROVE','CORAL','PLANKTON','FJORD','CANYON','PLATEAU','GEYSER','STALACTITE',
+        'LIMESTONE','GRANITE','OBSIDIAN','SANDSTONE','MINERAL','QUARTZ','EMERALD','SAPPHIRE',
+        'AMETHYST','TOPAZ','OPAL','WHIRLPOOL','UNDERTOW','RIPTIDE','UPSTREAM','TRIBUTARY',
+        'HORIZON','ALTITUDE','SUMMIT','RIDGELINE','FOOTHILLS','MEADOW','THISTLES','POLLEN',
+        'BLOSSOM','BRAMBLES',
+        'SEQUOIA','CYPRESS','WILLOW','MAGNOLIA','JACARANDA','SYCAMORE','BIRCHWOOD','HEMLOCK',
+        'JUNIPER','MESQUITE','CHAPARRAL','SUCCULENT','CACTUS','LICHEN','MUSHROOM','TRUFFLE',
+        'FIDDLEHEAD','DRIFTWOOD','PETRIFIED','VOLCANIC','GEOTHERMAL','PERMAFROST','AVALANCHE',
+        'LANDSLIDE','MUDSLIDE','ROCKFALL','SINKHOLE','FUMAROLE','CALDERA','MAGMA',
+        'FELDSPAR','TRAVERTINE','STALAGMITE','GROTTO','CENOTE','AQUIFER',
+        'WATERSHED','ESTUARY','ARCHIPELAGO','PENINSULA','ISTHMUS','LAGOON',
+        'TIDELAND','SEAGRASS','BARNACLE','ANEMONE','STARFISH','SEAHORSE',
+        'JELLYFISH','NAUTILUS','PELICAN','ALBATROSS','CONDOR',
+      ],
+    };
+    const CATEGORIES = Object.keys(WORDS);
+
+    // ===========================
+    // GAME STATE
+    // ===========================
+    let gameState = {
+      mode: 'solo', // 'solo' | 'multi'
+      word: '',
+      category: '',
+      guessed: new Set(),
+      wrongCount: 0,
+      gameOver: false,
+      won: false,
+    };
+
+    // ===========================
+    // ANIMATION STATE
+    // ===========================
+    let particles = [];
+    let bgStars = [];
+    let laserAnim = null;
+    let correctRevealAnim = null; // { time, duration, letter }
+    let fieldPulse = 0;
+    let fieldRotation = 0;
+
+    // Body part states: 'green' or 'red' (populated by startGame)
+    let bodyPartStates = [];
+    // Turret states: 'green', 'firing', 'red' (populated by startGame)
+    let turretStates = [];
+    // Shot sequence: {turret, part} pairs mapping closest turrets to body parts
+    // Turret positions (30deg rotation): 0=upper-right, 1=right, 2=lower-right, 3=lower-left, 4=left, 5=upper-left
+    // Body parts: 0=head, 1=torso, 2=left-arm, 3=right-arm, 4=left-leg, 5=right-leg
+    let shotOrder = [];
+    let hairFromRight = false; // true = turret on right hits hair, animate right-to-left
+
+    function shuffleArray(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    }
+
+    function generateShotOrder() {
+      const count = getMaxWrong();
+
+      // Turret mappings per character (body part index → turret index)
+      // After rotation: Laserman 30° CW, Laserwoman 22.5° CW, Lasercat 0°
+      let partToTurret;
+
+      if (count === 6) {
+        // Laserman (6, 30°): 0=upper-right, 1=right, 2=lower-right, 3=lower-left, 4=left, 5=upper-left
+        const headTurret = Math.random() < 0.5 ? 0 : 5;
+        const torsoTurret = headTurret === 0 ? 5 : 0;
+        partToTurret = [headTurret, torsoTurret, 4, 1, 3, 2];
+      } else if (count === 8) {
+        // Laserwoman (8, 22.5°): 0=top-right, 1=right, 2=lower-right, 3=lower, 4=lower-left, 5=left, 6=upper-left, 7=top-left-ish
+        // Randomly assign turrets 0(top-right) and 6(upper-left) to hair(6) and flower(7)
+        hairFromRight = Math.random() < 0.5;
+        const hairTurret = hairFromRight ? 0 : 6;
+        const flowerTurret = hairFromRight ? 6 : 0;
+        // 7→head, remaining body turrets randomized between two variants
+        const draw = Math.random() < 0.5 ? 'a' : 'b';
+        if (draw === 'a') {
+          partToTurret = [7, 5, 4, 1, 3, 2, hairTurret, flowerTurret];
+        } else {
+          partToTurret = [7, 1, 5, 2, 4, 3, hairTurret, flowerTurret];
+        }
+      } else {
+        // Lasercat (9): fixed same-side mappings
+        partToTurret = [0, 5, 7, 2, 6, 3, 8, 1, 4];
+      }
+
+      let body;
+      if (count === 8) {
+        // Laserwoman: hair(6), flower(7), and 4 limbs(2-5) all in one shuffled bucket
+        body = [2, 3, 4, 5, 6, 7];
+        shuffleArray(body);
+      } else if (count === 9) {
+        // Lasercat: all 7 non-torso/head parts in one shuffled bucket
+        body = [2, 3, 4, 5, 6, 7, 8];
+        shuffleArray(body);
+      } else {
+        // Laserman: 4 limbs shuffled
+        body = [2, 3, 4, 5];
+        shuffleArray(body);
+      }
+
+      // Build order: body → torso → head (always last)
+      const order = body.map(part => ({ part, turret: partToTurret[part] }));
+      order.push({ part: 1, turret: partToTurret[1] }); // torso
+      order.push({ part: 0, turret: partToTurret[0] });  // head always last
+
+      return order;
+    }
+
+    // ===========================
+    // BODY PARTS DEFINITION
+    // ===========================
+    const CENTER_X = CANVAS_SIZE / 2;
+    const CENTER_Y = CANVAS_SIZE / 2;
+    const FIELD_CX = CENTER_X;
+    const FIELD_CY = CENTER_Y;
+    const FIELD_RADIUS = 170;
+
+    function getBodyParts() {
+      const hCx = CENTER_X, hCy = CENTER_Y - 65, hR = 28;
+      const base = [
+        { type: 'circle', cx: hCx, cy: hCy, r: hR },                                              // 0: head
+        { type: 'line', x1: CENTER_X, y1: CENTER_Y - 37, x2: CENTER_X, y2: CENTER_Y + 45 },       // 1: torso
+        { type: 'line', x1: CENTER_X - 50, y1: CENTER_Y + 25, x2: CENTER_X, y2: CENTER_Y - 20 },  // 2: left arm
+        { type: 'line', x1: CENTER_X + 50, y1: CENTER_Y + 25, x2: CENTER_X, y2: CENTER_Y - 20 },  // 3: right arm
+        { type: 'line', x1: CENTER_X - 45, y1: CENTER_Y + 105, x2: CENTER_X, y2: CENTER_Y + 45 }, // 4: left leg
+        { type: 'line', x1: CENTER_X + 45, y1: CENTER_Y + 105, x2: CENTER_X, y2: CENTER_Y + 45 }, // 5: right leg
+      ];
+      if (selectedCharacter === 'laserwoman') {
+        // Hair: solid filled trapezoid behind head, traced bottom-to-top
+        base.push(
+          { type: 'solidHair', // 6: solid trapezoid hair
+            cx: hCx,
+            topY: hCy - 27,     // crown of head
+            botY: hCy + 55,     // shoulder level
+            topHW: 15,           // half-width at top (narrow, hidden behind head)
+            botHW: 42,           // half-width at bottom (fans out past shoulders)
+            reverse: hairFromRight, // true = animate right-to-left
+            x1: hairFromRight ? hCx + 42 : hCx - 42, y1: hCy + 55, // laser target: outer bottom corner (side depends on turret)
+            x2: hCx, y2: hCy - 27 },    // trace end: top center
+          { type: 'flower', // 7: flower accessory in hair (top-left)
+            cx: hCx - 12, cy: hCy - 28,
+            r: 3.5,              // center radius
+            petalR: 5,           // petal radius
+            petals: 5,
+            x1: hCx - 12, y1: hCy - 28,  // laser target: flower center
+            x2: hCx - 12, y2: hCy - 28 },
+        );
+      } else if (selectedCharacter === 'lasercat') {
+        // Ears: x1=ear tip, x2=near-head base (outside-in trace)
+        // Tail: x1=tail tip, x2=body attachment (outside-in, lowered to clear arm)
+        base.push(
+          { type: 'ear',                                                                          // 6: left ear (triangle, no bottom)
+            tipX: hCx - 20, tipY: hCy - hR - 23,     // top point of ear
+            baseInX: hCx - 1, baseInY: hCy - hR,      // inner base (on circle, near top)
+            baseOutX: hCx - 17, baseOutY: hCy - 22,   // outer base (on circle, upper-left)
+            x1: hCx - 20, y1: hCy - hR - 23,         // laser target: ear tip
+            x2: hCx - 9, y2: hCy - 25 },             // trace end (midpoint of bases)
+          { type: 'ear',                                                                          // 7: right ear (triangle, no bottom)
+            tipX: hCx + 20, tipY: hCy - hR - 23,     // top point of ear
+            baseInX: hCx + 1, baseInY: hCy - hR,      // inner base (on circle, near top)
+            baseOutX: hCx + 17, baseOutY: hCy - 22,   // outer base (on circle, upper-right)
+            x1: hCx + 20, y1: hCy - hR - 23,         // laser target: ear tip
+            x2: hCx + 9, y2: hCy - 25 },             // trace end (midpoint of bases)
+          { type: 'bezier', x1: CENTER_X + 65, y1: CENTER_Y + 40,                                 // 8: tail (tip→hip, longer)
+            cpx: CENTER_X + 55, cpy: CENTER_Y + 55,
+            x2: CENTER_X, y2: CENTER_Y + 45 },
+        );
+      }
+      return base;
+    }
+
+    function getHairStrands(part) {
+      const n = part.strands || 7;
+      const strands = [];
+      for (let i = 0; i < n; i++) {
+        const t = (i + 0.5) / n;
+        const topX = (part.cx - part.topHW) + t * (part.topHW * 2);
+        const botX = (part.cx - part.botHW) + t * (part.botHW * 2);
+        strands.push({ topX, topY: part.topY, botX, botY: part.botY });
+      }
+      // Reverse strand order so animation goes right-to-left when turret is on right
+      if (part.reverse) strands.reverse();
+      return strands;
+    }
+
+    // ===========================
+    // TURRET POSITIONS (3 rings, at 12/2/4/6/8/10 o'clock)
+    // ===========================
+    const OUTER_RADIUS = FIELD_RADIUS + 25;
+    const OUTERMOST_RADIUS = FIELD_RADIUS + 50;
+
+    function makeTurretRing(radius) {
+      const count = getMaxWrong();
+      // Rotate turrets per character so bottom turret doesn't aim at crotch
+      const rotationDeg = count === 6 ? 30 : count === 8 ? 22.5 : 0;
+      const rotationRad = rotationDeg * Math.PI / 180;
+      const positions = [];
+      for (let i = 0; i < count; i++) {
+        const angle = (-Math.PI / 2) + rotationRad + (i / count) * Math.PI * 2;
+        positions.push({
+          x: FIELD_CX + Math.cos(angle) * radius,
+          y: FIELD_CY + Math.sin(angle) * radius,
+          angle: angle,
+        });
+      }
+      return positions;
+    }
+
+    function getTurretPositions() { return makeTurretRing(FIELD_RADIUS); }
+    function getOuterTurretPositions() { return makeTurretRing(OUTER_RADIUS); }
+    function getOutermostTurretPositions() { return makeTurretRing(OUTERMOST_RADIUS); }
+
+    // ===========================
+    // CANVAS SETUP
+    // ===========================
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Performance: intercept shadowBlur to scale/disable based on tier
+    const _sbDesc = Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype, 'shadowBlur');
+
+    // Apply initial canvas scale (sets width/height and transform)
+    applyCanvasScale();
+
+    // ===========================
+    // BACKGROUND STARS
+    // ===========================
+    function initStars() {
+      bgStars = [];
+      for (let i = 0; i < PERF.starCount; i++) {
+        bgStars.push({
+          x: Math.random() * CANVAS_SIZE,
+          y: Math.random() * CANVAS_SIZE,
+          size: Math.random() * 1.5 + 0.3,
+          speed: Math.random() * 0.15 + 0.02,
+          phase: Math.random() * Math.PI * 2,
+        });
+      }
+    }
+
+    // ===========================
+    // PARTICLE SYSTEM
+    // ===========================
+    function emitParticles(x, y, count, color, spread = 4, life = 60) {
+      count = Math.max(1, Math.ceil(count * PERF.particleScale));
+      // Hard cap: don't emit if already at max
+      const room = PERF.maxParticles - particles.length;
+      if (room <= 0) return;
+      count = Math.min(count, room);
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * spread + 0.5;
+        particles.push({
+          x, y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: Math.random() * life + life * 0.5,
+          maxLife: life,
+          color: color || COL.red,
+          size: Math.random() * 3 + 1,
+        });
+      }
+    }
+
+    function updateParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vx *= 0.97;
+        p.vy *= 0.97;
+        p.vy += 0.02;
+        p.life -= _dtScale;
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+    }
+
+    function drawParticles() {
+      if (particles.length === 0) return;
+      ctx.save();
+      ctx.shadowBlur = 8;
+      particles.forEach(p => {
+        const alpha = p.life / p.maxLife;
+        ctx.globalAlpha = alpha;
+        ctx.shadowColor = p.color;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.restore();
+    }
+
+    // ===========================
+    // DRAWING FUNCTIONS
+    // ===========================
+    function drawBackground(time) {
+      ctx.fillStyle = 'rgba(5, 5, 16, 1)';
+      ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+      if (PERF.staticStars) {
+        // LOW: single batched path for all stars
+        ctx.fillStyle = COL.cyan;
+        ctx.globalAlpha = 0.35;
+        ctx.beginPath();
+        bgStars.forEach(s => {
+          ctx.moveTo(s.x + s.size, s.y);
+          ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+        });
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      } else {
+        bgStars.forEach(s => {
+          s.phase += s.speed * 0.05;
+          const twinkle = 0.4 + 0.6 * Math.sin(s.phase + time * 0.001);
+          ctx.save();
+          ctx.globalAlpha = twinkle * 0.6;
+          ctx.fillStyle = COL.cyan;
+          ctx.shadowBlur = 4;
+          ctx.shadowColor = COL.cyan;
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        });
+      }
+    }
+
+    function drawContainmentField(time) {
+      fieldPulse = 0.7 + 0.3 * Math.sin(time * 0.002);
+      fieldRotation += 0.003;
+
+      // LOW: skip containment field entirely
+      if (PERF.skipContainmentField) {
+        // Still need danger glow? Skip that too on LOW
+        return;
+      }
+
+      // Outer ring
+      ctx.save();
+      ctx.strokeStyle = COL.cyan;
+      ctx.globalAlpha = 0.12 * fieldPulse;
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = COL.cyan;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(FIELD_CX, FIELD_CY, FIELD_RADIUS, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Inner ring
+      ctx.save();
+      ctx.strokeStyle = COL.cyan;
+      ctx.globalAlpha = 0.08 * fieldPulse;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(FIELD_CX, FIELD_CY, FIELD_RADIUS - 15, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Outer ring (second layer for outer turrets)
+      if (PERF.outerRings) {
+        ctx.save();
+        ctx.strokeStyle = COL.cyan;
+        ctx.globalAlpha = 0.10 * fieldPulse;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = COL.cyan;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(FIELD_CX, FIELD_CY, OUTER_RADIUS, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        // Outermost ring (third layer for largest turrets)
+        ctx.save();
+        ctx.strokeStyle = COL.cyan;
+        ctx.globalAlpha = 0.08 * fieldPulse;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = COL.cyan;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(FIELD_CX, FIELD_CY, OUTERMOST_RADIUS, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Rotating tick marks
+      if (PERF.tickMarks > 0) {
+        ctx.save();
+        ctx.translate(FIELD_CX, FIELD_CY);
+        ctx.rotate(fieldRotation);
+        ctx.strokeStyle = COL.cyan;
+        ctx.lineWidth = 2;
+        for (let i = 0; i < PERF.tickMarks; i++) {
+          const angle = (i / PERF.tickMarks) * Math.PI * 2;
+          ctx.globalAlpha = 0.15 + 0.1 * Math.sin(time * 0.003 + i);
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(angle) * (FIELD_RADIUS - 8), Math.sin(angle) * (FIELD_RADIUS - 8));
+          ctx.lineTo(Math.cos(angle) * (FIELD_RADIUS + 5), Math.sin(angle) * (FIELD_RADIUS + 5));
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // Corner brackets
+      if (PERF.cornerBrackets) {
+        const corners = [
+          { x: FIELD_CX - FIELD_RADIUS + 20, y: FIELD_CY - FIELD_RADIUS + 20, sx: 1, sy: 1 },
+          { x: FIELD_CX + FIELD_RADIUS - 20, y: FIELD_CY - FIELD_RADIUS + 20, sx: -1, sy: 1 },
+          { x: FIELD_CX - FIELD_RADIUS + 20, y: FIELD_CY + FIELD_RADIUS - 20, sx: 1, sy: -1 },
+          { x: FIELD_CX + FIELD_RADIUS - 20, y: FIELD_CY + FIELD_RADIUS - 20, sx: -1, sy: -1 },
+        ];
+        ctx.save();
+        ctx.strokeStyle = COL.cyan;
+        ctx.globalAlpha = 0.2 * fieldPulse;
+        ctx.lineWidth = 2;
+        corners.forEach(c => {
+          ctx.beginPath();
+          ctx.moveTo(c.x, c.y + c.sy * 20);
+          ctx.lineTo(c.x, c.y);
+          ctx.lineTo(c.x + c.sx * 20, c.y);
+          ctx.stroke();
+        });
+        ctx.restore();
+      }
+
+      // Danger glow
+      if (gameState.wrongCount > 0) {
+        const dangerLevel = gameState.wrongCount / getMaxWrong();
+        ctx.save();
+        ctx.globalAlpha = dangerLevel * 0.08;
+        const gradient = ctx.createRadialGradient(FIELD_CX, FIELD_CY, 0, FIELD_CX, FIELD_CY, FIELD_RADIUS);
+        gradient.addColorStop(0, COL.red);
+        gradient.addColorStop(1, 'transparent');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(FIELD_CX, FIELD_CY, FIELD_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // ===========================
+    // TURRETS
+    // ===========================
+    function drawTurretAt(x, y, state, time, idx, scale) {
+      const isGreen = state === 'green';
+      const isFiring = state === 'firing';
+      const color = isGreen ? COL.green : COL.red;
+      const pulse = 0.7 + 0.3 * Math.sin(time * 0.004 + idx * 1.2);
+
+      // LOW: 2 concentric circles (ring + core), no shadow/glow, no save/restore
+      if (PERF.simpleTurrets) {
+        const ringR = (isFiring ? 12 : 8) * scale;
+        const coreR = (isFiring ? 5 : 3.5) * scale;
+        // Outer ring (stroke only)
+        ctx.globalAlpha = isFiring ? 0.6 : 0.25;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5 * scale;
+        ctx.beginPath();
+        ctx.arc(x, y, ringR, 0, Math.PI * 2);
+        ctx.stroke();
+        // Core dot (fill)
+        ctx.globalAlpha = isFiring ? 1 : 0.7;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, coreR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        return;
+      }
+
+      const ringR = (isFiring ? 14 : 10) * scale;
+      const coreR = (isFiring ? 6 : 4.5) * scale;
+      const centerR = (isFiring ? 3 : 2) * scale;
+
+      // Outer glow ring
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = (isFiring ? 0.6 : 0.25) * pulse;
+      ctx.shadowBlur = (isFiring ? 30 : 15) * scale;
+      ctx.shadowColor = color;
+      ctx.lineWidth = 2 * scale;
+      ctx.beginPath();
+      ctx.arc(x, y, ringR, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Core dot
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.globalAlpha = isFiring ? 1 : 0.8 * pulse;
+      ctx.shadowBlur = (isFiring ? 25 : 12) * scale;
+      ctx.shadowColor = color;
+      ctx.beginPath();
+      ctx.arc(x, y, coreR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Inner bright center
+      ctx.save();
+      ctx.fillStyle = '#ffffff';
+      ctx.globalAlpha = (isFiring ? 0.9 : 0.5) * pulse;
+      ctx.beginPath();
+      ctx.arc(x, y, centerR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawTurrets(time) {
+      const inner = getTurretPositions();
+      const outer = getOuterTurretPositions();
+      const outermost = getOutermostTurretPositions();
+      // Skip turret being drawn by shake animation (fireUp phase handles its own draw)
+      const skipIdx = (laserAnim && laserAnim.phase === 'fireUp') ? laserAnim.turretIndex : -1;
+
+      // Dim turrets on game over (win or lose)
+      if (gameState.gameOver) { ctx.save(); ctx.globalAlpha = 0.25; }
+
+      // Draw outermost ring (3x) — outer edge at canvas border
+      if (PERF.outerRings) {
+        outermost.forEach((t, i) => {
+          if (i === skipIdx) return;
+          drawTurretAt(t.x, t.y, turretStates[i], time, i + 12, 3);
+        });
+
+        // Draw outer ring (2.5x)
+        outer.forEach((t, i) => {
+          if (i === skipIdx) return;
+          drawTurretAt(t.x, t.y, turretStates[i], time, i + 6, 2.5);
+        });
+      }
+
+      // Draw inner ring (1.5x)
+      inner.forEach((t, i) => {
+        if (i === skipIdx) return;
+        drawTurretAt(t.x, t.y, turretStates[i], time, i, 1.5);
+      });
+
+      if (gameState.gameOver) { ctx.restore(); }
+    }
+
+    // ===========================
+    // BODY DRAWING
+    // ===========================
+    function drawBodyPartShape(part, progress, style) {
+      ctx.save();
+      ctx.strokeStyle = style.color || COL.bodyGreen;
+      ctx.lineWidth = style.lineWidth || 4;
+      ctx.lineCap = 'round';
+      ctx.shadowBlur = style.shadowBlur || 15;
+      ctx.shadowColor = style.shadowColor || COL.greenGlow;
+      ctx.globalAlpha = style.alpha || 1;
+
+      if (part.type === 'circle') {
+        ctx.beginPath();
+        ctx.arc(part.cx, part.cy, part.r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+        ctx.stroke();
+        if (progress >= 1) {
+          ctx.fillStyle = style.eyeColor || COL.green;
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = style.eyeColor || COL.green;
+          if (selectedCharacter === 'lasercat') {
+            // Cat nose triangle
+            ctx.beginPath();
+            ctx.moveTo(part.cx, part.cy - 2);
+            ctx.lineTo(part.cx - 4, part.cy - 6);
+            ctx.lineTo(part.cx + 4, part.cy - 6);
+            ctx.closePath();
+            ctx.fill();
+            // Cat eyes (slightly larger)
+            ctx.beginPath();
+            ctx.arc(part.cx - 10, part.cy - 8, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(part.cx + 10, part.cy - 8, 3, 0, Math.PI * 2);
+            ctx.fill();
+            // Whiskers
+            ctx.strokeStyle = style.eyeColor || COL.green;
+            ctx.lineWidth = 1;
+            for (let w = -1; w <= 1; w++) {
+              ctx.beginPath();
+              ctx.moveTo(part.cx - 6, part.cy + 4 + w * 3);
+              ctx.lineTo(part.cx - 18, part.cy + 4 + w * 4);
+              ctx.stroke();
+              ctx.beginPath();
+              ctx.moveTo(part.cx + 6, part.cy + 4 + w * 3);
+              ctx.lineTo(part.cx + 18, part.cy + 4 + w * 4);
+              ctx.stroke();
+            }
+          } else {
+            // Human eyes
+            ctx.beginPath();
+            ctx.arc(part.cx - 9, part.cy - 7, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(part.cx + 9, part.cy - 7, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      } else if (part.type === 'line') {
+        const endX = part.x1 + (part.x2 - part.x1) * progress;
+        const endY = part.y1 + (part.y2 - part.y1) * progress;
+        ctx.beginPath();
+        ctx.moveTo(part.x1, part.y1);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+      } else if (part.type === 'ear') {
+        // Two lines from tip, traced simultaneously downward (no bottom leg)
+        const innerX = part.tipX + (part.baseInX - part.tipX) * progress;
+        const innerY = part.tipY + (part.baseInY - part.tipY) * progress;
+        const outerX = part.tipX + (part.baseOutX - part.tipX) * progress;
+        const outerY = part.tipY + (part.baseOutY - part.tipY) * progress;
+        ctx.beginPath();
+        ctx.moveTo(part.tipX, part.tipY);
+        ctx.lineTo(innerX, innerY);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(part.tipX, part.tipY);
+        ctx.lineTo(outerX, outerY);
+        ctx.stroke();
+      } else if (part.type === 'bezier') {
+        const t = progress;
+        const mt = 1 - t;
+        const cpx = part.x1 + (part.cpx - part.x1) * t;
+        const cpy = part.y1 + (part.cpy - part.y1) * t;
+        const endX = mt*mt*part.x1 + 2*mt*t*part.cpx + t*t*part.x2;
+        const endY = mt*mt*part.y1 + 2*mt*t*part.cpy + t*t*part.y2;
+        ctx.beginPath();
+        ctx.moveTo(part.x1, part.y1);
+        ctx.quadraticCurveTo(cpx, cpy, endX, endY);
+        ctx.stroke();
+      } else if (part.type === 'solidHair') {
+        // Solid filled trapezoid hair, revealed bottom-to-top with progress
+        // (laser hits bottom corner, red propagates upward)
+        const curY = part.botY - (part.botY - part.topY) * progress;
+        const curHW = part.botHW - (part.botHW - part.topHW) * progress;
+        const curLeft = part.cx - curHW;
+        const curRight = part.cx + curHW;
+        ctx.fillStyle = style.color || COL.bodyGreen;
+        if (style.shadowBlur) { ctx.shadowBlur = style.shadowBlur; ctx.shadowColor = style.shadowColor || ctx.fillStyle; }
+        ctx.globalAlpha = style.alpha || 1;
+        ctx.beginPath();
+        ctx.moveTo(part.cx - part.botHW, part.botY);
+        ctx.lineTo(part.cx + part.botHW, part.botY);
+        ctx.lineTo(curRight, curY);
+        ctx.lineTo(curLeft, curY);
+        ctx.closePath();
+        ctx.fill();
+      } else if (part.type === 'flower') {
+        const petalCount = part.petals || 5;
+        const visiblePetals = Math.ceil(petalCount * Math.min(1, progress * 1.4));
+        ctx.fillStyle = style.color || COL.bodyGreen;
+        for (let i = 0; i < visiblePetals; i++) {
+          const angle = (i / petalCount) * Math.PI * 2 - Math.PI / 2;
+          const px = part.cx + Math.cos(angle) * (part.r + part.petalR * 0.5);
+          const py = part.cy + Math.sin(angle) * (part.r + part.petalR * 0.5);
+          ctx.beginPath();
+          ctx.arc(px, py, part.petalR, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        // Center dot
+        if (progress > 0.5) {
+          const centerCol = style.eyeColor === COL.red ? '#ff8899' : '#ffffaa';
+          ctx.fillStyle = centerCol;
+          ctx.shadowColor = centerCol;
+          ctx.beginPath();
+          ctx.arc(part.cx, part.cy, part.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawAllBodyParts() {
+      const parts = getBodyParts();
+      function drawPart(part, idx) {
+        const isRed = bodyPartStates[idx] === 'red';
+        const mainColor = isRed ? COL.bodyRed : COL.bodyGreen;
+        const glowColor = isRed ? COL.redGlow : COL.greenGlow;
+        const coreColor = isRed ? '#ff8899' : COL.coreGreen;
+        const eyeColor = isRed ? COL.red : COL.green;
+
+        // Main glow
+        drawBodyPartShape(part, 1, {
+          color: mainColor,
+          lineWidth: 4,
+          shadowBlur: 18,
+          shadowColor: glowColor,
+          eyeColor: eyeColor,
+        });
+        // Bright core (skip on low perf for speed)
+        if (PERF.bodyCorePass) {
+          drawBodyPartShape(part, 1, {
+            color: coreColor,
+            lineWidth: 2,
+            shadowBlur: 8,
+            shadowColor: mainColor,
+            alpha: 0.7,
+            eyeColor: eyeColor,
+          });
+        }
+      }
+      // 1) SolidHair first (renders behind head, clipped to exclude head circle)
+      parts.forEach((part, idx) => {
+        if (part.type === 'solidHair') {
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+          ctx.arc(CENTER_X, CENTER_Y - 65, 30, 0, Math.PI * 2, true);
+          ctx.clip();
+          drawPart(part, idx);
+          ctx.restore();
+        }
+      });
+      // 2) Ears clipped behind head (so legs don't overlap the head circumference)
+      parts.forEach((part, idx) => {
+        if (part.type === 'ear') {
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+          ctx.arc(CENTER_X, CENTER_Y - 65, 30, 0, Math.PI * 2, true);
+          ctx.clip();
+          drawPart(part, idx);
+          ctx.restore();
+        }
+      });
+      // 3) Regular body parts (head, torso, limbs, tail, etc.)
+      parts.forEach((part, idx) => {
+        if (part.type !== 'solidHair' && part.type !== 'flower' && part.type !== 'ear') drawPart(part, idx);
+      });
+      // 3) Flower last (renders on top of head)
+      parts.forEach((part, idx) => {
+        if (part.type === 'flower') drawPart(part, idx);
+      });
+    }
+
+    // ===========================
+    // LASER ANIMATION
+    // ===========================
+    function lockKeyboard() {
+      document.getElementById('keyboard').classList.add('locked');
+      // Hide skip hint on touch+LOW (animations are fast enough)
+      const isTouch = navigator.maxTouchPoints > 0;
+      if (!(isTouch && PERF.reducedEffects)) {
+        document.getElementById('skip-hint').classList.add('visible');
+      }
+    }
+    function unlockKeyboard() {
+      // In online mode, guesser must wait for peer's animation to finish too
+      if (onlineWaitingForPeerAnim && gameState.mode === 'online') return;
+      document.getElementById('keyboard').classList.remove('locked');
+      document.getElementById('skip-hint').classList.remove('visible');
+    }
+
+    function fireLaserWithBlink(turretIdx, partIndex, shakeLevel, onComplete) {
+      lockKeyboard();
+
+      // LOW tier: skip blink/flash/fireUp entirely, go straight to beam
+      if (PERF.reducedEffects) {
+        turretStates[turretIdx] = 'firing';
+        laserAnim = {
+          phase: 'beam',
+          partIndex,
+          turretIndex: turretIdx,
+          shakeLevel: 0,
+          beamProgress: 0,
+          traceProgress: 0,
+          chargeTime: 0,
+          onComplete,
+        };
+        setupBeamFromBlink();
+        laserAnim.chargeTime = 0.5; // head start for faster beam on LOW
+        return;
+      }
+
+      // Final 3 shots (shakeLevel 1-3): skip blink, go straight to shake
+      if (shakeLevel > 0) {
+        turretStates[turretIdx] = 'firing';
+        laserAnim = {
+          phase: 'fireUp',
+          partIndex,
+          turretIndex: turretIdx,
+          shakeLevel: shakeLevel,
+          shakeTime: 0,
+          shakeProgress: 0,
+          greenToRed: 0,
+          beamProgress: 0,
+          traceProgress: 0,
+          chargeTime: 0,
+          onComplete,
+        };
+        return;
+      }
+
+      // Build blink sequence: cycle through green turrets, ending on target
+      const greenTurrets = turretStates
+        .map((s, i) => s === 'green' ? i : -1)
+        .filter(i => i >= 0);
+
+      const blinkSeq = [];
+      // Single cycle through green turrets (shakeLevel is always 0 here)
+      const cycleCount = 1;
+      for (let c = 0; c < cycleCount; c++) {
+        const shuffled = [...greenTurrets];
+        shuffleArray(shuffled);
+        blinkSeq.push(...shuffled);
+      }
+      // Ensure sequence ends on the target turret
+      while (blinkSeq.length > 0 && blinkSeq[blinkSeq.length - 1] === turretIdx) blinkSeq.pop();
+      blinkSeq.push(turretIdx);
+
+      laserAnim = {
+        phase: 'blink',
+        partIndex,
+        turretIndex: turretIdx,
+        shakeLevel: shakeLevel || 0,
+        blinkSequence: blinkSeq,
+        blinkStep: 0,
+        blinkTime: 0,
+        blinkHighlight: -1,
+        beamProgress: 0,
+        traceProgress: 0,
+        chargeTime: 0,
+        onComplete,
+      };
+    }
+
+    function setupBeamFromBlink() {
+      // Transition from blink/fireUp to beam — calculate target on body part
+      const parts = getBodyParts();
+      const part = parts[laserAnim.partIndex];
+      const turrets = getTurretPositions();
+      const turret = turrets[laserAnim.turretIndex];
+
+      turretStates[laserAnim.turretIndex] = 'firing';
+
+      let targetX, targetY;
+      if (part.type === 'circle') {
+        // Head: top turret (12 o'clock) fires straight down → top of head
+        targetX = part.cx;
+        targetY = part.cy - part.r;
+      } else if (laserAnim.partIndex === 1) {
+        // Torso: target the "heart" (arm attachment point)
+        targetX = CENTER_X;
+        targetY = CENTER_Y - 20;
+      } else if (part.type === 'bezier') {
+        // Bezier parts (e.g. cat tail): target the start point
+        targetX = part.x1;
+        targetY = part.y1;
+      } else {
+        // Limbs/hair/ears: target hand/foot/tip endpoint
+        targetX = part.x1;
+        targetY = part.y1;
+      }
+
+      laserAnim.phase = 'beam';
+      laserAnim.sourceX = turret.x;
+      laserAnim.sourceY = turret.y;
+      laserAnim.targetX = targetX;
+      laserAnim.targetY = targetY;
+      laserAnim.part = part;
+      laserAnim.chargeTime = 0;
+      laserAnim.beamProgress = 0;
+      laserAnim.traceProgress = 0;
+    }
+
+    function updateLaser() {
+      if (!laserAnim) return;
+
+      // Blink phase: rapidly cycle red highlight across green turrets
+      if (laserAnim.phase === 'blink') {
+        laserAnim.blinkTime += 17 * _dtScale;
+        const totalSteps = laserAnim.blinkSequence.length;
+        const step = laserAnim.blinkStep;
+        // Duration per step: starts fast (60ms), slows to 300ms at end
+        const progress = step / Math.max(1, totalSteps - 1);
+        const stepDuration = 30 + 120 * Math.pow(progress, 2); // 4x faster roulette
+
+        if (laserAnim.blinkTime >= stepDuration) {
+          laserAnim.blinkTime = 0;
+          laserAnim.blinkHighlight = laserAnim.blinkSequence[step];
+          laserAnim.blinkStep++;
+
+          if (laserAnim.blinkStep >= totalSteps) {
+            // Settled on target turret → flash red/green warning before firing
+            laserAnim.phase = 'flash';
+            laserAnim.flashTime = 0;
+            laserAnim.flashCount = 0;
+            laserAnim.flashTotal = 2; // 2 flashes (1 red, 1 green)
+          }
+        }
+        return;
+      }
+
+      // Flash phase (shots 1-3): red/green warning blinks on settled turret
+      if (laserAnim.phase === 'flash') {
+        laserAnim.flashTime += 17 * _dtScale;
+        const flashDuration = 60; // ms per flash (4x faster)
+        if (laserAnim.flashTime >= flashDuration) {
+          laserAnim.flashTime = 0;
+          laserAnim.flashCount++;
+          if (laserAnim.flashCount >= laserAnim.flashTotal) {
+            setupBeamFromBlink();
+          }
+        }
+        return;
+      }
+
+      // Fire-up phase (final 3 shots): turret shakes and transitions green→red
+      // shakeLevel: 1 = mild, 2 = vigorous, 3 = violent
+      if (laserAnim.phase === 'fireUp') {
+        laserAnim.shakeTime = (laserAnim.shakeTime || 0) + 0.017 * _dtScale;
+        const level = laserAnim.shakeLevel || 1;
+        const duration = (1.5 + 0.5 * level) / 4; // 0.5s (level 1), 0.625s (level 2), 0.75s (level 3)
+        const progress = Math.min(1, laserAnim.shakeTime / duration);
+        laserAnim.greenToRed = progress;
+        laserAnim.shakeProgress = progress;
+        if (progress >= 1) {
+          setupBeamFromBlink();
+        }
+        return;
+      }
+
+      if (laserAnim.phase === 'beam') {
+        const chargeSpeed = PERF.reducedEffects ? 0.12 : 0.034;
+        laserAnim.chargeTime += chargeSpeed * _dtScale;
+        if (laserAnim.chargeTime < 1) return;
+
+        const beamSpeed = PERF.reducedEffects ? 0.08 : 0.027;
+        laserAnim.beamProgress += beamSpeed * _dtScale;
+        if (laserAnim.beamProgress >= 1) {
+          laserAnim.phase = 'trace';
+          laserAnim.beamProgress = 1;
+          emitParticles(laserAnim.targetX, laserAnim.targetY, 15, COL.red, 3, 40);
+        }
+      } else if (laserAnim.phase === 'trace') {
+        const baseTraceSpeed = PERF.reducedEffects ? LASER_SPEED * 3 : LASER_SPEED;
+        const traceSpeed = laserAnim.part.type === 'solidHair' ? baseTraceSpeed * 1.25 : baseTraceSpeed;
+        laserAnim.traceProgress += traceSpeed * _dtScale;
+        const part = laserAnim.part;
+        if (Math.random() < 0.4) {
+          let px, py;
+          if (part.type === 'circle') {
+            const angle = -Math.PI / 2 + Math.PI * 2 * laserAnim.traceProgress;
+            px = part.cx + Math.cos(angle) * part.r;
+            py = part.cy + Math.sin(angle) * part.r;
+          } else if (part.type === 'bezier') {
+            const t = laserAnim.traceProgress;
+            px = (1-t)*(1-t)*part.x1 + 2*(1-t)*t*part.cpx + t*t*part.x2;
+            py = (1-t)*(1-t)*part.y1 + 2*(1-t)*t*part.cpy + t*t*part.y2;
+          } else if (part.type === 'solidHair') {
+            // Trace up from bottom (hit point) to top of hair
+            const tp = laserAnim.traceProgress;
+            const curHW = part.botHW - (part.botHW - part.topHW) * tp;
+            const side = part.reverse ? -1 : 1;
+            px = part.cx + side * curHW;
+            py = part.botY - (part.botY - part.topY) * tp;
+          } else if (part.type === 'ear') {
+            // Alternate particles between inner and outer leg
+            const tp = laserAnim.traceProgress;
+            if (Math.random() < 0.5) {
+              px = part.tipX + (part.baseOutX - part.tipX) * tp;
+              py = part.tipY + (part.baseOutY - part.tipY) * tp;
+            } else {
+              px = part.tipX + (part.baseInX - part.tipX) * tp;
+              py = part.tipY + (part.baseInY - part.tipY) * tp;
+            }
+          } else {
+            px = part.x1 + (part.x2 - part.x1) * laserAnim.traceProgress;
+            py = part.y1 + (part.y2 - part.y1) * laserAnim.traceProgress;
+          }
+          emitParticles(px, py, 2, COL.amber, 2, 25);
+        }
+
+        if (laserAnim.traceProgress >= 1) {
+          // Mark body part as red, turret as red
+          bodyPartStates[laserAnim.partIndex] = 'red';
+          turretStates[laserAnim.turretIndex] = 'red';
+          const endX = laserAnim.part.type === 'circle' ? laserAnim.part.cx : laserAnim.part.x2;
+          const endY = laserAnim.part.type === 'circle' ? laserAnim.part.cy : laserAnim.part.y2;
+          emitParticles(endX, endY, PARTICLE_COUNT_HIT, COL.red, 5, 50);
+          const cb = laserAnim.onComplete;
+          laserAnim = null;
+          unlockKeyboard();
+          if (cb) cb();
+        }
+      }
+    }
+
+    function drawLaser() {
+      if (!laserAnim) return;
+
+      // Blink phase: draw red flash on highlighted turret
+      if (laserAnim.phase === 'blink') {
+        const hl = laserAnim.blinkHighlight;
+        if (hl >= 0) {
+          const inner = getTurretPositions();
+          const rings = PERF.outerRings
+            ? [[inner[hl], 1], [getOuterTurretPositions()[hl], 1.8], [getOutermostTurretPositions()[hl], 2.5]]
+            : [[inner[hl], 1.5]];
+          rings.forEach(([t, scale]) => {
+            ctx.save();
+            ctx.fillStyle = COL.red;
+            ctx.globalAlpha = 0.5;
+            ctx.shadowBlur = 30 * scale;
+            ctx.shadowColor = COL.red;
+            ctx.beginPath();
+            ctx.arc(t.x, t.y, 14 * scale, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          });
+        }
+        return;
+      }
+
+      // Flash phase (shots 1-3): alternating red/green glow on settled turret
+      if (laserAnim.phase === 'flash') {
+        const idx = laserAnim.turretIndex;
+        const inner = getTurretPositions();
+        const isRed = laserAnim.flashCount % 2 === 0;
+        const color = isRed ? COL.red : COL.green;
+        const rings = PERF.outerRings
+          ? [[inner[idx], 1], [getOuterTurretPositions()[idx], 1.8], [getOutermostTurretPositions()[idx], 2.5]]
+          : [[inner[idx], 1.5]];
+        rings.forEach(([t, scale]) => {
+          ctx.save();
+          ctx.fillStyle = color;
+          ctx.globalAlpha = 0.7;
+          ctx.shadowBlur = 35 * scale;
+          ctx.shadowColor = color;
+          ctx.beginPath();
+          ctx.arc(t.x, t.y, 14 * scale, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        });
+        return;
+      }
+
+      // Fire-up phase (final 3 shots): turret shakes with green→red color transition
+      // shakeLevel: 1 = mild, 2 = vigorous, 3 = violent
+      if (laserAnim.phase === 'fireUp') {
+        const idx = laserAnim.turretIndex;
+        const inner = getTurretPositions();
+        const outer = getOuterTurretPositions();
+        const outermost = getOutermostTurretPositions();
+        const gtr = laserAnim.greenToRed || 0;
+        const progress = laserAnim.shakeProgress || 0;
+        const level = laserAnim.shakeLevel || 1;
+        const effectLevel = [0, 1, 2, 4][level] || level; // remap 3→4 for dramatic final shot
+
+        // Shake offset — escalating by effectLevel
+        const amp = 5 * effectLevel * (1 - progress * 0.6);
+        const freq = 40 + 10 * effectLevel;
+        const t = laserAnim.shakeTime || 0;
+        const sx = Math.sin(t * freq) * amp;
+        const sy = Math.cos(t * freq * 1.3) * amp * 0.7;
+
+        // Interpolate color: selected palette → red(255,0,68)
+        const pal = COLOR_PALETTES[selectedColor] || COLOR_PALETTES.green;
+        const r = Math.round(pal.rgb[0] + (255 - pal.rgb[0]) * gtr);
+        const g = Math.round(pal.rgb[1] * (1 - gtr));
+        const b = Math.round(pal.rgb[2] + (68 - pal.rgb[2]) * gtr);
+        const color = `rgb(${r},${g},${b})`;
+
+        // Draw shaking turret dots (overrides normal turret draw)
+        const fireRings = PERF.outerRings
+          ? [[inner[idx], 1.5], [outer[idx], 2.5], [outermost[idx], 3]]
+          : [[inner[idx], 1.5]];
+        fireRings.forEach(([pos, scale]) => {
+          const px = pos.x + sx * scale / 1.5;
+          const py = pos.y + sy * scale / 1.5;
+          // Outer glow ring
+          ctx.save();
+          ctx.strokeStyle = color;
+          ctx.globalAlpha = 0.6;
+          ctx.shadowBlur = 30 * scale;
+          ctx.shadowColor = color;
+          ctx.lineWidth = 2 * scale;
+          ctx.beginPath();
+          ctx.arc(px, py, 14 * scale, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+          // Core dot
+          ctx.save();
+          ctx.fillStyle = color;
+          ctx.globalAlpha = 1;
+          ctx.shadowBlur = 25 * scale;
+          ctx.shadowColor = color;
+          ctx.beginPath();
+          ctx.arc(px, py, 6 * scale, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+          // Inner bright center
+          ctx.save();
+          ctx.fillStyle = '#ffffff';
+          ctx.globalAlpha = 0.9;
+          ctx.beginPath();
+          ctx.arc(px, py, 3 * scale, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        });
+        return;
+      }
+
+      // Charge glow at turret
+      if (laserAnim.chargeTime < 1) {
+        ctx.save();
+        ctx.globalAlpha = laserAnim.chargeTime;
+        ctx.shadowBlur = 30;
+        ctx.shadowColor = COL.red;
+        ctx.fillStyle = COL.red;
+        ctx.beginPath();
+        ctx.arc(laserAnim.sourceX, laserAnim.sourceY, 5 + laserAnim.chargeTime * 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        return;
+      }
+
+      // Beam line
+      if (laserAnim.beamProgress > 0) {
+        const bx = laserAnim.sourceX + (laserAnim.targetX - laserAnim.sourceX) * laserAnim.beamProgress;
+        const by = laserAnim.sourceY + (laserAnim.targetY - laserAnim.sourceY) * laserAnim.beamProgress;
+
+        if (PERF.reducedBeam) {
+          // LOW: single-layer beam
+          ctx.save();
+          ctx.strokeStyle = COL.laserCore;
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(laserAnim.sourceX, laserAnim.sourceY);
+          ctx.lineTo(bx, by);
+          ctx.stroke();
+          ctx.restore();
+        } else {
+        // Outer glow
+        ctx.save();
+        ctx.strokeStyle = COL.laserGlow;
+        ctx.lineWidth = 8;
+        ctx.shadowBlur = 25;
+        ctx.shadowColor = COL.red;
+        ctx.globalAlpha = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(laserAnim.sourceX, laserAnim.sourceY);
+        ctx.lineTo(bx, by);
+        ctx.stroke();
+        ctx.restore();
+
+        // Core beam
+        ctx.save();
+        ctx.strokeStyle = COL.laserCore;
+        ctx.lineWidth = 3;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = COL.red;
+        ctx.beginPath();
+        ctx.moveTo(laserAnim.sourceX, laserAnim.sourceY);
+        ctx.lineTo(bx, by);
+        ctx.stroke();
+        ctx.restore();
+
+        // Bright center
+        ctx.save();
+        ctx.strokeStyle = '#ffaaaa';
+        ctx.lineWidth = 1;
+        ctx.shadowBlur = 5;
+        ctx.shadowColor = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(laserAnim.sourceX, laserAnim.sourceY);
+        ctx.lineTo(bx, by);
+        ctx.stroke();
+        ctx.restore();
+        } // end else (non-reduced beam)
+      }
+
+      // Tracing body part (draws the red "burn-in" over green)
+      if (laserAnim.phase === 'trace') {
+        // StringyHair/Ear: clip behind head so trace stays behind head circle
+        if (laserAnim.part.type === 'solidHair' || laserAnim.part.type === 'ear') {
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+          ctx.arc(CENTER_X, CENTER_Y - 65, 30, 0, Math.PI * 2, true);
+          ctx.clip();
+        }
+        drawBodyPartShape(laserAnim.part, laserAnim.traceProgress, {
+          color: '#ff6677',
+          lineWidth: 5,
+          shadowBlur: 25,
+          shadowColor: COL.red,
+          eyeColor: COL.red,
+        });
+        if (laserAnim.part.type === 'solidHair' || laserAnim.part.type === 'ear') {
+          ctx.restore();
+          // Redraw body parts that overlap with hair so they stay on top of the trace
+          const parts = getBodyParts();
+          [0, 1, 2, 3].forEach(idx => { // head, torso, left arm, right arm
+            const p = parts[idx];
+            const isRd = bodyPartStates[idx] === 'red';
+            const mc = isRd ? COL.bodyRed : COL.bodyGreen;
+            const gc = isRd ? COL.redGlow : COL.greenGlow;
+            const cc = isRd ? '#ff8899' : COL.coreGreen;
+            const ec = isRd ? COL.red : COL.green;
+            drawBodyPartShape(p, 1, { color: mc, lineWidth: 4, shadowBlur: 18, shadowColor: gc, eyeColor: ec });
+            drawBodyPartShape(p, 1, { color: cc, lineWidth: 2, shadowBlur: 8, shadowColor: mc, alpha: 0.7, eyeColor: ec });
+          });
+        }
+
+        // Bright tracing point
+        let tipX, tipY;
+        if (laserAnim.part.type === 'circle') {
+          const angle = -Math.PI / 2 + Math.PI * 2 * laserAnim.traceProgress;
+          tipX = laserAnim.part.cx + Math.cos(angle) * laserAnim.part.r;
+          tipY = laserAnim.part.cy + Math.sin(angle) * laserAnim.part.r;
+        } else if (laserAnim.part.type === 'bezier') {
+          const t = laserAnim.traceProgress;
+          tipX = (1-t)*(1-t)*laserAnim.part.x1 + 2*(1-t)*t*laserAnim.part.cpx + t*t*laserAnim.part.x2;
+          tipY = (1-t)*(1-t)*laserAnim.part.y1 + 2*(1-t)*t*laserAnim.part.cpy + t*t*laserAnim.part.y2;
+        } else if (laserAnim.part.type === 'solidHair') {
+          const tp = laserAnim.traceProgress;
+          const curHW = laserAnim.part.botHW - (laserAnim.part.botHW - laserAnim.part.topHW) * tp;
+          const side = laserAnim.part.reverse ? -1 : 1;
+          tipX = laserAnim.part.cx + side * curHW;
+          tipY = laserAnim.part.botY - (laserAnim.part.botY - laserAnim.part.topY) * tp;
+        } else if (laserAnim.part.type === 'ear') {
+          // Show bright dot on outer leg (more visible)
+          const tp = laserAnim.traceProgress;
+          tipX = laserAnim.part.tipX + (laserAnim.part.baseOutX - laserAnim.part.tipX) * tp;
+          tipY = laserAnim.part.tipY + (laserAnim.part.baseOutY - laserAnim.part.tipY) * tp;
+        } else {
+          tipX = laserAnim.part.x1 + (laserAnim.part.x2 - laserAnim.part.x1) * laserAnim.traceProgress;
+          tipY = laserAnim.part.y1 + (laserAnim.part.y2 - laserAnim.part.y1) * laserAnim.traceProgress;
+        }
+
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = COL.red;
+        ctx.beginPath();
+        ctx.arc(tipX, tipY, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // ===========================
+    // WIN / LOSE EFFECTS
+    // ===========================
+    let winEffect = null;
+    let loseEffect = null;
+    let smileyAnim = null;
+    let frownAnim = null;
+
+    function triggerWinEffect() {
+      winEffect = { time: 0, duration: PERF.reducedEffects ? 60 : 180 };
+      const colors = [COL.cyan, COL.green, COL.amber, COL.purple, '#ffffff'];
+      const burstTotal = PERF.reducedEffects ? 20 : PARTICLE_COUNT_WIN;
+      for (let i = 0; i < burstTotal; i++) {
+        emitParticles(CENTER_X, CENTER_Y, 1, colors[i % colors.length], 7, 90);
+      }
+      // Start smile animation on Laserman's head (he already has eyes!)
+      const headCY = CENTER_Y - 65;
+      smileyAnim = {
+        phase: 'delay',
+        time: 0,
+        smile: { cx: CENTER_X, cy: headCY - 2, r: 14,
+                 startDeg: 155, endDeg: 25 },
+        smileProgress: 0,
+      };
+    }
+
+    function getEyePositions() {
+      const hCx = CENTER_X, hCy = CENTER_Y - 65;
+      if (selectedCharacter === 'lasercat') {
+        return { left: { x: hCx - 10, y: hCy - 8, r: 3 }, right: { x: hCx + 10, y: hCy - 8, r: 3 } };
+      }
+      return { left: { x: hCx - 9, y: hCy - 7, r: 2.5 }, right: { x: hCx + 9, y: hCy - 7, r: 2.5 } };
+    }
+
+    function getFaceFeatures() {
+      const hCx = CENTER_X, hCy = CENTER_Y - 65;
+      const features = [];
+      if (selectedCharacter === 'lasercat') {
+        // Cat: eyes, nose, then each whisker
+        features.push({ type: 'eye', x: hCx - 10, y: hCy - 8, r: 3 });
+        features.push({ type: 'eye', x: hCx + 10, y: hCy - 8, r: 3 });
+        features.push({ type: 'nose', points: [
+          { x: hCx, y: hCy - 2 }, { x: hCx - 4, y: hCy - 6 }, { x: hCx + 4, y: hCy - 6 }
+        ]});
+        // Left whiskers (3), then right whiskers (3) — using updated positions
+        for (let w = -1; w <= 1; w++) {
+          features.push({ type: 'whisker',
+            x1: hCx - 6, y1: hCy + 4 + w * 3, x2: hCx - 18, y2: hCy + 4 + w * 4
+          });
+        }
+        for (let w = -1; w <= 1; w++) {
+          features.push({ type: 'whisker',
+            x1: hCx + 6, y1: hCy + 4 + w * 3, x2: hCx + 18, y2: hCy + 4 + w * 4
+          });
+        }
+      } else {
+        // Human (laserman/laserwoman): just left eye, right eye
+        features.push({ type: 'eye', x: hCx - 9, y: hCy - 7, r: 2.5 });
+        features.push({ type: 'eye', x: hCx + 9, y: hCy - 7, r: 2.5 });
+      }
+      return features;
+    }
+
+    function triggerLoseEffect() {
+      const loseDuration = PERF.reducedEffects ? 30 : 180;
+      loseEffect = { time: 0, duration: loseDuration };
+      document.getElementById('game-screen').classList.add('shake');
+      setTimeout(() => document.getElementById('game-screen').classList.remove('shake'), 500);
+      emitParticles(CENTER_X, CENTER_Y - 20, 50, COL.red, 6, 70);
+      emitParticles(CENTER_X, CENTER_Y + 20, 30, COL.amber, 5, 60);
+      const headCY = CENTER_Y - 65;
+      const faceFeatures = getFaceFeatures();
+      const eyeBlastTotal = PERF.reducedEffects
+        ? (selectedCharacter === 'lasercat' ? 30 : 10)
+        : (selectedCharacter === 'lasercat' ? 180 : 60);
+      frownAnim = {
+        phase: 'eyeBlast',
+        time: 0,
+        features: faceFeatures,
+        featureIndex: 0,
+        featureProgress: 0,
+        framesPerFeature: Math.max(4, Math.floor(eyeBlastTotal / faceFeatures.length)),
+        frown: { cx: CENTER_X, cy: headCY + 18, r: 14,
+                 startDeg: 205, endDeg: 335 },
+        frownProgress: 0,
+      };
+    }
+
+    function drawWinEffect(time) {
+      if (!winEffect) return;
+      winEffect.time += _dtScale;
+
+      const colors = [COL.cyan, COL.green, COL.amber, COL.purple, '#ffffff'];
+
+      // Fireworks bursts
+      const isLatePhase = winEffect.time > 120;
+      const burstInterval = PERF.reducedEffects ? 30 : (isLatePhase ? 6 : 15);
+      const burstCount = PERF.reducedEffects ? 3 : (isLatePhase ? 14 : 6);
+
+      if (Math.floor(winEffect.time / burstInterval) > Math.floor((winEffect.time - _dtScale) / burstInterval)) {
+        const bx = CENTER_X + (Math.random() - 0.5) * 280;
+        const by = CENTER_Y + (Math.random() - 0.5) * 280;
+        emitParticles(bx, by, burstCount, colors[Math.floor(Math.random() * colors.length)], 4, 50);
+      }
+
+      // Expanding rings
+      if (!PERF.reducedEffects) {
+        const ringCycle = (winEffect.time % 180) / 180;
+        for (let i = 0; i < 3; i++) {
+          const ringProgress = (ringCycle + i * 0.2) % 1;
+          ctx.save();
+          ctx.strokeStyle = COL.green;
+          ctx.globalAlpha = (1 - ringProgress) * 0.4;
+          ctx.lineWidth = 3;
+          ctx.shadowBlur = 15;
+          ctx.shadowColor = COL.green;
+          ctx.beginPath();
+          ctx.arc(CENTER_X, CENTER_Y, ringProgress * 200, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+      // No cleanup — fireworks continue indefinitely until startGame() resets
+    }
+
+    function drawLoseEffect(time) {
+      if (!loseEffect) return;
+      loseEffect.time += _dtScale;
+      const progress = loseEffect.time / loseEffect.duration;
+      if (progress < 0.3) {
+        ctx.save();
+        ctx.globalAlpha = (1 - progress / 0.3) * 0.3;
+        ctx.fillStyle = COL.red;
+        ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+        ctx.restore();
+      }
+      // Overload flicker on red parts (skip on LOW — very expensive)
+      if (!PERF.reducedEffects) {
+        const parts = getBodyParts();
+        const flickerAlpha = 0.5 + 0.5 * Math.sin(loseEffect.time * 0.5);
+        bodyPartStates.forEach((state, idx) => {
+          if (state === 'red') {
+            drawBodyPartShape(parts[idx], 1, {
+              color: '#ffffff',
+              lineWidth: 6,
+              shadowBlur: 30 + flickerAlpha * 20,
+              shadowColor: COL.red,
+              alpha: flickerAlpha * 0.5,
+              eyeColor: '#ffffff',
+            });
+          }
+        });
+      }
+      if (loseEffect.time >= loseEffect.duration) loseEffect = null;
+    }
+
+    // ===========================
+    // SMILEY FACE LASER ANIMATION
+    // ===========================
+    function updateSmileyAnim() {
+      if (!smileyAnim) return;
+      smileyAnim.time += _dtScale;
+
+      const delayFrames = 0; // no delay, start etching immediately
+      const smileFrames = PERF.reducedEffects ? 30 : 180;
+
+      if (smileyAnim.phase === 'delay' && smileyAnim.time >= delayFrames) {
+        smileyAnim.phase = 'smile';
+        smileyAnim.time = 0;
+      } else if (smileyAnim.phase === 'smile') {
+        smileyAnim.smileProgress = Math.min(1, smileyAnim.time / smileFrames);
+        if (smileyAnim.smileProgress >= 1) {
+          smileyAnim.phase = 'hold';
+        }
+      }
+    }
+
+    function drawGreenGlowCircle(cx, cy, r, progress) {
+      if (progress <= 0) return;
+      ctx.save();
+      ctx.strokeStyle = COL.green;
+      ctx.lineWidth = 3;
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = COL.green;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2 * progress);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawGreenGlowArc(cx, cy, r, startAngle, endAngle) {
+      ctx.save();
+      ctx.strokeStyle = COL.green;
+      ctx.lineWidth = 3;
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = COL.green;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, startAngle, endAngle, true); // counterclockwise for left-to-right smile
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawGreenBeam(fromX, fromY, toX, toY) {
+      // Outer glow
+      ctx.save();
+      ctx.strokeStyle = COL.greenGlow;
+      ctx.lineWidth = 6;
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = COL.green;
+      ctx.globalAlpha = 0.4;
+      ctx.beginPath();
+      ctx.moveTo(fromX, fromY);
+      ctx.lineTo(toX, toY);
+      ctx.stroke();
+      ctx.restore();
+      // Core
+      ctx.save();
+      ctx.strokeStyle = COL.green;
+      ctx.lineWidth = 2;
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = COL.green;
+      ctx.beginPath();
+      ctx.moveTo(fromX, fromY);
+      ctx.lineTo(toX, toY);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawSmileyAnim() {
+      if (!smileyAnim) return;
+
+      const turrets = getTurretPositions();
+      let drawPoint = null;
+
+      // Delay phase: charge glow on turrets
+      if (smileyAnim.phase === 'delay') {
+        if (PERF.reducedEffects) return; // skip charge glow on LOW
+        const chargeP = Math.min(1, smileyAnim.time / 180);
+        turrets.forEach((t, i) => {
+          if (turretStates[i] !== 'green') return;
+          ctx.save();
+          ctx.globalAlpha = chargeP * 0.6;
+          ctx.shadowBlur = 20 + chargeP * 15;
+          ctx.shadowColor = COL.green;
+          ctx.fillStyle = COL.green;
+          ctx.beginPath();
+          ctx.arc(t.x, t.y, 3 + chargeP * 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        });
+        return;
+      }
+
+      // Smile phase or hold — laser beams trace a smile on Laserman's head
+      if (smileyAnim.phase === 'smile' || smileyAnim.phase === 'hold') {
+        const smile = smileyAnim.smile;
+        const startRad = smile.startDeg * Math.PI / 180;
+        const endRad = smile.endDeg * Math.PI / 180;
+        const totalSweep = (smile.startDeg - smile.endDeg) * Math.PI / 180;
+        const progress = smileyAnim.phase === 'hold' ? 1 : smileyAnim.smileProgress;
+        const currentAngle = startRad - totalSweep * progress;
+
+        if (smileyAnim.phase === 'smile') {
+          drawPoint = {
+            x: smile.cx + Math.cos(currentAngle) * smile.r,
+            y: smile.cy + Math.sin(currentAngle) * smile.r
+          };
+        }
+        // Hold phase: no beams, just keep the smile arc visible
+
+        // Draw smile arc on the head
+        drawGreenGlowArc(smile.cx, smile.cy, smile.r, startRad, currentAngle);
+      }
+
+      // Draw green laser beams from green turrets to draw point
+      if (drawPoint) {
+        let beamCount = 0;
+        const maxBeams = PERF.reducedEffects ? 2 : 999;
+        turrets.forEach((t, i) => {
+          if (turretStates[i] === 'green' && beamCount < maxBeams) {
+            drawGreenBeam(t.x, t.y, drawPoint.x, drawPoint.y);
+            beamCount++;
+          }
+        });
+
+        // Bright tracing tip
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowBlur = 25;
+        ctx.shadowColor = COL.green;
+        ctx.beginPath();
+        ctx.arc(drawPoint.x, drawPoint.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // ===========================
+    // FROWN FACE LASER ANIMATION (loss — mirrors smiley)
+    // ===========================
+    function drawRedBeam(fromX, fromY, toX, toY) {
+      // Outer glow
+      ctx.save();
+      ctx.strokeStyle = COL.laserGlow;
+      ctx.lineWidth = 6;
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = COL.red;
+      ctx.globalAlpha = 0.4;
+      ctx.beginPath();
+      ctx.moveTo(fromX, fromY);
+      ctx.lineTo(toX, toY);
+      ctx.stroke();
+      ctx.restore();
+      // Core
+      ctx.save();
+      ctx.strokeStyle = COL.red;
+      ctx.lineWidth = 2;
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = COL.red;
+      ctx.beginPath();
+      ctx.moveTo(fromX, fromY);
+      ctx.lineTo(toX, toY);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawRedGlowArc(cx, cy, r, startAngle, endAngle) {
+      ctx.save();
+      ctx.strokeStyle = COL.red;
+      ctx.lineWidth = 3;
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = COL.red;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, startAngle, endAngle); // clockwise for frown
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function updateFrownAnim() {
+      if (!frownAnim) return;
+      frownAnim.time += _dtScale;
+
+      const delayFrames = 0; // no delay between eye blast and frown
+      const frownFrames = PERF.reducedEffects ? 30 : 180;
+
+      if (frownAnim.phase === 'eyeBlast') {
+        const fpf = frownAnim.framesPerFeature;
+        const localTime = frownAnim.time - frownAnim.featureIndex * fpf;
+        frownAnim.featureProgress = Math.min(1, localTime / fpf);
+        if (localTime >= fpf) {
+          frownAnim.featureIndex++;
+          if (frownAnim.featureIndex >= frownAnim.features.length) {
+            frownAnim.phase = 'delay';
+            frownAnim.time = 0;
+          }
+        }
+      } else if (frownAnim.phase === 'delay' && frownAnim.time >= delayFrames) {
+        frownAnim.phase = 'frown';
+        frownAnim.time = 0;
+      } else if (frownAnim.phase === 'frown') {
+        frownAnim.frownProgress = Math.min(1, frownAnim.time / frownFrames);
+        if (frownAnim.frownProgress >= 1) {
+          frownAnim.phase = 'hold';
+        }
+      }
+    }
+
+    function drawFrownAnim() {
+      if (!frownAnim) return;
+
+      const turrets = getTurretPositions();
+      let drawPoint = null;
+
+      // Eye blast phase: sequential single-stream — one face feature at a time
+      if (frownAnim.phase === 'eyeBlast') {
+        const fi = frownAnim.featureIndex;
+        if (fi >= frownAnim.features.length) return;
+
+        const feature = frownAnim.features[fi];
+        const progress = frownAnim.featureProgress;
+
+        // Feature color transitions selected→red; beams are always red
+        const pal = COLOR_PALETTES[selectedColor] || COLOR_PALETTES.green;
+        const fr = Math.round(pal.rgb[0] + (255 - pal.rgb[0]) * progress);
+        const fg = Math.round(pal.rgb[1] * (1 - progress));
+        const fb = Math.round(pal.rgb[2] + (68 - pal.rgb[2]) * progress);
+        const featureColor = `rgb(${fr}, ${fg}, ${fb})`;
+        const beamAlpha = 0.3 + 0.5 * progress;
+
+        // Get target point for beams to converge on
+        let targetX, targetY;
+        if (feature.type === 'eye') {
+          targetX = feature.x; targetY = feature.y;
+        } else if (feature.type === 'nose') {
+          targetX = (feature.points[0].x + feature.points[1].x + feature.points[2].x) / 3;
+          targetY = (feature.points[0].y + feature.points[1].y + feature.points[2].y) / 3;
+        } else if (feature.type === 'whisker') {
+          targetX = (feature.x1 + feature.x2) / 2;
+          targetY = (feature.y1 + feature.y2) / 2;
+        }
+
+        // Draw beams from turrets converging on current feature
+        const maxFrownBeams = PERF.reducedEffects ? 2 : turrets.length;
+        for (let bi = 0; bi < maxFrownBeams && bi < turrets.length; bi++) {
+          const t = turrets[bi];
+          ctx.save();
+          ctx.strokeStyle = COL.red;
+          ctx.lineWidth = 2;
+          ctx.shadowBlur = 15;
+          ctx.shadowColor = COL.red;
+          ctx.globalAlpha = beamAlpha;
+          ctx.beginPath();
+          ctx.moveTo(t.x, t.y);
+          ctx.lineTo(targetX, targetY);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // Draw the current feature with transitioning color
+        ctx.save();
+        ctx.fillStyle = featureColor;
+        ctx.strokeStyle = featureColor;
+        ctx.shadowBlur = 15 + progress * 20;
+        ctx.shadowColor = featureColor;
+        if (feature.type === 'eye') {
+          ctx.beginPath();
+          ctx.arc(feature.x, feature.y, feature.r + progress * 1.5, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (feature.type === 'nose') {
+          ctx.beginPath();
+          ctx.moveTo(feature.points[0].x, feature.points[0].y);
+          ctx.lineTo(feature.points[1].x, feature.points[1].y);
+          ctx.lineTo(feature.points[2].x, feature.points[2].y);
+          ctx.closePath();
+          ctx.fill();
+        } else if (feature.type === 'whisker') {
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(feature.x1, feature.y1);
+          ctx.lineTo(feature.x2, feature.y2);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // Draw already-completed features in solid red
+        for (let i = 0; i < fi; i++) {
+          const done = frownAnim.features[i];
+          ctx.save();
+          ctx.fillStyle = COL.red;
+          ctx.strokeStyle = COL.red;
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = COL.red;
+          if (done.type === 'eye') {
+            ctx.beginPath();
+            ctx.arc(done.x, done.y, done.r + 1.5, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (done.type === 'nose') {
+            ctx.beginPath();
+            ctx.moveTo(done.points[0].x, done.points[0].y);
+            ctx.lineTo(done.points[1].x, done.points[1].y);
+            ctx.lineTo(done.points[2].x, done.points[2].y);
+            ctx.closePath();
+            ctx.fill();
+          } else if (done.type === 'whisker') {
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(done.x1, done.y1);
+            ctx.lineTo(done.x2, done.y2);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+
+        // Draw not-yet-hit features in green (waiting to be blasted)
+        for (let i = fi + 1; i < frownAnim.features.length; i++) {
+          const waiting = frownAnim.features[i];
+          ctx.save();
+          ctx.fillStyle = COL.bodyGreen;
+          ctx.strokeStyle = COL.bodyGreen;
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = COL.greenGlow;
+          if (waiting.type === 'eye') {
+            ctx.beginPath();
+            ctx.arc(waiting.x, waiting.y, waiting.r, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (waiting.type === 'nose') {
+            ctx.beginPath();
+            ctx.moveTo(waiting.points[0].x, waiting.points[0].y);
+            ctx.lineTo(waiting.points[1].x, waiting.points[1].y);
+            ctx.lineTo(waiting.points[2].x, waiting.points[2].y);
+            ctx.closePath();
+            ctx.fill();
+          } else if (waiting.type === 'whisker') {
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(waiting.x1, waiting.y1);
+            ctx.lineTo(waiting.x2, waiting.y2);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+        return;
+      }
+
+      // Delay phase: quick charge glow on turrets (red)
+      if (frownAnim.phase === 'delay') {
+        if (PERF.reducedEffects) return; // skip charge glow on LOW
+        const chargeP = Math.min(1, frownAnim.time / (PERF.reducedEffects ? 5 : 40));
+        turrets.forEach((t, i) => {
+          ctx.save();
+          ctx.globalAlpha = chargeP * 0.6;
+          ctx.shadowBlur = 20 + chargeP * 15;
+          ctx.shadowColor = COL.red;
+          ctx.fillStyle = COL.red;
+          ctx.beginPath();
+          ctx.arc(t.x, t.y, 3 + chargeP * 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        });
+        return;
+      }
+
+      // Frown phase or hold — red laser beams trace a frown on Laserman's head
+      if (frownAnim.phase === 'frown' || frownAnim.phase === 'hold') {
+        const frown = frownAnim.frown;
+        const startRad = frown.startDeg * Math.PI / 180;
+        const endRad = frown.endDeg * Math.PI / 180;
+        const totalSweep = (frown.endDeg - frown.startDeg) * Math.PI / 180;
+        const progress = frownAnim.phase === 'hold' ? 1 : frownAnim.frownProgress;
+        const currentAngle = startRad + totalSweep * progress;
+
+        if (frownAnim.phase === 'frown') {
+          drawPoint = {
+            x: frown.cx + Math.cos(currentAngle) * frown.r,
+            y: frown.cy + Math.sin(currentAngle) * frown.r
+          };
+        }
+
+        // Draw frown arc on the head
+        drawRedGlowArc(frown.cx, frown.cy, frown.r, startRad, currentAngle);
+      }
+
+      // Draw red laser beams from turrets to draw point
+      if (drawPoint) {
+        const maxRedBeams = PERF.reducedEffects ? 2 : turrets.length;
+        for (let bi = 0; bi < maxRedBeams && bi < turrets.length; bi++) {
+          drawRedBeam(turrets[bi].x, turrets[bi].y, drawPoint.x, drawPoint.y);
+        }
+
+        // Bright tracing tip
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowBlur = 25;
+        ctx.shadowColor = COL.red;
+        ctx.beginPath();
+        ctx.arc(drawPoint.x, drawPoint.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // ===========================
+    // RENDER LOOP
+    // ===========================
+    let _lastFrameTime = 0;
+    let _dtScale = 1; // delta-time multiplier: 1.0 at 60fps, 2.0 at 30fps, 6.0 at 10fps
+    function render(time) {
+      requestAnimationFrame(render);
+      // Frame rate cap: skip frame if too soon
+      if (PERF.fpsLimit > 0) {
+        const minInterval = 1000 / PERF.fpsLimit;
+        if (time - _lastFrameTime < minInterval) return;
+      }
+      // Calculate delta-time scale so animations run at constant wall-clock speed
+      const dt = _lastFrameTime > 0 ? (time - _lastFrameTime) : 16.67;
+      _dtScale = Math.min(dt / 16.67, 6); // cap at 6x to prevent huge jumps
+      _lastFrameTime = time;
+
+      drawBackground(time);
+      drawContainmentField(time);
+      drawAllBodyParts();
+      drawTurrets(time);
+      updateLaser();
+      drawLaser();
+      updateParticles();
+      drawParticles();
+      drawWinEffect(time);
+      drawLoseEffect(time);
+      updateSmileyAnim();
+      drawSmileyAnim();
+      updateFrownAnim();
+      drawFrownAnim();
+    }
+
+    // ===========================
+    // SCREEN NAVIGATION
+    // ===========================
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    // ===========================
+    // UI FUNCTIONS
+    // ===========================
+    function buildKeyboard() {
+      const rows = ['ABCDEFGHI', 'JKLMNOPQ', 'RSTUVWXYZ'];
+      const kb = document.getElementById('keyboard');
+      kb.innerHTML = '';
+      rows.forEach(row => {
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'kb-row';
+        row.split('').forEach(letter => {
+          const key = document.createElement('div');
+          key.className = 'key';
+          key.textContent = letter;
+          key.dataset.letter = letter;
+          // Use touchstart for immediate iPad response, click as fallback for desktop
+          let touchHandled = false;
+          key.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // prevent delayed click + ghost click
+            touchHandled = true;
+            handleGuess(letter);
+          }, { passive: false });
+          key.addEventListener('click', () => {
+            if (!touchHandled) handleGuess(letter);
+            touchHandled = false;
+          });
+          rowDiv.appendChild(key);
+        });
+        kb.appendChild(rowDiv);
+      });
+    }
+
+    function updateWordDisplay(pendingLetter) {
+      const display = document.getElementById('word-display');
+      display.innerHTML = '';
+      gameState.word.split('').forEach((letter, i) => {
+        const slot = document.createElement('div');
+        slot.className = 'letter-slot';
+        if (gameState.guessed.has(letter)) {
+          slot.textContent = letter;
+          // If this letter is about to get the laser-etch animation, don't add revealed yet
+          if (pendingLetter && letter === pendingLetter) {
+            // Text visible but no glow — laser-etch will handle it
+            slot.style.color = 'transparent';
+          } else {
+            slot.classList.add('revealed');
+          }
+        } else if (gameState.gameOver && !gameState.won) {
+          slot.textContent = letter;
+          if (!gameState.guessed.has(letter)) {
+            slot.classList.add('lost-reveal');
+          }
+        }
+        slot.style.animationDelay = `${i * 0.05}s`;
+        display.appendChild(slot);
+      });
+    }
+
+    function showMessage(text, type) {
+      const overlay = document.getElementById('message-overlay');
+      const msgTop = document.getElementById('message-text-top');
+      const msgBottom = document.getElementById('message-text-bottom');
+
+      overlay.classList.remove('win-layout', 'lose-layout');
+
+      const lines = text.split('<br>');
+      msgTop.innerHTML = lines[0] || '';
+      msgBottom.innerHTML = lines.slice(1).join('<br>') || '';
+      msgTop.className = 'msg-line ' + type;
+      msgBottom.className = 'msg-line ' + type;
+      overlay.classList.add(type + '-layout');
+      overlay.classList.add('show');
+    }
+
+    function hideMessage() {
+      const overlay = document.getElementById('message-overlay');
+      overlay.classList.remove('show', 'win-layout', 'lose-layout');
+      document.getElementById('message-text-top').innerHTML = '';
+      document.getElementById('message-text-bottom').innerHTML = '';
+    }
+
+    function showToast(text, onDone) {
+      const toast = document.getElementById('toast');
+      toast.textContent = text;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+        if (onDone) onDone();
+      }, 2000);
+    }
+
+    // ===========================
+    // GAME LOGIC
+    // ===========================
+    function triggerCorrectReveal(letter, onComplete) {
+      lockKeyboard();
+      document.getElementById('skip-hint').classList.remove('visible');
+      const slots = document.querySelectorAll('.letter-slot');
+      const newIndices = [];
+      gameState.word.split('').forEach((l, i) => {
+        if (l === letter) newIndices.push(i);
+      });
+
+      // Darken canvas
+      const darken = document.getElementById('reveal-darken');
+      darken.classList.add('active');
+      correctRevealAnim = { active: true };
+
+      // Reveal letters with laser-etch after darken settles (2X timing)
+      setTimeout(() => {
+        newIndices.forEach((idx, i) => {
+          setTimeout(() => {
+            slots[idx].style.color = '';
+            slots[idx].classList.add('laser-etch');
+            emitParticles(CENTER_X, CENTER_Y, 6, COL.green, 3, 40);
+          }, i * 200);
+        });
+      }, 400);
+
+      // End: remove darken, swap to revealed, unlock input (2X duration)
+      const totalDuration = 400 + newIndices.length * 200 + 900;
+      setTimeout(() => {
+        darken.classList.remove('active');
+        newIndices.forEach(idx => {
+          slots[idx].classList.remove('laser-etch');
+          slots[idx].classList.add('revealed');
+        });
+        correctRevealAnim = null;
+        unlockKeyboard();
+        if (onComplete) onComplete();
+      }, totalDuration);
+    }
+
+    function handleGuess(letter) {
+      if (gameState.gameOver) return;
+      if (gameState.guessed.has(letter)) return;
+      if (laserAnim) return;
+      if (correctRevealAnim) return; // block during reveal animation
+      if (onlineWaitingForPeerAnim) return; // wait for peer's animation in online mode
+
+      gameState.guessed.add(letter);
+      const key = document.querySelector(`.key[data-letter="${letter}"]`);
+
+      if (gameState.word.includes(letter)) {
+        key.classList.add('correct');
+        updateWordDisplay(letter); // pass letter so it stays hidden until laser-etch
+
+        // Trigger laser-etch reveal animation
+        triggerCorrectReveal(letter, () => {
+          const allRevealed = gameState.word.split('').every(l => gameState.guessed.has(l));
+          if (allRevealed) {
+            gameState.gameOver = true;
+            gameState.won = true;
+            triggerWinEffect();
+            const winTop = (gameState.mode === 'online' || gameState.mode === 'online-host')
+              ? (onlineGuesserName || 'PLAYER') + ' WINS!'
+              : 'WORD DECIPHERED';
+            showMessage(winTop + '<br>' + getConfig().name + ' SAVED!', 'win');
+            document.getElementById('keyboard').classList.add('game-over');
+          }
+        });
+      } else {
+        key.classList.add('wrong');
+        const shot = shotOrder[gameState.wrongCount];
+        gameState.wrongCount++;
+        const turretIdx = shot.turret;
+        // Final 3 shots (remaining<=2): escalating shake, no roulette
+        // All other shots: roulette + flash, no shake
+        const remaining = getMaxWrong() - gameState.wrongCount;
+        const shakeLevel = remaining <= 2 ? (3 - remaining) : 0;
+
+        fireLaserWithBlink(turretIdx, shot.part, shakeLevel, () => {
+          if (gameState.wrongCount >= getMaxWrong()) {
+            gameState.gameOver = true;
+            gameState.won = false;
+            updateWordDisplay();
+            triggerLoseEffect();
+            const loseTop = (gameState.mode === 'online' || gameState.mode === 'online-host')
+              ? (onlineGuesserName || 'PLAYER') + ' LOSES!'
+              : getConfig().name + ' FAILS';
+            showMessage(loseTop + '<br>TRY BETTER NEXT TIME!', 'lose');
+            document.getElementById('keyboard').classList.add('game-over');
+          }
+        });
+      }
+    }
+
+    function startGame(word) {
+      hideMessage();
+      gameState.word = word.toUpperCase();
+      gameState.guessed = new Set();
+      gameState.wrongCount = 0;
+      gameState.gameOver = false;
+      gameState.won = false;
+
+      const count = getMaxWrong();
+      bodyPartStates = Array(count).fill('green');
+      turretStates = Array(count).fill('green');
+      shotOrder = generateShotOrder();
+      particles = [];
+      laserAnim = null;
+      correctRevealAnim = null;
+      winEffect = null;
+      loseEffect = null;
+      smileyAnim = null;
+      frownAnim = null;
+      onlineGuessQueue = [];
+      onlineWaitingForPeerAnim = false;
+      if (gameState.mode === 'online' || gameState.mode === 'online-host') {
+        onlineRoundCount++;
+      }
+
+      buildKeyboard();
+      document.getElementById('keyboard').classList.remove('game-over', 'locked');
+      updateWordDisplay();
+      showScreen('game-screen');
+      document.querySelector('#game-screen .game-title').textContent = getConfig().name;
+
+      // Update skip hint for device type
+      const skipHint = document.getElementById('skip-hint');
+      skipHint.textContent = navigator.maxTouchPoints > 0
+        ? 'Tap ' + getConfig().name + ' to skip'
+        : 'Press spacebar to skip';
+
+      // Category display (solo mode only, default hidden)
+      const catRow = document.getElementById('category-row');
+      const catText = document.getElementById('category-text');
+      const catBtn = document.getElementById('toggle-cat-btn');
+      if (gameState.mode === 'solo' && gameState.category) {
+        catRow.style.display = 'flex';
+        catText.textContent = 'CATEGORY: \u25CF\u25CF\u25CF\u25CF\u25CF\u25CF\u25CF\u25CF';
+        catText.dataset.revealed = 'false';
+        catBtn.textContent = 'SHOW';
+      } else {
+        catRow.style.display = 'none';
+      }
+
+      // Online host: reveal word and lock keyboard (spectator mode)
+      if (gameState.mode === 'online-host') {
+        document.getElementById('keyboard').classList.add('game-over');
+      }
+    }
+
+    function startSoloGame() {
+      const cat = CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
+      const wordList = WORDS[cat];
+      const word = wordList[Math.floor(Math.random() * wordList.length)];
+      gameState.mode = 'solo';
+      gameState.category = cat;
+      startGame(word);
+    }
+
+    function goToWordEntry() {
+      hideMessage();
+      gameState.mode = 'multi';
+      gameState.category = '';
+      document.getElementById('word-input').value = '';
+      document.getElementById('word-error').textContent = '';
+      // Reset to password mode (hidden)
+      const input = document.getElementById('word-input');
+      input.type = 'password';
+      document.getElementById('toggle-vis-btn').textContent = 'SHOW';
+      showScreen('word-entry-screen');
+      input.focus();
+    }
+
+    function goToMainMenu() {
+      hideMessage();
+      document.getElementById('new-game-btn').textContent = 'NEW GAME';
+      document.getElementById('rematch-modal').classList.remove('show');
+      showScreen('title-screen');
+    }
+
+    // ===========================
+    // ONLINE MULTIPLAYER (PeerJS)
+    // ===========================
+    let peer = null;
+    let peerConn = null;
+    let onlineRole = null; // 'host' | 'joiner'
+    let onlineGuessQueue = []; // queued guesses from remote peer during animations
+    let onlineMyName = ''; // this player's name
+    let onlineOpponentName = ''; // remote player's name
+    let onlineGuesserName = ''; // name of the player who is guessing
+    let onlineRoundCount = 0; // tracks rounds played in current session
+    let onlineWaitingForPeerAnim = false; // guesser waits for spectator animation to complete
+
+    function generateRoomCode() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I/O/0/1 to avoid confusion
+      let code = '';
+      for (let i = 0; i < 3; i++) code += chars[Math.floor(Math.random() * chars.length)];
+      return code;
+    }
+
+    const ICE_SERVERS = [
+      { urls: 'stun:stun.relay.metered.ca:80' },
+      { urls: 'turn:standard.relay.metered.ca:80', username: '60110f6a32b1f7f072af64f7', credential: 'jJLWCnSNU6qaABwU' },
+      { urls: 'turn:standard.relay.metered.ca:80?transport=tcp', username: '60110f6a32b1f7f072af64f7', credential: 'jJLWCnSNU6qaABwU' },
+      { urls: 'turn:standard.relay.metered.ca:443', username: '60110f6a32b1f7f072af64f7', credential: 'jJLWCnSNU6qaABwU' },
+      { urls: 'turns:standard.relay.metered.ca:443?transport=tcp', username: '60110f6a32b1f7f072af64f7', credential: 'jJLWCnSNU6qaABwU' }
+    ];
+
+    let heartbeatInterval = null;
+    let lastPong = 0;
+
+    function startHeartbeat() {
+      stopHeartbeat();
+      lastPong = Date.now();
+      heartbeatInterval = setInterval(() => {
+        if (peerConn && peerConn.open) {
+          peerConn.send({ type: 'ping' });
+          // If no pong in 15s, connection is dead
+          if (Date.now() - lastPong > 15000) {
+            // Trigger the close handler
+            try { peerConn.close(); } catch(e){}
+          }
+        }
+      }, 5000);
+    }
+
+    function stopHeartbeat() {
+      if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
+    }
+
+    // When phone wakes from sleep, check connection immediately
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && peerConn) {
+        lastPong = Date.now(); // grace period after wake
+        peerConn.send({ type: 'ping' });
+      }
+    });
+
+    function cleanupPeer() {
+      stopHeartbeat();
+      if (peerConn) { try { peerConn.close(); } catch(e){} peerConn = null; }
+      if (peer) { try { peer.destroy(); } catch(e){} peer = null; }
+      onlineRole = null;
+    }
+
+    function onlineSend(data) {
+      if (peerConn && peerConn.open) peerConn.send(data);
+    }
+
+    function drainOnlineGuessQueue() {
+      if (onlineGuessQueue.length === 0) return;
+      if (gameState.gameOver) { onlineGuessQueue = []; return; }
+      // Wait if an animation is playing
+      if (laserAnim || correctRevealAnim) {
+        // Poll again shortly
+        setTimeout(drainOnlineGuessQueue, 100);
+        return;
+      }
+      const letter = onlineGuessQueue.shift();
+      // Process the guess on the spectator side
+      document.getElementById('keyboard').classList.remove('game-over');
+      _originalHandleGuess(letter);
+      if (!gameState.gameOver) {
+        document.getElementById('keyboard').classList.add('game-over');
+      }
+      // Wait for this guess's animation to finish, then notify guesser
+      waitForAnimThenNotify();
+      // Continue draining after this guess's animation finishes
+      if (onlineGuessQueue.length > 0) {
+        setTimeout(drainOnlineGuessQueue, 100);
+      }
+    }
+
+    function waitForAnimThenNotify() {
+      if (laserAnim || correctRevealAnim) {
+        setTimeout(waitForAnimThenNotify, 100);
+        return;
+      }
+      // Animation is done — tell the guesser they can proceed
+      onlineSend({ type: 'anim-done' });
+    }
+
+    function setupConnectionHandlers(conn) {
+      peerConn = conn;
+      startHeartbeat();
+      // Send our name to the other player (immediately if already open, or on open)
+      const sendName = () => onlineSend({ type: 'name', name: onlineMyName });
+      if (conn.open) sendName();
+      else conn.on('open', sendName);
+      conn.on('data', (data) => {
+        // Heartbeat
+        if (data.type === 'ping') { onlineSend({ type: 'pong' }); return; }
+        if (data.type === 'pong') { lastPong = Date.now(); return; }
+        if (data.type === 'name') {
+          onlineOpponentName = data.name || 'OPPONENT';
+          // Update connection messages with the actual name
+          if (onlineRole === 'host') {
+            const hostStatus = document.getElementById('online-host-status');
+            if (hostStatus.style.color === 'var(--green)') {
+              hostStatus.textContent = onlineOpponentName + ' HAS JOINED!';
+            }
+          } else if (onlineRole === 'joiner') {
+            const connMsg = document.querySelector('#online-wait-word .connected-msg');
+            if (connMsg) connMsg.textContent = 'CONNECTED WITH ' + onlineOpponentName + '!';
+          }
+        }
+        if (data.type === 'start-game') {
+          // Received word — we are the guesser
+          // Sync character and color from the word-setter
+          if (data.character && CHARACTER_CONFIGS[data.character]) {
+            selectedCharacter = data.character;
+          }
+          if (data.color) {
+            selectedColor = data.color;
+            applyColorPalette(selectedColor);
+          }
+          onlineGuesserName = onlineMyName;
+          gameState.mode = 'online';
+          gameState.category = '';
+          startGame(data.word);
+          // Sync shot order and hair direction from word-setter
+          if (data.shotOrder) { shotOrder = data.shotOrder; }
+          if (data.hairFromRight !== undefined) { hairFromRight = data.hairFromRight; }
+        }
+        if (data.type === 'start-game-spectate') {
+          // We set the word, now spectate — opponent is the guesser
+          // Sync character and color from the word-setter
+          if (data.character && CHARACTER_CONFIGS[data.character]) {
+            selectedCharacter = data.character;
+          }
+          if (data.color) {
+            selectedColor = data.color;
+            applyColorPalette(selectedColor);
+          }
+          onlineGuesserName = onlineOpponentName;
+          gameState.mode = 'online-host';
+          gameState.category = '';
+          startGame(data.word);
+          // Sync shot order and hair direction from word-setter
+          if (data.shotOrder) { shotOrder = data.shotOrder; }
+          if (data.hairFromRight !== undefined) { hairFromRight = data.hairFromRight; }
+        }
+        if (data.type === 'role-chosen' && onlineRole === 'joiner') {
+          if (data.hostRole === 'setter') {
+            // Host is setting the word — joiner waits
+            document.getElementById('wait-word-status').textContent = 'WAITING FOR ' + (onlineOpponentName || 'HOST') + ' TO SET A WORD...';
+          } else {
+            // Host wants to guess — joiner sets the word
+            document.getElementById('online-wait-word').style.display = 'none';
+            document.getElementById('joiner-word-entry').style.display = 'block';
+            // Only show "YOUR TURN" message after the first round
+            document.getElementById('joiner-turn-msg').style.display = onlineRoundCount > 0 ? 'block' : 'none';
+            document.getElementById('joiner-word-input').value = '';
+            document.getElementById('joiner-word-error').textContent = '';
+            // Reset options panel state
+            document.getElementById('joiner-options-panel').style.display = 'none';
+            document.getElementById('btn-joiner-options').textContent = 'OPTIONS';
+            syncOnlineOptionsPanel('joiner-options-panel');
+            document.getElementById('joiner-word-input').focus();
+          }
+        }
+        if (data.type === 'guess') {
+          // Queue the guess — it will be processed when no animation is active
+          onlineGuessQueue.push(data.letter);
+          drainOnlineGuessQueue();
+        }
+        if (data.type === 'anim-done') {
+          // Peer finished animating — unlock guesser's keyboard
+          onlineWaitingForPeerAnim = false;
+          if (gameState.mode === 'online' && !gameState.gameOver && !laserAnim && !correctRevealAnim) {
+            unlockKeyboard();
+          }
+        }
+        if (data.type === 'rematch-request') {
+          const btn = document.getElementById('new-game-btn');
+          if (btn.textContent.startsWith('WAITING')) {
+            // We also clicked NEW GAME — treat as mutual accept
+            onlineSend({ type: 'rematch-accept' });
+            btn.textContent = 'NEW GAME';
+            hideMessage();
+            if (onlineRole === 'host') {
+              showScreen('online-screen');
+              document.getElementById('online-role-select').style.display = 'none';
+              document.getElementById('online-host-view').style.display = 'block';
+              document.getElementById('online-join-view').style.display = 'none';
+              document.getElementById('online-wait-word').style.display = 'none';
+              showOnlineHostWordEntry();
+            } else {
+              showScreen('online-screen');
+              document.getElementById('online-role-select').style.display = 'none';
+              document.getElementById('online-host-view').style.display = 'none';
+              document.getElementById('online-join-view').style.display = 'none';
+              showOnlineWaitWord();
+            }
+          } else {
+            // Other player wants a rematch — ask this player to confirm
+            const name = onlineOpponentName || 'OPPONENT';
+            document.getElementById('rematch-modal-text').textContent = 'PLAY AGAIN?';
+            document.getElementById('rematch-modal-sub').textContent = name + ' WANTS ANOTHER ROUND';
+            document.getElementById('rematch-modal').classList.add('show');
+          }
+        }
+        if (data.type === 'rematch-accept') {
+          // Other player accepted — both transition to word screens
+          hideMessage();
+          document.getElementById('new-game-btn').textContent = 'NEW GAME';
+          if (onlineRole === 'host') {
+            showScreen('online-screen');
+            document.getElementById('online-role-select').style.display = 'none';
+            document.getElementById('online-host-view').style.display = 'block';
+            document.getElementById('online-join-view').style.display = 'none';
+            document.getElementById('online-wait-word').style.display = 'none';
+            showOnlineHostWordEntry();
+          } else {
+            showScreen('online-screen');
+            document.getElementById('online-role-select').style.display = 'none';
+            document.getElementById('online-host-view').style.display = 'none';
+            document.getElementById('online-join-view').style.display = 'none';
+            showOnlineWaitWord();
+          }
+        }
+        if (data.type === 'rematch-decline') {
+          // Other player declined — show toast and go to main menu
+          hideMessage();
+          document.getElementById('new-game-btn').textContent = 'NEW GAME';
+          const name = onlineOpponentName || 'OPPONENT';
+          cleanupPeer();
+          showToast(name + ' LEFT THE ROOM', () => {
+            goToMainMenu();
+          });
+        }
+      });
+      conn.on('close', () => {
+        const disconnectedName = onlineOpponentName || 'OPPONENT';
+        peerConn = null;
+        // Dismiss any modals
+        hideConfirmLeave();
+        document.getElementById('rematch-modal').classList.remove('show');
+        document.getElementById('new-game-btn').textContent = 'NEW GAME';
+        if (document.getElementById('game-screen').classList.contains('active')) {
+          showMessage(disconnectedName + '<br>DISCONNECTED', 'lose');
+          gameState.gameOver = true;
+        } else if (document.getElementById('online-screen').classList.contains('active')) {
+          // Show toast with name, then kick to main menu
+          cleanupPeer();
+          showToast(disconnectedName + ' DISCONNECTED', () => {
+            goToMainMenu();
+          });
+        }
+      });
+      conn.on('error', () => { peerConn = null; });
+    }
+
+    function showOnlineHostWordEntry() {
+      document.getElementById('online-host-status').textContent = (onlineOpponentName || 'PLAYER') + ' HAS JOINED!';
+      document.getElementById('online-host-status').style.color = 'var(--green)';
+      document.getElementById('host-role-choice').style.display = 'block';
+      document.getElementById('host-word-entry').style.display = 'none';
+    }
+
+    function syncOnlineOptionsPanel(panelId) {
+      const panel = document.getElementById(panelId);
+      if (!panel) return;
+      // Sync character
+      panel.querySelectorAll('.char-option').forEach(btn => {
+        btn.classList.toggle('selected', btn.dataset.char === selectedCharacter);
+      });
+      // Sync color
+      panel.querySelectorAll('.color-btn').forEach(btn => {
+        btn.classList.toggle('selected', btn.dataset.color === selectedColor);
+      });
+      // Sync performance
+      panel.querySelectorAll('.perf-btn').forEach(btn => {
+        btn.classList.toggle('selected', btn.dataset.perf === perfTier);
+      });
+    }
+
+    function hostPicksSet() {
+      document.getElementById('host-role-choice').style.display = 'none';
+      document.getElementById('host-word-entry').style.display = 'block';
+      document.getElementById('host-word-input').value = '';
+      document.getElementById('host-word-error').textContent = '';
+      // Reset options panel state
+      document.getElementById('host-options-panel').style.display = 'none';
+      document.getElementById('btn-host-options').textContent = 'OPTIONS';
+      syncOnlineOptionsPanel('host-options-panel');
+      document.getElementById('host-word-input').focus();
+      onlineSend({ type: 'role-chosen', hostRole: 'setter' });
+    }
+
+    function hostPicksGuess() {
+      document.getElementById('host-role-choice').style.display = 'none';
+      document.getElementById('online-host-status').textContent = 'WAITING FOR ' + (onlineOpponentName || 'OPPONENT') + ' TO SET A WORD...';
+      document.getElementById('online-host-status').style.color = 'var(--amber)';
+      onlineSend({ type: 'role-chosen', hostRole: 'guesser' });
+    }
+
+    function showOnlineWaitWord() {
+      document.getElementById('online-role-select').style.display = 'none';
+      document.getElementById('online-join-view').style.display = 'none';
+      document.getElementById('online-wait-word').style.display = 'block';
+      document.getElementById('joiner-word-entry').style.display = 'none';
+      // Reset text — use opponent name if known
+      const connMsg = document.querySelector('#online-wait-word .connected-msg');
+      if (connMsg) connMsg.textContent = onlineOpponentName ? 'CONNECTED WITH ' + onlineOpponentName + '!' : 'CONNECTED!';
+      document.getElementById('wait-word-status').textContent = 'WAITING FOR ' + (onlineOpponentName || 'HOST') + '...';
+    }
+
+    function goToOnlineLobby() {
+      hideMessage();
+      cleanupPeer();
+      onlineRoundCount = 0;
+      // Reset all views — show name entry first
+      document.getElementById('online-name-entry').style.display = 'block';
+      document.getElementById('online-role-select').style.display = 'none';
+      document.getElementById('online-host-view').style.display = 'none';
+      document.getElementById('online-join-view').style.display = 'none';
+      document.getElementById('online-wait-word').style.display = 'none';
+      document.getElementById('host-word-entry').style.display = 'none';
+      document.getElementById('host-role-choice').style.display = 'none';
+      document.getElementById('joiner-word-entry').style.display = 'none';
+      // Restore saved name if any
+      const savedName = localStorage.getItem('laserman_online_name') || '';
+      document.getElementById('online-name-input').value = savedName;
+      showScreen('online-screen');
+    }
+
+    function onlineNameContinue() {
+      const name = document.getElementById('online-name-input').value.trim().toUpperCase();
+      if (!name) {
+        document.getElementById('online-name-input').focus();
+        return;
+      }
+      onlineMyName = name;
+      localStorage.setItem('laserman_online_name', name);
+      document.getElementById('online-name-entry').style.display = 'none';
+      document.getElementById('online-role-select').style.display = 'block';
+    }
+
+    function hostGame() {
+      document.getElementById('online-role-select').style.display = 'none';
+      document.getElementById('online-host-view').style.display = 'block';
+      document.getElementById('online-host-status').textContent = 'CREATING ROOM...';
+      document.getElementById('online-host-status').style.color = 'var(--amber)';
+
+      const roomCode = generateRoomCode();
+      onlineRole = 'host';
+
+      peer = new Peer('laserman-' + roomCode, {
+        debug: 0,
+        config: { iceServers: ICE_SERVERS }
+      });
+
+      peer.on('open', () => {
+        document.getElementById('room-code-display').textContent = roomCode;
+        document.getElementById('online-host-status').textContent = 'WAITING FOR PLAYER...';
+      });
+
+      peer.on('connection', (conn) => {
+        setupConnectionHandlers(conn);
+        conn.on('open', () => {
+          showOnlineHostWordEntry();
+        });
+      });
+
+      peer.on('error', (err) => {
+        if (err.type === 'unavailable-id') {
+          // Room code collision, try again
+          cleanupPeer();
+          hostGame();
+        } else {
+          document.getElementById('online-host-status').textContent = err.type === 'network' ? 'SERVER UNREACHABLE' : 'CONNECTION ERROR';
+          document.getElementById('online-host-status').style.color = 'var(--red)';
+        }
+      });
+
+      peer.on('disconnected', () => {
+        // Lost connection to signaling server — try to reconnect
+        if (peer && !peer.destroyed) peer.reconnect();
+      });
+    }
+
+    function joinGame() {
+      document.getElementById('online-role-select').style.display = 'none';
+      document.getElementById('online-join-view').style.display = 'block';
+      document.getElementById('join-code-input').value = '';
+      document.getElementById('join-error').textContent = '';
+      document.getElementById('join-status').textContent = '';
+      document.getElementById('join-code-input').focus();
+    }
+
+    function connectToHost() {
+      const code = document.getElementById('join-code-input').value.trim().toUpperCase();
+      if (code.length < 3) {
+        document.getElementById('join-error').textContent = 'ENTER A VALID ROOM CODE';
+        return;
+      }
+      document.getElementById('join-error').textContent = '';
+      document.getElementById('join-status').textContent = 'REACHING SERVER...';
+      document.getElementById('join-status').style.color = 'var(--amber)';
+      onlineRole = 'joiner';
+
+      peer = new Peer(undefined, {
+        debug: 0,
+        config: { iceServers: ICE_SERVERS }
+      });
+
+      peer.on('open', () => {
+        document.getElementById('join-status').textContent = 'FINDING ROOM...';
+        const conn = peer.connect('laserman-' + code, { reliable: true });
+        conn.on('open', () => {
+          setupConnectionHandlers(conn);
+          showOnlineWaitWord();
+        });
+        conn.on('error', () => {
+          document.getElementById('join-status').textContent = 'FAILED TO CONNECT';
+          document.getElementById('join-status').style.color = 'var(--red)';
+        });
+        // Timeout if connection doesn't open
+        setTimeout(() => {
+          if (!peerConn) {
+            document.getElementById('join-status').textContent = 'ROOM NOT FOUND';
+            document.getElementById('join-status').style.color = 'var(--red)';
+          }
+        }, 8000);
+      });
+
+      peer.on('error', (err) => {
+        if (err.type === 'network') {
+          document.getElementById('join-status').textContent = 'SERVER UNREACHABLE';
+        } else if (err.type === 'peer-unavailable') {
+          document.getElementById('join-status').textContent = 'ROOM NOT FOUND';
+        } else {
+          document.getElementById('join-status').textContent = 'CONNECTION ERROR';
+        }
+        document.getElementById('join-status').style.color = 'var(--red)';
+      });
+    }
+
+    function hostSendWord() {
+      const word = document.getElementById('host-word-input').value.trim().toUpperCase();
+      if (word.length < 2) {
+        document.getElementById('host-word-error').textContent = 'WORD MUST BE AT LEAST 2 LETTERS';
+        return;
+      }
+      if (!/^[A-Z]+$/.test(word)) {
+        document.getElementById('host-word-error').textContent = 'LETTERS ONLY';
+        return;
+      }
+      // Send word to joiner (joiner guesses)
+      onlineGuesserName = onlineOpponentName; // joiner is guessing
+      // Pre-generate shot order so both sides use the same turret assignments
+      gameState.mode = 'online-host';
+      gameState.category = '';
+      startGame(word);
+      // Send word + shot order to sync turrets
+      onlineSend({ type: 'start-game', word: word, character: selectedCharacter, color: selectedColor, shotOrder: shotOrder, hairFromRight: hairFromRight });
+    }
+
+    function joinerSendWord() {
+      const word = document.getElementById('joiner-word-input').value.trim().toUpperCase();
+      if (word.length < 2) {
+        document.getElementById('joiner-word-error').textContent = 'WORD MUST BE AT LEAST 2 LETTERS';
+        return;
+      }
+      if (!/^[A-Z]+$/.test(word)) {
+        document.getElementById('joiner-word-error').textContent = 'LETTERS ONLY';
+        return;
+      }
+      // Send word to host (host guesses)
+      onlineGuesserName = onlineOpponentName; // host is guessing
+      // Pre-generate shot order so both sides use the same turret assignments
+      gameState.mode = 'online-host';
+      gameState.category = '';
+      startGame(word);
+      // Send word + shot order to sync turrets
+      onlineSend({ type: 'start-game', word: word, character: selectedCharacter, color: selectedColor, shotOrder: shotOrder, hairFromRight: hairFromRight });
+    }
+
+    // Override handleGuess to send guesses over network for the active guesser
+    const _originalHandleGuess = handleGuess;
+    handleGuess = function(letter) {
+      _originalHandleGuess(letter);
+      // If we're the guesser in an online game, tell the other player what we guessed
+      if (gameState.mode === 'online') {
+        onlineSend({ type: 'guess', letter: letter });
+        // Block next guess until peer's animation finishes too
+        onlineWaitingForPeerAnim = true;
+      }
+    };
+
+    // ===========================
+    // EVENT LISTENERS
+    // ===========================
+
+    // Universal tap handler: binds both touchend and click to work on all
+    // platforms. On iOS/iPad, click events often don't fire due to hover
+    // state interference, overlay stacking issues, or WebView quirks.
+    // touchend fires directly from the touch and bypasses all of that.
+    function onTap(el, fn) {
+      let touchFired = false;
+      el.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        touchFired = true;
+        fn(e);
+        // Reset after a tick so click doesn't double-fire
+        setTimeout(() => { touchFired = false; }, 400);
+      });
+      el.addEventListener('click', (e) => {
+        if (!touchFired) fn(e);
+        touchFired = false;
+      });
+    }
+
+    // Title screen
+    onTap(document.getElementById('btn-solo'), startSoloGame);
+    onTap(document.getElementById('btn-multi'), goToWordEntry);
+    onTap(document.getElementById('btn-options'), () => {
+      showScreen('options-screen');
+      // Sync selection with current character
+      document.querySelectorAll('.char-option').forEach(el => {
+        el.classList.toggle('selected', el.dataset.char === selectedCharacter);
+      });
+      // Sync color selection
+      document.querySelectorAll('.color-btn').forEach(el => {
+        el.classList.toggle('selected', el.dataset.color === selectedColor);
+      });
+      // Sync perf selection
+      document.querySelectorAll('.perf-btn').forEach(el => {
+        el.classList.toggle('selected', el.dataset.perf === perfTier);
+      });
+      const detected = detectPerfTier();
+      document.getElementById('perf-auto-label').textContent =
+        'DETECTED: ' + detected.toUpperCase();
+    });
+
+    // Options screen — character
+    document.querySelectorAll('.char-option').forEach(el => {
+      onTap(el, () => {
+        document.querySelectorAll('.char-option').forEach(o => o.classList.remove('selected'));
+        el.classList.add('selected');
+        selectedCharacter = el.dataset.char;
+        localStorage.setItem('laserman_character', selectedCharacter);
+      });
+    });
+
+    // Options screen — color
+    document.querySelectorAll('.color-btn').forEach(el => {
+      onTap(el, () => {
+        document.querySelectorAll('.color-btn').forEach(o => o.classList.remove('selected'));
+        el.classList.add('selected');
+        selectedColor = el.dataset.color;
+        applyColorPalette(selectedColor);
+        localStorage.setItem('laserman_color', selectedColor);
+      });
+    });
+
+    // Options screen — performance tier
+    document.querySelectorAll('.perf-btn').forEach(el => {
+      onTap(el, () => {
+        document.querySelectorAll('.perf-btn').forEach(o => o.classList.remove('selected'));
+        el.classList.add('selected');
+        applyPerfTier(el.dataset.perf);
+      });
+    });
+
+    onTap(document.getElementById('btn-options-back'), goToMainMenu);
+
+    // Online screen
+    onTap(document.getElementById('btn-online'), goToOnlineLobby);
+    onTap(document.getElementById('btn-name-continue'), onlineNameContinue);
+    document.getElementById('online-name-input').addEventListener('input', (e) => {
+      e.target.value = e.target.value.replace(/[^a-zA-Z0-9 ]/g, '').toUpperCase();
+    });
+    document.getElementById('online-name-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') onlineNameContinue();
+    });
+    onTap(document.getElementById('btn-host'), hostGame);
+    onTap(document.getElementById('btn-join'), joinGame);
+    onTap(document.getElementById('btn-join-connect'), connectToHost);
+    document.getElementById('join-code-input').addEventListener('input', (e) => {
+      e.target.value = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+      document.getElementById('join-error').textContent = '';
+    });
+    document.getElementById('join-code-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') connectToHost();
+    });
+    document.getElementById('host-word-input').addEventListener('input', (e) => {
+      e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase();
+      document.getElementById('host-word-error').textContent = '';
+    });
+    onTap(document.getElementById('btn-host-start'), hostSendWord);
+    document.getElementById('host-word-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') hostSendWord();
+    });
+    onTap(document.getElementById('btn-host-set'), hostPicksSet);
+    onTap(document.getElementById('btn-host-guess'), hostPicksGuess);
+    onTap(document.getElementById('btn-joiner-start'), joinerSendWord);
+    document.getElementById('joiner-word-input').addEventListener('input', (e) => {
+      e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase();
+      document.getElementById('joiner-word-error').textContent = '';
+    });
+    document.getElementById('joiner-word-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') joinerSendWord();
+    });
+
+    // Online OPTIONS toggle buttons
+    document.querySelectorAll('.online-options-toggle').forEach(btn => {
+      onTap(btn, () => {
+        const panel = btn.nextElementSibling;
+        if (panel && panel.classList.contains('online-options-panel')) {
+          const isVisible = panel.style.display !== 'none';
+          panel.style.display = isVisible ? 'none' : 'block';
+          btn.textContent = isVisible ? 'OPTIONS' : 'HIDE OPTIONS';
+        }
+      });
+    });
+
+    // Online options panel — character, color, perf (for both host and joiner panels)
+    document.querySelectorAll('.online-options-panel .char-option').forEach(el => {
+      onTap(el, () => {
+        const panel = el.closest('.online-options-panel');
+        panel.querySelectorAll('.char-option').forEach(o => o.classList.remove('selected'));
+        el.classList.add('selected');
+        selectedCharacter = el.dataset.char;
+      });
+    });
+    document.querySelectorAll('.online-options-panel .color-btn').forEach(el => {
+      onTap(el, () => {
+        const panel = el.closest('.online-options-panel');
+        panel.querySelectorAll('.color-btn').forEach(o => o.classList.remove('selected'));
+        el.classList.add('selected');
+        selectedColor = el.dataset.color;
+        applyColorPalette(selectedColor);
+        localStorage.setItem('laserman_color', selectedColor);
+      });
+    });
+    // Confirmation modal for leaving online mode
+    function showConfirmLeave(onConfirm) {
+      document.getElementById('confirm-modal').classList.add('show');
+      // Store callback for the YES button
+      document.getElementById('confirm-modal')._onConfirm = onConfirm;
+    }
+    function hideConfirmLeave() {
+      document.getElementById('confirm-modal').classList.remove('show');
+      document.getElementById('confirm-modal')._onConfirm = null;
+    }
+    onTap(document.getElementById('confirm-yes'), () => {
+      const cb = document.getElementById('confirm-modal')._onConfirm;
+      hideConfirmLeave();
+      if (cb) cb();
+    });
+    onTap(document.getElementById('confirm-no'), () => {
+      hideConfirmLeave();
+    });
+
+    // Rematch modal handlers
+    onTap(document.getElementById('rematch-yes'), () => {
+      document.getElementById('rematch-modal').classList.remove('show');
+      onlineSend({ type: 'rematch-accept' });
+      hideMessage();
+      if (onlineRole === 'host') {
+        showScreen('online-screen');
+        document.getElementById('online-role-select').style.display = 'none';
+        document.getElementById('online-host-view').style.display = 'block';
+        document.getElementById('online-join-view').style.display = 'none';
+        document.getElementById('online-wait-word').style.display = 'none';
+        showOnlineHostWordEntry();
+      } else {
+        showScreen('online-screen');
+        document.getElementById('online-role-select').style.display = 'none';
+        document.getElementById('online-host-view').style.display = 'none';
+        document.getElementById('online-join-view').style.display = 'none';
+        showOnlineWaitWord();
+      }
+    });
+    onTap(document.getElementById('rematch-no'), () => {
+      document.getElementById('rematch-modal').classList.remove('show');
+      onlineSend({ type: 'rematch-decline' });
+      cleanupPeer();
+      goToMainMenu();
+    });
+
+    onTap(document.getElementById('btn-online-back'), () => {
+      // If connected to a peer, confirm before leaving
+      if (peerConn) {
+        showConfirmLeave(() => {
+          cleanupPeer();
+          goToMainMenu();
+        });
+      } else {
+        cleanupPeer();
+        goToMainMenu();
+      }
+    });
+
+    // Word entry screen
+    document.getElementById('word-input').addEventListener('input', (e) => {
+      e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase();
+      document.getElementById('word-error').textContent = '';
+    });
+
+    // Prevent toggle button from stealing focus from input (desktop + iOS)
+    document.getElementById('toggle-vis-btn').addEventListener('mousedown', (e) => {
+      e.preventDefault();
+    });
+    onTap(document.getElementById('toggle-vis-btn'), () => {
+      const input = document.getElementById('word-input');
+      const btn = document.getElementById('toggle-vis-btn');
+      // Save cursor position before type change
+      const cursorPos = input.selectionStart;
+      const cursorEnd = input.selectionEnd;
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = 'HIDE';
+      } else {
+        input.type = 'password';
+        btn.textContent = 'SHOW';
+      }
+      // Defer focus + cursor restore so browser finishes processing type change
+      requestAnimationFrame(() => {
+        input.focus();
+        input.setSelectionRange(cursorPos, cursorEnd);
+      });
+    });
+
+    // Category show/hide toggle (solo mode)
+    onTap(document.getElementById('toggle-cat-btn'), () => {
+      const catText = document.getElementById('category-text');
+      const catBtn = document.getElementById('toggle-cat-btn');
+      if (catText.dataset.revealed === 'true') {
+        catText.textContent = 'CATEGORY: \u25CF\u25CF\u25CF\u25CF\u25CF\u25CF\u25CF\u25CF';
+        catText.dataset.revealed = 'false';
+        catBtn.textContent = 'SHOW';
+      } else {
+        catText.textContent = 'CATEGORY: ' + gameState.category;
+        catText.dataset.revealed = 'true';
+        catBtn.textContent = 'HIDE';
+      }
+    });
+
+    onTap(document.getElementById('btn-start-multi'), () => {
+      const word = document.getElementById('word-input').value.trim();
+      if (word.length < 2) {
+        document.getElementById('word-error').textContent = 'WORD MUST BE AT LEAST 2 LETTERS';
+        return;
+      }
+      startGame(word);
+    });
+
+    document.getElementById('word-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        document.getElementById('btn-start-multi').click();
+      }
+    });
+
+    onTap(document.getElementById('btn-entry-back'), goToMainMenu);
+
+    // Game screen
+    onTap(document.getElementById('new-game-btn'), () => {
+      if (gameState.mode === 'online' || gameState.mode === 'online-host') {
+        // If peer disconnected, just go back to main menu
+        if (!peerConn || !peerConn.open) {
+          hideMessage();
+          cleanupPeer();
+          goToMainMenu();
+          return;
+        }
+        // Request rematch — wait for other player to confirm
+        onlineSend({ type: 'rematch-request' });
+        const name = onlineOpponentName || 'OPPONENT';
+        document.getElementById('new-game-btn').textContent = 'WAITING FOR ' + name + '...';
+      } else if (gameState.mode === 'multi') {
+        goToWordEntry();
+      } else {
+        startSoloGame();
+      }
+    });
+
+    onTap(document.getElementById('main-menu-btn'), () => {
+      if ((gameState.mode === 'online' || gameState.mode === 'online-host') && peerConn) {
+        showConfirmLeave(() => {
+          cleanupPeer();
+          goToMainMenu();
+        });
+      } else {
+        cleanupPeer();
+        goToMainMenu();
+      }
+    });
+
+    // Physical keyboard
+    // Skip animation: instantly completes the current laser animation
+    function skipAnimation() {
+      if (!laserAnim) return;
+      // Complete the animation instantly: mark body part & turret as red
+      bodyPartStates[laserAnim.partIndex] = 'red';
+      turretStates[laserAnim.turretIndex] = 'red';
+      const cb = laserAnim.onComplete;
+      laserAnim = null;
+      unlockKeyboard();
+      if (cb) cb();
+    }
+
+    document.addEventListener('keydown', (e) => {
+      // Only handle keys when game screen is active
+      if (!document.getElementById('game-screen').classList.contains('active')) return;
+      // Spacebar skips animation
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        skipAnimation();
+        return;
+      }
+      const letter = e.key.toUpperCase();
+      if (/^[A-Z]$/.test(letter)) {
+        handleGuess(letter);
+      }
+    });
+
+    // Tap or double-click on canvas skips animation
+    document.getElementById('gameCanvas').addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      skipAnimation();
+    });
+    // Single tap for touch devices (more intuitive than double-tap)
+    // Skip only when animations are long (non-reduced); on LOW they're fast enough
+    document.getElementById('gameCanvas').addEventListener('touchend', (e) => {
+      if (laserAnim && !PERF.reducedEffects) {
+        e.preventDefault();
+        skipAnimation();
+      }
+    });
+
+    // ===========================
+    // INIT
+    // ===========================
+    // Load saved selections (character defaults to laserman, always start green)
+    selectedCharacter = 'laserman';
+    selectedColor = 'green';
+    applyColorPalette(selectedColor);
+
+    // Apply performance tier (toggles CSS overlays, sets star count)
+    applyPerfTier(perfTier);
+
+    showScreen('title-screen');
+    requestAnimationFrame(render);
+  </script>
+</body>
+</html>

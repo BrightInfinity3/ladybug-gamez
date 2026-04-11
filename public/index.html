@@ -9,8 +9,8 @@
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg-deep: #0a0606;
-      --bg-card: rgba(30, 12, 12, 0.85);
+      --bg-deep: #1a1210;
+      --bg-card: rgba(40, 22, 18, 0.85);
       --border-glow: rgba(255, 80, 60, 0.15);
       --neon-red: #ff3b30;
       --neon-orange: #ff9500;
@@ -100,12 +100,12 @@
     }
 
     .logo-bug {
-      width: 52px;
-      height: 52px;
+      width: 78px;
+      height: 78px;
       align-self: center;
     }
 
-    .logo-word {
+    .logo {
       font-family: 'Orbitron', monospace;
       font-weight: 900;
       font-size: clamp(2.5rem, 7vw, 4.5rem);
@@ -114,38 +114,19 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-      display: inline-block;
-    }
-
-    .gamez-wrap {
       position: relative;
       display: inline-block;
     }
 
-    /* A's right leg → underline → Z's bottom leg */
-    .gamez-wrap::after {
+    .logo::after {
       content: '';
       position: absolute;
-      left: 35%;
-      right: 0;
-      top: 100%;
-      height: 10px;
-      border-left: 2.5px solid;
-      border-bottom: 2.5px solid;
-      border-right: 2.5px solid;
-      border-top: none;
-      border-image: linear-gradient(to right, var(--neon-orange), var(--neon-red), var(--neon-pink)) 1;
-    }
-
-    /* A's left leg */
-    .gamez-wrap::before {
-      content: '';
-      position: absolute;
-      left: 23%;
-      top: 100%;
-      width: 2.5px;
-      height: 7px;
-      background: var(--neon-orange);
+      bottom: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--neon-orange), var(--neon-red), var(--neon-pink), transparent);
     }
 
     .tagline {
@@ -296,6 +277,13 @@
       transform: translateX(4px);
     }
 
+    /* === CARD THEMES === */
+    .card.laserman {
+      --card-accent: #00e5ff;
+      --card-glow: rgba(0, 229, 255, 0.12);
+      --card-icon-bg: linear-gradient(135deg, rgba(0, 229, 255, 0.15), rgba(0, 150, 255, 0.1));
+    }
+
     /* === COMING SOON CARDS === */
     .card.coming-soon {
       --card-accent: rgba(255, 255, 255, 0.15);
@@ -358,7 +346,7 @@
       .games { grid-template-columns: 1fr; gap: 20px; }
       .card { padding: 24px 20px 20px; }
       .card-play { opacity: 1; transform: translateX(0); }
-      .logo-bug { width: 36px; height: 36px; }
+      .logo-bug { width: 52px; height: 52px; }
     }
   </style>
 </head>
@@ -373,21 +361,39 @@
   <div class="page">
     <header class="header">
       <h1 class="logo-row">
-        <span class="logo-word">LADYBUG</span>
-        <canvas class="logo-bug" id="ladybug-logo" width="52" height="52"></canvas>
-        <span class="logo-word gamez-wrap">GAMEZ</span>
+        <span class="logo">LADYBUG</span>
+        <canvas class="logo-bug" id="ladybug-logo" width="78" height="78"></canvas>
+        <span class="logo">GAMEZ</span>
       </h1>
       <p class="tagline">Select your game</p>
     </header>
 
     <div class="games">
 
+      <!-- LASERMAN -->
+      <a href="/laserman/" class="card laserman">
+        <div class="card-icon">
+          <canvas id="laserman-icon" width="48" height="48"></canvas>
+        </div>
+        <h2 class="card-title">Laserman</h2>
+        <p class="card-desc">
+          A word-guessing game. Pick your character, dodge the lasers, and guess the word before you're zapped.
+        </p>
+        <div class="card-tags">
+          <span class="tag">Word Game</span>
+          <span class="tag">Multiplayer</span>
+        </div>
+        <div class="card-play">
+          Play Now <span class="arrow">&rarr;</span>
+        </div>
+      </a>
+
       <!-- COMING SOON PLACEHOLDER -->
       <div class="card coming-soon">
         <div class="card-icon">🎮</div>
-        <h2 class="card-title">Games Coming</h2>
+        <h2 class="card-title">More Games</h2>
         <p class="card-desc">
-          New games are being built. Stay tuned for the first additions to the arcade.
+          New games are in the lab. Stay tuned for more additions to the arcade.
         </p>
         <span class="coming-soon-badge">Coming Soon</span>
       </div>
@@ -449,43 +455,43 @@
     }
     animate();
 
-    // Draw ladybug logo
+    // Draw ladybug logo — 50% bigger, 4 same-size dots per side, smiling
     (function() {
       const c = document.getElementById('ladybug-logo');
       const x = c.getContext('2d');
-      const W = 52, CX = W / 2, CY = W / 2 + 4;
+      const W = 78, CX = W / 2, CY = W / 2 + 6;
 
       // Body (red oval)
       x.shadowColor = '#ff3b30';
-      x.shadowBlur = 6;
+      x.shadowBlur = 8;
       x.fillStyle = '#e02020';
       x.beginPath();
-      x.ellipse(CX, CY, 16, 18, 0, 0, Math.PI * 2);
+      x.ellipse(CX, CY, 24, 27, 0, 0, Math.PI * 2);
       x.fill();
 
       // Center line
       x.shadowBlur = 0;
       x.strokeStyle = '#1a1a1a';
-      x.lineWidth = 1.8;
+      x.lineWidth = 2;
       x.beginPath();
-      x.moveTo(CX, CY - 18);
-      x.lineTo(CX, CY + 18);
+      x.moveTo(CX, CY - 27);
+      x.lineTo(CX, CY + 27);
       x.stroke();
 
-      // 4 spots per side, all same size (radius 3)
+      // 4 spots per side, all same size (radius 3), spread out in bigger body
       x.fillStyle = '#1a1a1a';
       const spotR = 3;
       const spots = [
         // Left side (4 dots)
-        [CX - 7, CY - 10],
-        [CX - 10, CY - 2],
-        [CX - 9, CY + 6],
-        [CX - 6, CY + 13],
+        [CX - 9,  CY - 14],
+        [CX - 14, CY - 3],
+        [CX - 13, CY + 8],
+        [CX - 8,  CY + 18],
         // Right side (4 dots, mirrored)
-        [CX + 7, CY - 10],
-        [CX + 10, CY - 2],
-        [CX + 9, CY + 6],
-        [CX + 6, CY + 13],
+        [CX + 9,  CY - 14],
+        [CX + 14, CY - 3],
+        [CX + 13, CY + 8],
+        [CX + 8,  CY + 18],
       ];
       spots.forEach(([sx, sy]) => {
         x.beginPath();
@@ -496,53 +502,120 @@
       // Head
       x.fillStyle = '#1a1a1a';
       x.beginPath();
-      x.arc(CX, CY - 18, 8, 0, Math.PI * 2);
+      x.arc(CX, CY - 27, 12, 0, Math.PI * 2);
       x.fill();
 
       // Eyes (white with black pupils)
       x.fillStyle = '#ffffff';
       x.beginPath();
-      x.arc(CX - 4, CY - 20, 2.5, 0, Math.PI * 2);
+      x.arc(CX - 5, CY - 29, 3, 0, Math.PI * 2);
       x.fill();
       x.beginPath();
-      x.arc(CX + 4, CY - 20, 2.5, 0, Math.PI * 2);
+      x.arc(CX + 5, CY - 29, 3, 0, Math.PI * 2);
       x.fill();
       x.fillStyle = '#1a1a1a';
       x.beginPath();
-      x.arc(CX - 3.5, CY - 20, 1.2, 0, Math.PI * 2);
+      x.arc(CX - 4.5, CY - 29, 1.5, 0, Math.PI * 2);
       x.fill();
       x.beginPath();
-      x.arc(CX + 4.5, CY - 20, 1.2, 0, Math.PI * 2);
+      x.arc(CX + 5.5, CY - 29, 1.5, 0, Math.PI * 2);
       x.fill();
 
       // Smile
       x.strokeStyle = '#ffffff';
-      x.lineWidth = 1.2;
+      x.lineWidth = 1.4;
       x.lineCap = 'round';
       x.beginPath();
-      x.arc(CX, CY - 16, 3, 0.2, Math.PI - 0.2);
+      x.arc(CX, CY - 24, 4, 0.3, Math.PI - 0.3);
       x.stroke();
 
       // Antennae
       x.strokeStyle = '#1a1a1a';
-      x.lineWidth = 1.3;
+      x.lineWidth = 1.5;
       x.beginPath();
-      x.moveTo(CX - 3, CY - 25);
-      x.quadraticCurveTo(CX - 12, CY - 36, CX - 8, CY - 38);
+      x.moveTo(CX - 4, CY - 37);
+      x.quadraticCurveTo(CX - 16, CY - 50, CX - 11, CY - 53);
       x.stroke();
       x.beginPath();
-      x.moveTo(CX + 3, CY - 25);
-      x.quadraticCurveTo(CX + 12, CY - 36, CX + 8, CY - 38);
+      x.moveTo(CX + 4, CY - 37);
+      x.quadraticCurveTo(CX + 16, CY - 50, CX + 11, CY - 53);
       x.stroke();
 
       // Antenna tips
       x.fillStyle = '#1a1a1a';
       x.beginPath();
-      x.arc(CX - 8, CY - 38, 1.8, 0, Math.PI * 2);
+      x.arc(CX - 11, CY - 53, 2.2, 0, Math.PI * 2);
       x.fill();
       x.beginPath();
-      x.arc(CX + 8, CY - 38, 1.8, 0, Math.PI * 2);
+      x.arc(CX + 11, CY - 53, 2.2, 0, Math.PI * 2);
       x.fill();
+    })();
+
+    // Draw Laserman icon — green, smiling (victory state)
+    (function() {
+      const c = document.getElementById('laserman-icon');
+      const x = c.getContext('2d');
+      const W = 48, CX = W / 2, CY = W / 2;
+      const green = '#00ff88';
+
+      x.shadowColor = green;
+      x.shadowBlur = 4;
+      x.strokeStyle = green;
+      x.fillStyle = green;
+      x.lineWidth = 1.8;
+      x.lineCap = 'round';
+
+      // Head
+      const headY = CY - 10;
+      const headR = 8;
+      x.beginPath();
+      x.arc(CX, headY, headR, 0, Math.PI * 2);
+      x.stroke();
+
+      // Eyes
+      x.shadowBlur = 3;
+      x.beginPath();
+      x.arc(CX - 3, headY - 1.5, 1.2, 0, Math.PI * 2);
+      x.fill();
+      x.beginPath();
+      x.arc(CX + 3, headY - 1.5, 1.2, 0, Math.PI * 2);
+      x.fill();
+
+      // Smile
+      x.shadowBlur = 5;
+      x.shadowColor = green;
+      x.lineWidth = 1.2;
+      x.beginPath();
+      x.arc(CX, headY + 0.5, 3, 0.5, Math.PI - 0.5);
+      x.stroke();
+
+      // Torso
+      x.shadowBlur = 4;
+      x.lineWidth = 1.8;
+      x.beginPath();
+      x.moveTo(CX, headY + headR);
+      x.lineTo(CX, CY + 12);
+      x.stroke();
+
+      // Arms
+      x.beginPath();
+      x.moveTo(CX - 10, CY + 6);
+      x.lineTo(CX, CY - 2);
+      x.stroke();
+      x.beginPath();
+      x.moveTo(CX + 10, CY + 6);
+      x.lineTo(CX, CY - 2);
+      x.stroke();
+
+      // Legs
+      x.beginPath();
+      x.moveTo(CX - 8, CY + 22);
+      x.lineTo(CX, CY + 12);
+      x.stroke();
+      x.beginPath();
+      x.moveTo(CX + 8, CY + 22);
+      x.lineTo(CX, CY + 12);
+      x.stroke();
     })();
   </script>
 </body>
