@@ -4271,7 +4271,7 @@
     onTap(document.getElementById('btn-join'), joinGame);
     onTap(document.getElementById('btn-join-connect'), connectToHost);
     document.getElementById('join-code-input').addEventListener('input', (e) => {
-      e.target.value = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+      e.target.value = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 3);
       document.getElementById('join-error').textContent = '';
     });
     document.getElementById('join-code-input').addEventListener('keydown', (e) => {
