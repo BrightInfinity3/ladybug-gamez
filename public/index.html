@@ -92,23 +92,27 @@
       margin-bottom: 20px;
     }
 
-    .logo-row {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
+    .logo-stack {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: flex-start;
       position: relative;
     }
 
-    .logo-row::after {
+    .logo-stack::after {
       content: '';
       position: absolute;
       bottom: -8px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 60%;
+      left: 0;
+      width: 100%;
       height: 2px;
-      background: linear-gradient(90deg, transparent, var(--neon-orange), var(--neon-red), var(--neon-pink), transparent);
+      background: linear-gradient(90deg, var(--neon-orange), var(--neon-red), var(--neon-pink), transparent);
+    }
+
+    .logo-line2 {
+      display: flex;
+      align-items: center;
+      gap: 16px;
     }
 
     .logo-bug-wrap {
@@ -144,6 +148,7 @@
       -webkit-text-fill-color: transparent;
       background-clip: text;
       display: inline-block;
+      line-height: 1.1;
     }
 
     .tagline {
@@ -214,6 +219,13 @@
         0 0 40px var(--card-glow);
     }
 
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
     .card-icon {
       width: 64px;
       height: 64px;
@@ -226,6 +238,11 @@
       background: var(--card-icon-bg);
       box-shadow: 0 4px 20px var(--card-glow);
       transition: transform 0.35s ease;
+      flex-shrink: 0;
+    }
+
+    .card-header .card-icon {
+      margin-bottom: 0;
     }
 
     .card:hover .card-icon {
@@ -238,6 +255,11 @@
       font-size: 1.3rem;
       margin-bottom: 10px;
       letter-spacing: 0.03em;
+    }
+
+    .card-header .card-title {
+      margin-bottom: 0;
+      padding-top: 8px;
     }
 
     .card-desc {
@@ -366,6 +388,7 @@
       .card-play { opacity: 1; transform: translateX(0); }
       .logo-bug { width: 52px; height: 52px; }
       .logo-bug-glow { width: 80px; height: 80px; }
+      .logo-stack { align-items: flex-start; }
     }
   </style>
 </head>
@@ -379,13 +402,15 @@
 
   <div class="page">
     <header class="header">
-      <h1 class="logo-row">
+      <h1 class="logo-stack">
         <span class="logo-word">LADYBUG</span>
-        <div class="logo-bug-wrap">
-          <div class="logo-bug-glow"></div>
-          <canvas class="logo-bug" id="ladybug-logo" width="78" height="78"></canvas>
+        <div class="logo-line2">
+          <span class="logo-word">GAMEZ</span>
+          <div class="logo-bug-wrap">
+            <div class="logo-bug-glow"></div>
+            <canvas class="logo-bug" id="ladybug-logo" width="78" height="78"></canvas>
+          </div>
         </div>
-        <span class="logo-word">GAMEZ</span>
       </h1>
       <p class="tagline">Select your game</p>
     </header>
@@ -394,12 +419,14 @@
 
       <!-- LASERMAN -->
       <a href="/laserman/" class="card laserman">
-        <div class="card-icon">
-          <canvas id="laserman-icon" width="48" height="48"></canvas>
+        <div class="card-header">
+          <h2 class="card-title">Laserman</h2>
+          <div class="card-icon">
+            <canvas id="laserman-icon" width="48" height="48"></canvas>
+          </div>
         </div>
-        <h2 class="card-title">Laserman</h2>
         <p class="card-desc">
-          A word-guessing game. Pick your character, dodge the lasers, and guess the word before you're zapped.
+          A word-guessing game. Pick your character, dodge the lasers, and decipher the word before you're zapped.
         </p>
         <div class="card-tags">
           <span class="tag">Word Game</span>
