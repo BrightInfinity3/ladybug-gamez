@@ -242,6 +242,10 @@
       flex-shrink: 0;
     }
 
+    .card-icon canvas {
+      display: block;
+    }
+
     .card-icon canvas.laserman-canvas {
       transform: scale(1.25);
     }
@@ -630,10 +634,10 @@
       // Eyes
       x.shadowBlur = 3;
       x.beginPath();
-      x.arc(CX - 3, headY - 1.5, 1.2, 0, Math.PI * 2);
+      x.arc(CX - 3, headY - 1.5, 0.9, 0, Math.PI * 2);
       x.fill();
       x.beginPath();
-      x.arc(CX + 3, headY - 1.5, 1.2, 0, Math.PI * 2);
+      x.arc(CX + 3, headY - 1.5, 0.9, 0, Math.PI * 2);
       x.fill();
 
       // Smile
