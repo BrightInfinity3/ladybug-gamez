@@ -234,11 +234,16 @@
       align-items: center;
       justify-content: center;
       font-size: 30px;
+      line-height: 1;
       margin-bottom: 20px;
       background: var(--card-icon-bg);
       box-shadow: 0 4px 20px var(--card-glow);
       transition: transform 0.35s ease;
       flex-shrink: 0;
+    }
+
+    .card-icon canvas.laserman-canvas {
+      transform: scale(1.25);
     }
 
     .card-header .card-icon {
@@ -420,7 +425,7 @@
       <a href="/laserman/" class="card laserman">
         <div class="card-header">
           <div class="card-icon">
-            <canvas id="laserman-icon" width="48" height="48"></canvas>
+            <canvas id="laserman-icon" class="laserman-canvas" width="48" height="48"></canvas>
           </div>
           <h2 class="card-title">Laserman</h2>
         </div>
