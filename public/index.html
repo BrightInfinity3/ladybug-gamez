@@ -448,7 +448,7 @@
       <!-- COMING SOON PLACEHOLDER -->
       <div class="card coming-soon">
         <div class="card-header">
-          <div class="card-icon">🎮</div>
+          <div class="card-icon"><span style="display:block;transform:translateY(-2px)">🎮</span></div>
           <h2 class="card-title">More Games</h2>
         </div>
         <p class="card-desc">
@@ -614,7 +614,7 @@
     (function() {
       const c = document.getElementById('laserman-icon');
       const x = c.getContext('2d');
-      const W = 48, CX = W / 2, CY = W / 2;
+      const W = 48, CX = W / 2, CY = W / 2 - 2;
       const green = '#00ff88';
 
       x.shadowColor = green;
