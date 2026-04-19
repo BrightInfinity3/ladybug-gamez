@@ -1609,48 +1609,72 @@ html, body {
   animation: pulseGlowSilver 2s ease-in-out infinite;
 }
 
-/* Gold halo glow on the current leader's score.
-   Pure text-shadow (no pseudo-element, no filled disc). The glow
-   emanates from the DIGITS themselves, so the "center" is simply the
-   text — no dark hole and no filled gold circle behind the number.
-   Alphas taper gradually across 7 spreads so the halo reads as a soft
-   round aura that fades into the table felt, mirroring the silver
-   halo on the active-player avatar but following the glyph outlines
-   instead of a rigid circle. */
+/* Gold halo on the current leader's score.
+   Two stacked effects:
+     1) A tight text-shadow on the digits themselves — the inner glow
+        that makes the number feel luminous.
+     2) A CIRCULAR ::before pseudo-element centred on the score with a
+        gold ring border AND a multi-layer box-shadow aura. The ring
+        is concrete (visible outline), the aura pulses around it. The
+        ::before sits ON TOP of the digits' paint layer but has a
+        transparent interior, so the digits shine through the hole in
+        the middle and the ring/aura surround them — same design
+        language as the silver halo around the active-player avatar.
+
+   No z-index / isolation trickery needed: we place the ::before at
+   natural paint order (after the text) with a transparent background,
+   so the digit pixels underneath remain visible inside the ring. */
 .game-seat-total.leader {
+  position: relative;
   color: #fff5d0;
   font-weight: 900;
   text-shadow:
-    0 0 4px   rgba(255, 245, 180, 1),
-    0 0 10px  rgba(255, 230, 125, 0.95),
-    0 0 22px  rgba(255, 220, 95,  0.8),
-    0 0 45px  rgba(255, 215, 85,  0.58),
-    0 0 80px  rgba(255, 210, 75,  0.38),
-    0 0 125px rgba(255, 205, 65,  0.22),
-    0 0 180px rgba(255, 200, 55,  0.1);
-  animation: leaderGlowPulse 2s ease-in-out infinite;
+    0 0 3px  rgba(255, 245, 180, 1),
+    0 0 8px  rgba(255, 230, 125, 0.95),
+    0 0 18px rgba(255, 220, 95,  0.75),
+    0 0 35px rgba(255, 215, 85,  0.5);
 }
 
-@keyframes leaderGlowPulse {
+.game-seat-total.leader::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3.6vmin;
+  height: 3.6vmin;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: transparent;                /* center stays transparent;
+                                             digits underneath show through */
+  border: 0.28vmin solid rgba(255, 215, 85, 0.92);
+  pointer-events: none;
+  box-shadow:
+    0 0 12px  rgba(255, 225, 110, 0.95),
+    0 0 32px  rgba(255, 215, 85,  0.8),
+    0 0 65px  rgba(255, 205, 65,  0.58),
+    0 0 110px rgba(255, 200, 55,  0.35),
+    0 0 170px rgba(255, 195, 45,  0.18);
+  animation: leaderRingPulse 2s ease-in-out infinite;
+}
+
+@keyframes leaderRingPulse {
   0%, 100% {
-    text-shadow:
-      0 0 4px   rgba(255, 245, 180, 1),
-      0 0 10px  rgba(255, 230, 125, 0.95),
-      0 0 22px  rgba(255, 220, 95,  0.8),
-      0 0 45px  rgba(255, 215, 85,  0.58),
-      0 0 80px  rgba(255, 210, 75,  0.38),
-      0 0 125px rgba(255, 205, 65,  0.22),
-      0 0 180px rgba(255, 200, 55,  0.1);
+    border-color: rgba(255, 215, 85, 0.9);
+    box-shadow:
+      0 0 12px  rgba(255, 225, 110, 0.95),
+      0 0 32px  rgba(255, 215, 85,  0.8),
+      0 0 65px  rgba(255, 205, 65,  0.58),
+      0 0 110px rgba(255, 200, 55,  0.35),
+      0 0 170px rgba(255, 195, 45,  0.18);
   }
   50% {
-    text-shadow:
-      0 0 5px   rgba(255, 250, 200, 1),
-      0 0 13px  rgba(255, 235, 140, 1),
-      0 0 28px  rgba(255, 225, 105, 0.92),
-      0 0 56px  rgba(255, 220, 90,  0.7),
-      0 0 100px rgba(255, 215, 80,  0.5),
-      0 0 155px rgba(255, 210, 70,  0.32),
-      0 0 220px rgba(255, 205, 60,  0.15);
+    border-color: rgba(255, 240, 160, 1);
+    box-shadow:
+      0 0 16px  rgba(255, 235, 135, 1),
+      0 0 45px  rgba(255, 225, 105, 0.95),
+      0 0 85px  rgba(255, 215, 80,  0.75),
+      0 0 140px rgba(255, 210, 70,  0.5),
+      0 0 210px rgba(255, 205, 60,  0.3);
   }
 }
 

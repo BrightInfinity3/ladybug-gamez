@@ -813,10 +813,19 @@ var Online = (function () {
       myDeviceId = Network.getMyPeerId();
 
       Network.onMessage(handleGuestMessage);
-      Network.onDisconnect(function () {
-        // Host disconnected — after grace period expired in network layer
-        showDisbandMessage('Lost connection to host. Please create a new room to continue playing.');
-        cleanup();
+      Network.onDisconnect(function (peerId) {
+        // The WebSocket relay broadcasts peer_left whenever ANY peer
+        // leaves the room — including other guests. We should only
+        // disband OUR session when the HOST drops (network.js signals
+        // that by passing the literal string 'host', as it does for
+        // room_disbanded / kicked). For any other peer leaving we just
+        // let the state-sync update our lobby display naturally.
+        if (peerId === 'host') {
+          showDisbandMessage('Lost connection to host. Please create a new room to continue playing.');
+          cleanup();
+        } else {
+          console.log('[Online] Another peer left the room:', peerId);
+        }
       });
 
       // Reconnect — if the WebSocket drops and comes back, re-announce
