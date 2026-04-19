@@ -904,6 +904,54 @@ var UI = (function () {
     executeAction(playerId, action);
   }
 
+  // Guests holding a pending initial deal from the host. When a guest's
+  // beginNewRound starts on a slow device, the host's `deal_round`
+  // broadcast may have already arrived — we stash the dealOrder here
+  // so beginNewRound picks it up immediately instead of re-dealing a
+  // local random hand. If the guest's beginNewRound starts FIRST, we
+  // stash the resolver and fire it when the broadcast arrives.
+  var pendingDealOrder = null;
+  var pendingDealResolve = null;
+
+  function waitForHostDealRound() {
+    return new Promise(function (resolve) {
+      if (pendingDealOrder) {
+        var rd = { dealOrder: pendingDealOrder };
+        pendingDealOrder = null;
+        resolve(rd);
+        return;
+      }
+      pendingDealResolve = resolve;
+      // Safety timeout: if the host never broadcasts deal_round (e.g.
+      // version mismatch), fall back to the Game's local state so the
+      // guest doesn't hang forever. 15s is generous.
+      setTimeout(function () {
+        if (pendingDealResolve === resolve) {
+          console.warn('[UI] waitForHostDealRound timeout — falling back to local state');
+          pendingDealResolve = null;
+          resolve({ dealOrder: buildDealOrderFromCurrentState() });
+        }
+      }, 15000);
+    });
+  }
+
+  function buildDealOrderFromCurrentState() {
+    var gs = Game.getState();
+    var dealOrder = [];
+    if (!gs || !gs.players || !gs.hands) return dealOrder;
+    var turnOrder = gs.turnOrder || gs.players.map(function (p) { return p.id; });
+    for (var c = 0; c < 3; c++) {
+      for (var i = 0; i < turnOrder.length; i++) {
+        var pid = turnOrder[i];
+        var hand = gs.hands[pid];
+        if (hand && hand.cards && hand.cards[c]) {
+          dealOrder.push({ playerId: pid, card: hand.cards[c] });
+        }
+      }
+    }
+    return dealOrder;
+  }
+
   // Guest: handle game action broadcast from host. These are declarative
   // "this just happened" events that let guests play the same animation
   // in parallel with the host instead of waiting for a state-sync to
@@ -913,6 +961,24 @@ var UI = (function () {
     if (data.type === 'play_again') {
       Online.setGamePhase('playing');
       playAgain();
+      return;
+    }
+    if (data.type === 'deal_round') {
+      // Host has dealt. Apply the authoritative state and feed the
+      // dealOrder into our beginNewRound deal animation.
+      if (data.gameState) Game.deserialize(data.gameState);
+      // Any previous handDisplay (e.g. from a prior round) is now
+      // stale — clear it so the deal animation renders the new cards.
+      for (var pid in handDisplay) {
+        handDisplay[pid] = [];
+      }
+      if (pendingDealResolve) {
+        var resolve = pendingDealResolve;
+        pendingDealResolve = null;
+        resolve({ dealOrder: data.dealOrder });
+      } else {
+        pendingDealOrder = data.dealOrder;
+      }
       return;
     }
     if (data.type === 'action_draw') {
@@ -1515,18 +1581,32 @@ var UI = (function () {
   }
 
   function beginNewRound() {
-    var roundData = Game.newRound();
+    var isOnline = Online.isActive();
+    var isOnlineGuest = isOnline && !Online.isHost();
+    var isOnlineHost  = isOnline && Online.isHost();
 
-    // Online host: push the authoritative post-deal state to guests
-    // immediately. Guests will ALSO have run Game.newRound() locally
-    // (against their own RNG-shuffled decks) so their hands currently
-    // differ — the state sync arriving before their deal animation
-    // finishes lets onlineHandleStateSync replace their random cards
-    // with the host's actual cards (via the new card-by-card compare
-    // in handleStateSync). Without this, the guest would show wrong
-    // cards for the entire round.
-    if (Online.isActive() && Online.isHost()) {
-      syncGameStateToGuests();
+    // Authoritative dealing:
+    //   Host (online or local): calls Game.newRound() locally and gets
+    //     the dealOrder back. If online, it also broadcasts deal_round
+    //     immediately so every guest animates the SAME cards.
+    //   Online guest: does NOT call Game.newRound() — that would re-
+    //     shuffle a local deck and deal RANDOM cards that look wrong
+    //     briefly and then snap to the host's cards when state sync
+    //     lands. Instead, waits for the host's deal_round broadcast,
+    //     applies the state it carries, and animates the host's deal.
+    var roundDataPromise;
+    if (isOnlineGuest) {
+      roundDataPromise = waitForHostDealRound();
+    } else {
+      var roundData = Game.newRound();
+      if (isOnlineHost) {
+        Online.broadcastGameAction({
+          type: 'deal_round',
+          dealOrder: roundData.dealOrder,
+          gameState: Game.serialize()
+        });
+      }
+      roundDataPromise = Promise.resolve(roundData);
     }
 
     // Switch to playing phase (stays on game screen)
@@ -1544,17 +1624,27 @@ var UI = (function () {
 
     // Update menu button text for online mode
     var menuBtn = document.getElementById('btn-menu');
-    menuBtn.textContent = Online.isActive() ? 'Leave Room' : 'Main Menu';
+    menuBtn.textContent = isOnline ? 'Leave Room' : 'Main Menu';
 
+    // Guests: keep local state pristine so no stale hands render while
+    // we're waiting for the host's deal.
+    if (isOnlineGuest) {
+      handDisplay = {};
+    }
+
+    var _roundData; // captured for later stages
     renderGameTable().then(function () {
       updateHUD();
-
       // Animate dealing
       gameFlowLocked = true;
       setMessage('Dealing...');
-
       return Animations.delay(500);
     }).then(function () {
+      // Guests block here until deal_round arrives. Hosts resolve
+      // immediately with the locally-computed dealOrder.
+      return roundDataPromise;
+    }).then(function (roundData) {
+      _roundData = roundData;
       return animateDealSequence(roundData.dealOrder);
     }).then(function () {
       // Flip all cards face up on canvas
