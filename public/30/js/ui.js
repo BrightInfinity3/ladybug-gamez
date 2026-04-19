@@ -377,14 +377,65 @@ var UI = (function () {
   //  ONLINE EVENT BINDING
   // ================================================================
 
+  // Reset the online-screen forms back to a fresh / clickable state.
+  // Called every time we re-enter the online screen so a previous join
+  // attempt (stuck on "Waiting for host to accept…", or a disbanded
+  // room) doesn't leave the Join button disabled or show stale status.
+  function resetOnlineScreen() {
+    // If there's a live Online session still lingering (e.g. we were
+    // a guest and the host disbanded while we were on the lobby),
+    // tear it down so Network.joinRoom starts fresh.
+    if (typeof Online !== 'undefined' && Online.isActive && Online.isActive()) {
+      try { Online.cleanup(); } catch (e) {}
+    }
+    var joinStatus = document.getElementById('join-status');
+    var hostStatus = document.getElementById('host-status');
+    if (joinStatus) { joinStatus.textContent = ''; joinStatus.className = 'online-status'; }
+    if (hostStatus) { hostStatus.textContent = ''; hostStatus.className = 'online-status'; }
+    var btnJoin = document.getElementById('btn-join-room');
+    var btnHost = document.getElementById('btn-create-room');
+    if (btnJoin) btnJoin.disabled = false;
+    if (btnHost) btnHost.disabled = false;
+  }
+
   function bindOnlineEvents() {
     // Title screen — Online button
     document.getElementById('btn-online').addEventListener('click', function () {
       requestFullscreen();
+      resetOnlineScreen();
       showScreen('screen-online');
     });
 
-    // Online screen — tabs
+    // Online screen — tabs. Usernames from whichever form was filled in
+    // are copied over to the other form so toggling doesn't lose the
+    // name the user typed. Also persisted to localStorage so it survives
+    // page reloads.
+    function rememberUsername(name) {
+      try { localStorage.setItem('thirty:lastUsername', name || ''); } catch (e) {}
+    }
+    function loadRememberedUsername() {
+      try { return localStorage.getItem('thirty:lastUsername') || ''; } catch (e) { return ''; }
+    }
+    // Seed both inputs on load with last-used username.
+    (function () {
+      var last = loadRememberedUsername();
+      if (last) {
+        var h = document.getElementById('host-username');
+        var j = document.getElementById('join-username');
+        if (h && !h.value) h.value = last;
+        if (j && !j.value) j.value = last;
+      }
+    })();
+    // Keep the fields synchronised as the user types in either.
+    document.getElementById('host-username').addEventListener('input', function (e) {
+      document.getElementById('join-username').value = e.target.value;
+      rememberUsername(e.target.value);
+    });
+    document.getElementById('join-username').addEventListener('input', function (e) {
+      document.getElementById('host-username').value = e.target.value;
+      rememberUsername(e.target.value);
+    });
+
     document.getElementById('tab-host').addEventListener('click', function () {
       document.getElementById('tab-host').classList.add('active');
       document.getElementById('tab-host').classList.remove('btn-outline');
@@ -394,6 +445,9 @@ var UI = (function () {
       document.getElementById('tab-join').classList.remove('btn-gold');
       document.getElementById('form-host').style.display = '';
       document.getElementById('form-join').style.display = 'none';
+      // Copy whatever was last typed to keep them in sync.
+      var j = document.getElementById('join-username').value;
+      if (j) document.getElementById('host-username').value = j;
     });
     document.getElementById('tab-join').addEventListener('click', function () {
       document.getElementById('tab-join').classList.add('active');
@@ -404,6 +458,8 @@ var UI = (function () {
       document.getElementById('tab-host').classList.remove('btn-gold');
       document.getElementById('form-join').style.display = '';
       document.getElementById('form-host').style.display = 'none';
+      var h = document.getElementById('host-username').value;
+      if (h) document.getElementById('join-username').value = h;
     });
 
     // Host player count
@@ -551,15 +607,20 @@ var UI = (function () {
       document.getElementById('confirm-leave-room').style.display = 'none';
     });
 
-    // Back button on online screen
+    // Back button on online screen — clean up any lingering session so
+    // a future Online Play click lands on a fresh form.
     document.getElementById('btn-online-back').addEventListener('click', function () {
+      resetOnlineScreen();
       showScreen('screen-title');
     });
 
-    // Disband OK button
+    // Disband OK button — return to the online screen in a fresh state
+    // (not the title screen) so the user can immediately host or join
+    // another room with one click, without having to navigate back in.
     document.getElementById('btn-disband-ok').addEventListener('click', function () {
       document.getElementById('disband-overlay').style.display = 'none';
-      showScreen('screen-title');
+      resetOnlineScreen();
+      showScreen('screen-online');
     });
   }
 
@@ -839,11 +900,51 @@ var UI = (function () {
     executeAction(playerId, action);
   }
 
-  // Guest: handle game action broadcast from host
+  // Guest: handle game action broadcast from host. These are declarative
+  // "this just happened" events that let guests play the same animation
+  // in parallel with the host instead of waiting for a state-sync to
+  // land and silently snapping values. A host-authoritative state sync
+  // still arrives at the end of the move and reconciles any drift.
   function onlineHandleGameAction(data) {
     if (data.type === 'play_again') {
       Online.setGamePhase('playing');
       playAgain();
+      return;
+    }
+    if (data.type === 'action_draw') {
+      var pid = data.playerId;
+      var player = Game.getPlayerById(pid);
+      var seatIndex = (data.seatIndex !== undefined) ? data.seatIndex : (player && player.seatIndex);
+      // Fly the card from the deck to the player's hand, same as the host.
+      animateCanvasDraw(data.card, pid, seatIndex).then(function () {
+        updateDeckCount();
+        // Optimistically show the new total — state sync will reconfirm.
+        var totalEl = document.querySelector('[data-total="' + pid + '"]');
+        if (totalEl && data.newTotal !== undefined) {
+          totalEl.textContent = data.newTotal;
+          totalEl.style.visibility = 'visible';
+        }
+        updateLeaderGlow();
+        if (data.busted) {
+          var seatEl = document.querySelector('.game-seat[data-player="' + pid + '"]');
+          if (seatEl) Animations.animateBust(seatEl);
+          updatePlayerStatus(pid, 'busted');
+        } else if (data.stayed) {
+          updatePlayerStatus(pid, 'stayed');
+        }
+      });
+      return;
+    }
+    if (data.type === 'action_stay') {
+      var pid2 = data.playerId;
+      var totalEl2 = document.querySelector('[data-total="' + pid2 + '"]');
+      if (totalEl2 && data.total !== undefined) {
+        totalEl2.textContent = data.total;
+        totalEl2.style.visibility = 'visible';
+      }
+      updatePlayerStatus(pid2, 'stayed');
+      updateLeaderGlow();
+      return;
     }
   }
 
@@ -1695,6 +1796,21 @@ var UI = (function () {
 
       setMessage(player.name + ' draws!');
 
+      // Broadcast the draw action so every guest can run the SAME card-
+      // flying animation in parallel, using the host's card data. The
+      // guest's onlineHandleGameAction handler picks this up.
+      if (Online.isActive() && Online.isHost() && result.action !== 'forced_stay') {
+        Online.broadcastGameAction({
+          type: 'action_draw',
+          playerId: playerId,
+          card: result.card,
+          seatIndex: player.seatIndex,
+          newTotal: result.total,
+          busted: !!result.busted,
+          stayed: (result.total === 30)
+        });
+      }
+
       if (result.action === 'forced_stay') {
         // Deck empty, force stay
         setMessage('Deck empty! ' + player.name + ' must stay.');
@@ -1742,6 +1858,16 @@ var UI = (function () {
       var stayTotal = CardSystem.handTotal(Game.getHand(playerId).cards);
       setMessage(player.name + ' stays with ' + stayTotal + '.');
       updatePlayerStatus(playerId, 'stayed');
+
+      // Mirror the "Stayed" visual onto guests immediately (rather than
+      // waiting for the next state sync, which happens after the delay).
+      if (Online.isActive() && Online.isHost()) {
+        Online.broadcastGameAction({
+          type: 'action_stay',
+          playerId: playerId,
+          total: stayTotal
+        });
+      }
 
       return Animations.delay(Animations.TIMING.MESSAGE_DURATION).then(function () {
         advanceToNext();

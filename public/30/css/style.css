@@ -1609,70 +1609,48 @@ html, body {
   animation: pulseGlowSilver 2s ease-in-out infinite;
 }
 
-/* Gold halo glow on the current leader's score — mirrors the silver
-   halo on the active-player avatar (same design, gold palette).
-   Two layers:
-     (a) A text-shadow on the digits themselves for tight inner glow
-     (b) A CIRCULAR ::before pseudo-element behind the digits, filled
-         with a gold radial gradient AND ringed by box-shadow layers so
-         the aura extends well beyond the element.
-
-   `isolation: isolate` on the parent creates a new stacking context so
-   the ::before's z-index: -1 stays BEHIND the text but above the
-   canvas — without this trick the pseudo-element falls behind the
-   table canvas and the inside of the halo renders as a dark hole. */
+/* Gold halo glow on the current leader's score.
+   Pure text-shadow (no pseudo-element, no filled disc). The glow
+   emanates from the DIGITS themselves, so the "center" is simply the
+   text — no dark hole and no filled gold circle behind the number.
+   Alphas taper gradually across 7 spreads so the halo reads as a soft
+   round aura that fades into the table felt, mirroring the silver
+   halo on the active-player avatar but following the glyph outlines
+   instead of a rigid circle. */
 .game-seat-total.leader {
-  position: relative;
-  isolation: isolate;
   color: #fff5d0;
   font-weight: 900;
   text-shadow:
-    0 0 4px  rgba(255, 240, 170, 1),
-    0 0 8px  rgba(255, 230, 130, 0.95),
-    0 0 16px rgba(255, 220, 100, 0.7);
+    0 0 4px   rgba(255, 245, 180, 1),
+    0 0 10px  rgba(255, 230, 125, 0.95),
+    0 0 22px  rgba(255, 220, 95,  0.8),
+    0 0 45px  rgba(255, 215, 85,  0.58),
+    0 0 80px  rgba(255, 210, 75,  0.38),
+    0 0 125px rgba(255, 205, 65,  0.22),
+    0 0 180px rgba(255, 200, 55,  0.1);
+  animation: leaderGlowPulse 2s ease-in-out infinite;
 }
 
-.game-seat-total.leader::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 2.5vmin;
-  height: 2.5vmin;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  /* Gold fill so the inside of the halo IS gold (not the dark canvas
-     behind). Dense at the centre, fading toward the edges so the disc
-     blends seamlessly into the box-shadow aura around it. */
-  background: radial-gradient(circle,
-    rgba(255, 225, 115, 0.9) 0%,
-    rgba(255, 218, 100, 0.75) 45%,
-    rgba(255, 212, 85, 0.5) 80%,
-    rgba(255, 210, 80, 0.2) 100%);
-  pointer-events: none;
-  z-index: -1;
-  box-shadow:
-    0 0 18px rgba(255, 220, 100, 1),
-    0 0 45px rgba(255, 210, 80,  0.95),
-    0 0 90px rgba(255, 200, 60,  0.8),
-    0 0 135px rgba(255, 195, 50, 0.5);
-  animation: leaderHaloPulse 2s ease-in-out infinite;
-}
-
-@keyframes leaderHaloPulse {
+@keyframes leaderGlowPulse {
   0%, 100% {
-    box-shadow:
-      0 0 18px rgba(255, 220, 100, 1),
-      0 0 45px rgba(255, 210, 80,  0.95),
-      0 0 90px rgba(255, 200, 60,  0.8),
-      0 0 135px rgba(255, 195, 50, 0.5);
+    text-shadow:
+      0 0 4px   rgba(255, 245, 180, 1),
+      0 0 10px  rgba(255, 230, 125, 0.95),
+      0 0 22px  rgba(255, 220, 95,  0.8),
+      0 0 45px  rgba(255, 215, 85,  0.58),
+      0 0 80px  rgba(255, 210, 75,  0.38),
+      0 0 125px rgba(255, 205, 65,  0.22),
+      0 0 180px rgba(255, 200, 55,  0.1);
   }
   50% {
-    box-shadow:
-      0 0 25px rgba(255, 230, 120, 1),
-      0 0 60px rgba(255, 220, 95,  1),
-      0 0 115px rgba(255, 210, 75, 0.9),
-      0 0 170px rgba(255, 205, 65, 0.65);
+    text-shadow:
+      0 0 5px   rgba(255, 250, 200, 1),
+      0 0 13px  rgba(255, 235, 140, 1),
+      0 0 28px  rgba(255, 225, 105, 0.92),
+      0 0 56px  rgba(255, 220, 90,  0.7),
+      0 0 100px rgba(255, 215, 80,  0.5),
+      0 0 155px rgba(255, 210, 70,  0.32),
+      0 0 220px rgba(255, 205, 60,  0.15);
   }
 }
 
@@ -2256,27 +2234,45 @@ html, body {
   z-index: 9999;
 }
 
+/* Disband popup — rem-based with media-query tiers like the title
+   screen, so the message is readable on phones where vmin gets tiny.
+   Base values are for desktop / >=1024px. */
 .disband-panel {
   background: var(--bg-panel);
-  border: 0.14vmin solid var(--bust-red);
-  border-radius: 0.83vmin;
-  padding: 2.2vmin;
-  max-width: 28vmin;
-  width: 90%;
+  border: 2px solid var(--bust-red);
+  border-radius: 0.8rem;
+  padding: 2rem 2.4rem;
+  max-width: 420px;
+  width: 92%;
   text-align: center;
+  box-shadow: 0 0.5rem 2rem rgba(0,0,0,0.6);
 }
 
 .disband-message {
   font-family: var(--font-body);
-  font-size: 1.2vmin;
+  font-size: 1.1rem;
   color: var(--text-light);
-  margin-bottom: 1.7vmin;
+  margin-bottom: 1.5rem;
   line-height: 1.5;
 }
 
 .disband-panel .btn {
-  font-size: 1.1vmin;
-  padding: 0.5vmin 1.5vmin;
+  font-size: 1.05rem;
+  padding: 0.6em 1.8em;
 }
 
-/* All online elements use vmin — no breakpoints needed */
+@media (max-width: 1024px) {
+  .disband-panel { max-width: 380px; padding: 1.7rem 2rem; }
+  .disband-message { font-size: 1rem; }
+  .disband-panel .btn { font-size: 1rem; }
+}
+@media (max-width: 768px) {
+  .disband-panel { max-width: 340px; padding: 1.4rem 1.6rem; border-radius: 0.6rem; }
+  .disband-message { font-size: 0.95rem; margin-bottom: 1.2rem; }
+  .disband-panel .btn { font-size: 0.9rem; padding: 0.55em 1.5em; }
+}
+@media (max-width: 480px) {
+  .disband-panel { max-width: 300px; padding: 1.1rem 1.3rem; }
+  .disband-message { font-size: 0.88rem; margin-bottom: 1rem; line-height: 1.45; }
+  .disband-panel .btn { font-size: 0.85rem; padding: 0.5em 1.4em; }
+}

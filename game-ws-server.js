@@ -53,7 +53,10 @@ function genPeerId() {
 function attachGameWebSocketServer(httpServer, options) {
   options = options || {};
   const path = options.path || '/ws';
-  const HEARTBEAT_MS = 25000;
+  // Faster heartbeat so socket death is detected within ~20s instead of
+  // ~50s. Dead sockets still get up to one missed ping + one interval
+  // before termination, so real-world close latency is ~HEARTBEAT_MS * 2.
+  const HEARTBEAT_MS = 10000;
   const RECONNECT_GRACE_MS = 300000; // 5 min to reconnect before final drop
 
   const wss = new WebSocket.Server({ server: httpServer, path: path });

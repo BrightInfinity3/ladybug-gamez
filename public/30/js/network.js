@@ -15,7 +15,7 @@ var Network = (function () {
   //   4) If page is on localhost → local Ladybug Gamez dev server (:3001)
   //   5) Otherwise → production Ladybug Gamez.
   // Change the PRODUCTION_WS constant below if your Railway URL differs.
-  var PRODUCTION_WS = 'wss://ladybug-gamez-production.up.railway.app/ws';
+  var PRODUCTION_WS = 'wss://ladybug.up.railway.app/ws';
 
   function resolveWsUrl() {
     if (typeof window !== 'undefined' && window.GAME_WS_URL) return window.GAME_WS_URL;

@@ -51,6 +51,9 @@ var Online = (function () {
   // departed peer to the set of seat indices that device owned at the
   // moment it left, so the host can pick AI / Human-controlled for each.
   var pendingLeaves = {};    // peerId -> { username, seats: [seatIdx], decisions: { seatIdx: 'ai'|'human' } }
+  // Short-delay timers that open the leave-modal after a disconnect —
+  // cancelled if the device reconnects within the grace window.
+  var pauseModalTimers = {}; // peerId -> setTimeout handle
 
   // ---- Initialize ----
   function initLobbyState() {
@@ -177,31 +180,72 @@ var Online = (function () {
       Network.onMessage(handleHostMessage);
       Network.onDisconnect(handleGuestDisconnect);
 
-      // Paused — conn.close fired, entering grace period. Immediately
-      // mark the device as paused so during-game turn handling can
-      // switch to host-AI for their players without waiting for the
-      // full 5-minute grace to expire.
+      // Paused — conn.close fired, entering grace period. Mark the
+      // device paused so during-game turn handling can switch to host-AI
+      // immediately for their players. After a short grace delay
+      // (PAUSE_MODAL_DELAY_MS below), also open the "device left" modal
+      // so the host can decide sooner — cancelled on resume if they
+      // reconnect first.
+      var PAUSE_MODAL_DELAY_MS = 8000;  // 8s — covers brief network blips
+                                        // without making the host wait
       Network.onPaused(function (peerId) {
         console.log('[Online] Guest paused:', peerId);
         if (lobbyState.devices[peerId]) {
           lobbyState.devices[peerId].paused = true;
           broadcastLobbyState();
           renderOnlineLobby();
-          // If we're mid-game and it's currently their turn, have the host
-          // AI take over the pending action now (so the game doesn't stall).
           if (gamePhase === 'playing' && typeof onHostAutoPlayCallback === 'function') {
             onHostAutoPlayCallback();
+          }
+          // Show the "how should I handle their players" modal after a
+          // short delay, unless they reconnect first.
+          if (_isHost && gamePhase === 'playing' && !pendingLeaves[peerId]) {
+            if (pauseModalTimers[peerId]) clearTimeout(pauseModalTimers[peerId]);
+            pauseModalTimers[peerId] = setTimeout(function () {
+              delete pauseModalTimers[peerId];
+              var dev = lobbyState.devices[peerId];
+              if (dev && dev.paused && !pendingLeaves[peerId]) {
+                startPendingLeave(peerId, /*definitive=*/false);
+              }
+            }, PAUSE_MODAL_DELAY_MS);
           }
         }
       });
 
-      // Resumed — conn reopened within grace
+      // Resumed — conn reopened within grace. Flip paused off, cancel
+      // any pending leave-modal, let the rejoining device reclaim their
+      // seats so they can keep playing.
       Network.onResumed(function (peerId) {
         console.log('[Online] Guest resumed:', peerId);
         if (lobbyState.devices[peerId]) {
           lobbyState.devices[peerId].paused = false;
-          broadcastLobbyState();
-          renderOnlineLobby();
+          lobbyState.devices[peerId].leaving = false;
+        }
+        // Cancel any scheduled-but-not-yet-opened modal.
+        if (pauseModalTimers[peerId]) {
+          clearTimeout(pauseModalTimers[peerId]);
+          delete pauseModalTimers[peerId];
+        }
+        // If the modal HAD opened already, close it — the player is
+        // back, no decision needed.
+        if (pendingLeaves[peerId]) {
+          delete pendingLeaves[peerId];
+          renderDeviceLeaveModal();
+          var uname = (lobbyState.devices[peerId] && lobbyState.devices[peerId].username) || 'A player';
+          showLocalToast(uname + ' has reconnected.');
+          Network.broadcast({ type: 'toast', data: { message: uname + ' has reconnected.' } });
+        }
+        broadcastLobbyState();
+        renderOnlineLobby();
+        // Re-send the full lobby / game state so the reconnected device
+        // catches up with anything it missed.
+        if (gamePhase === 'lobby') {
+          Network.send(peerId, { type: 'lobby_state', data: JSON.parse(JSON.stringify(lobbyState)) });
+        } else if (gamePhase === 'playing') {
+          Network.send(peerId, {
+            type: 'game_state_sync',
+            data: { gameState: Game.serialize(), lobbyState: JSON.parse(JSON.stringify(lobbyState)) }
+          });
         }
       });
 
@@ -939,11 +983,22 @@ var Online = (function () {
     var countEl = document.getElementById('online-player-count');
     if (countEl) countEl.textContent = totalPlayerCount() + '/8 Players';
 
-    // Deal button (host only)
+    // Deal button (host, AND only while we're still in the lobby phase).
+    // Without the phase check, any mid-game lobby_state broadcast
+    // (pause/resume/leave/name change) reopens the Deal! button on top
+    // of gameplay — the bug that made it look like the host was
+    // "re-dealing" the board.
     var dealBtn = document.getElementById('btn-online-deal');
     if (dealBtn) {
-      dealBtn.style.display = _isHost ? '' : 'none';
+      var inLobby = (gamePhase === 'lobby');
+      dealBtn.style.display = (_isHost && inLobby) ? '' : 'none';
       dealBtn.disabled = totalPlayerCount() < 2;
+    }
+    // Similarly, the lobby-waiting message for guests should ONLY be
+    // visible during the lobby phase — not during gameplay.
+    var waiting = document.getElementById('lobby-waiting');
+    if (waiting && !_isHost) {
+      waiting.style.display = (gamePhase === 'lobby') ? '' : 'none';
     }
 
     // Delegate seat rendering to UI
