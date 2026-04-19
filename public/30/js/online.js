@@ -1010,8 +1010,13 @@ var Online = (function () {
       waiting.style.display = (gamePhase === 'lobby') ? '' : 'none';
     }
 
-    // Delegate seat rendering to UI
-    if (typeof renderLobbyCallback === 'function') {
+    // Delegate seat rendering to UI — but ONLY during lobby. During
+    // gameplay the seats-ring holds the game seats (avatar + score +
+    // status pill + leader halo) and we must NOT overwrite those with
+    // lobby seats. Previously any mid-game lobby_state broadcast (e.g.
+    // a guest leaving) wiped the scores and showed the setup-style
+    // seat layout until the next state sync landed.
+    if (gamePhase === 'lobby' && typeof renderLobbyCallback === 'function') {
       renderLobbyCallback();
     }
   }

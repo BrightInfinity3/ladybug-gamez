@@ -1640,16 +1640,15 @@ html, body {
   position: absolute;
   top: 50%;
   left: 50%;
-  /* Diameter 4.3vmin = 20% bigger than the previous 3.6vmin, giving
-     the digits clear breathing room inside the ring. Border scales
-     proportionally. */
+  /* Small invisible anchor from which the halo box-shadow radiates.
+     No border (the visible ring was removed per user request); the
+     circle itself is transparent, so nothing draws on top of the
+     digits. All you see is the soft gold halo around them. */
   width: 4.3vmin;
   height: 4.3vmin;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  background: transparent;                /* center stays transparent;
-                                             digits underneath show through */
-  border: 0.33vmin solid rgba(255, 215, 85, 0.92);
+  background: transparent;
   pointer-events: none;
   box-shadow:
     0 0 12px  rgba(255, 225, 110, 0.95),
@@ -1662,7 +1661,6 @@ html, body {
 
 @keyframes leaderRingPulse {
   0%, 100% {
-    border-color: rgba(255, 215, 85, 0.9);
     box-shadow:
       0 0 12px  rgba(255, 225, 110, 0.95),
       0 0 32px  rgba(255, 215, 85,  0.8),
@@ -1671,7 +1669,6 @@ html, body {
       0 0 170px rgba(255, 195, 45,  0.18);
   }
   50% {
-    border-color: rgba(255, 240, 160, 1);
     box-shadow:
       0 0 16px  rgba(255, 235, 135, 1),
       0 0 45px  rgba(255, 225, 105, 0.95),
