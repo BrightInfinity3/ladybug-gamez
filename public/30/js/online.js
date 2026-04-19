@@ -55,6 +55,17 @@ var Online = (function () {
   // cancelled if the device reconnects within the grace window.
   var pauseModalTimers = {}; // peerId -> setTimeout handle
 
+  // Auto-play-grace timers. When a device's socket drops we do NOT
+  // let the host's AI play for them immediately — that caused the
+  // "phone power button → a card got drawn for me" complaint. Instead
+  // shouldHostAutoPlay returns false for the first PAUSE_AUTOPLAY_DELAY_MS
+  // milliseconds of pause. If the device reconnects in that window we
+  // cancel the pending autoplay kick entirely (their turn is still
+  // theirs). If they're still paused after the delay, we fire the
+  // host-auto-play callback so nextTurn picks up the AI path.
+  var autoplayTimers = {};   // peerId -> setTimeout handle
+  var PAUSE_AUTOPLAY_DELAY_MS = 30000; // 30s — generous for mobile wake-ups
+
   // ---- Initialize ----
   function initLobbyState() {
     lobbyState.seats = [];
@@ -180,31 +191,45 @@ var Online = (function () {
       Network.onMessage(handleHostMessage);
       Network.onDisconnect(handleGuestDisconnect);
 
-      // Paused — conn.close fired, entering grace period. Mark the
-      // device paused so during-game turn handling can switch to host-AI
-      // immediately for their players. After a short grace delay
-      // (PAUSE_MODAL_DELAY_MS below), also open the "device left" modal
-      // so the host can decide sooner — cancelled on resume if they
-      // reconnect first.
-      var PAUSE_MODAL_DELAY_MS = 8000;  // 8s — covers brief network blips
-                                        // without making the host wait
+      // Paused — conn.close fired, entering grace period. Record the
+      // paused timestamp so shouldHostAutoPlay can hold off the AI
+      // takeover for PAUSE_AUTOPLAY_DELAY_MS (handles brief mobile
+      // screen-locks without auto-drawing). Scheduled callbacks:
+      //   - autoplayTimers: at 30s, kick the turn loop so host-AI
+      //     picks up their move if they still haven't come back.
+      //   - pauseModalTimers: at 8s, open the "device left" host-side
+      //     decision modal (cancelled on resume).
+      var PAUSE_MODAL_DELAY_MS = 8000;
       Network.onPaused(function (peerId) {
         console.log('[Online] Guest paused:', peerId);
-        if (lobbyState.devices[peerId]) {
-          lobbyState.devices[peerId].paused = true;
-          broadcastLobbyState();
-          renderOnlineLobby();
-          if (gamePhase === 'playing' && typeof onHostAutoPlayCallback === 'function') {
-            onHostAutoPlayCallback();
-          }
-          // Show the "how should I handle their players" modal after a
-          // short delay, unless they reconnect first.
-          if (_isHost && gamePhase === 'playing' && !pendingLeaves[peerId]) {
+        if (!lobbyState.devices[peerId]) return;
+        lobbyState.devices[peerId].paused = true;
+        lobbyState.devices[peerId].pausedSince = Date.now();
+        broadcastLobbyState();
+        renderOnlineLobby();
+
+        if (_isHost && gamePhase === 'playing') {
+          // Schedule the delayed host-AI takeover. If the device comes
+          // back within 30s this timer is cancelled and their turn is
+          // still theirs to play.
+          if (autoplayTimers[peerId]) clearTimeout(autoplayTimers[peerId]);
+          autoplayTimers[peerId] = setTimeout(function () {
+            delete autoplayTimers[peerId];
+            var dev = lobbyState.devices[peerId];
+            if (!dev || !dev.paused) return;
+            console.log('[Online] 30s autoplay grace expired for', peerId);
+            if (typeof onHostAutoPlayCallback === 'function') {
+              onHostAutoPlayCallback();
+            }
+          }, PAUSE_AUTOPLAY_DELAY_MS);
+
+          // Schedule the leave-decision modal separately.
+          if (!pendingLeaves[peerId]) {
             if (pauseModalTimers[peerId]) clearTimeout(pauseModalTimers[peerId]);
             pauseModalTimers[peerId] = setTimeout(function () {
               delete pauseModalTimers[peerId];
-              var dev = lobbyState.devices[peerId];
-              if (dev && dev.paused && !pendingLeaves[peerId]) {
+              var dev2 = lobbyState.devices[peerId];
+              if (dev2 && dev2.paused && !pendingLeaves[peerId]) {
                 startPendingLeave(peerId, /*definitive=*/false);
               }
             }, PAUSE_MODAL_DELAY_MS);
@@ -219,12 +244,18 @@ var Online = (function () {
         console.log('[Online] Guest resumed:', peerId);
         if (lobbyState.devices[peerId]) {
           lobbyState.devices[peerId].paused = false;
+          lobbyState.devices[peerId].pausedSince = null;
           lobbyState.devices[peerId].leaving = false;
         }
-        // Cancel any scheduled-but-not-yet-opened modal.
+        // Cancel the scheduled-but-not-yet-opened modal AND the
+        // autoplay kick — they're back, neither needs to fire.
         if (pauseModalTimers[peerId]) {
           clearTimeout(pauseModalTimers[peerId]);
           delete pauseModalTimers[peerId];
+        }
+        if (autoplayTimers[peerId]) {
+          clearTimeout(autoplayTimers[peerId]);
+          delete autoplayTimers[peerId];
         }
         // If the modal HAD opened already, close it — the player is
         // back, no decision needed.
@@ -1168,7 +1199,11 @@ var Online = (function () {
   }
 
   // Returns true if the given player is a human on a device that is
-  // currently paused, i.e. the host should auto-play an AI move for them.
+  // currently paused AND has been paused for at least the autoplay
+  // grace window. The grace prevents the "phone power button drew a
+  // card for me" experience: a brief screen-lock or network blip
+  // stalls the game silently until the device reconnects, and only
+  // after a sustained pause does the host's AI start playing for them.
   function shouldHostAutoPlay(playerId) {
     if (!_isHost) return false;
     var players = Game.getState().players;
@@ -1179,8 +1214,11 @@ var Online = (function () {
       if (p.isAI) return false;
       // Host's own local players always play normally
       if (p.deviceId === myDeviceId) return false;
-      // Remote human whose device is paused → host AI takes over
-      return isDevicePaused(p.deviceId);
+      if (!isDevicePaused(p.deviceId)) return false;
+      var dev = lobbyState.devices[p.deviceId];
+      if (!dev || !dev.pausedSince) return false;
+      // Only auto-play after the grace window has elapsed.
+      return (Date.now() - dev.pausedSince) >= PAUSE_AUTOPLAY_DELAY_MS;
     }
     return false;
   }
