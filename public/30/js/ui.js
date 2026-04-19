@@ -274,9 +274,21 @@ var UI = (function () {
       showScreen('screen-title');
     });
     document.getElementById('btn-deal').addEventListener('click', startGame);
+
+    // Player +/- controls — shared between local setup and the online
+    // lobby (host only). In online mode we route to Online.addPlayer /
+    // Online.removeFromSeat so new seats get host-controlled defaults
+    // that the host can later reassign via the avatar-click popup.
     document.getElementById('btn-fewer').addEventListener('click', function () {
+      if (Online.isActive() && Online.isHost()) {
+        var ls = Online.getLobbyState();
+        var occupied = ls.seats.map(function (s, i) { return { s: s, i: i }; })
+                                .filter(function (x) { return x.s.occupied; });
+        if (occupied.length <= 2) return;
+        Online.removeFromSeat(occupied[occupied.length - 1].i);
+        return;
+      }
       if (playerCount <= 2) return;
-      // Remove the last non-human player that was added
       for (var i = addOrder.length - 1; i >= 0; i--) {
         var idx = addOrder[i];
         if (setupSeats[idx].occupied && !setupSeats[idx].isHuman) {
@@ -286,11 +298,23 @@ var UI = (function () {
       }
     });
     document.getElementById('btn-more').addEventListener('click', function () {
+      if (Online.isActive() && Online.isHost()) {
+        var ls = Online.getLobbyState();
+        var count = ls.seats.filter(function (s) { return s.occupied; }).length;
+        if (count >= 8) return;
+        // Fill next empty seat in SEAT_FILL_ORDER.
+        for (var k = 0; k < SEAT_FILL_ORDER.length; k++) {
+          if (!ls.seats[SEAT_FILL_ORDER[k]].occupied) {
+            Online.addPlayer(SEAT_FILL_ORDER[k], false);
+            return;
+          }
+        }
+        return;
+      }
       if (playerCount >= 8) return;
-      // Find the next seat in the fixed fill order
-      for (var i = 0; i < SEAT_FILL_ORDER.length; i++) {
-        if (!setupSeats[SEAT_FILL_ORDER[i]].occupied) {
-          addSeat(SEAT_FILL_ORDER[i]);
+      for (var m = 0; m < SEAT_FILL_ORDER.length; m++) {
+        if (!setupSeats[SEAT_FILL_ORDER[m]].occupied) {
+          addSeat(SEAT_FILL_ORDER[m]);
           break;
         }
       }
@@ -462,23 +486,9 @@ var UI = (function () {
       if (h) document.getElementById('join-username').value = h;
     });
 
-    // Host player count
-    var hostPC = 1;
-    document.getElementById('host-fewer').addEventListener('click', function () {
-      if (hostPC > 1) { hostPC--; document.getElementById('host-player-count').textContent = hostPC; }
-    });
-    document.getElementById('host-more').addEventListener('click', function () {
-      if (hostPC < 7) { hostPC++; document.getElementById('host-player-count').textContent = hostPC; }
-    });
-
-    // Join player count
-    var joinPC = 1;
-    document.getElementById('join-fewer').addEventListener('click', function () {
-      if (joinPC > 1) { joinPC--; document.getElementById('join-player-count').textContent = joinPC; }
-    });
-    document.getElementById('join-more').addEventListener('click', function () {
-      if (joinPC < 7) { joinPC++; document.getElementById('join-player-count').textContent = joinPC; }
-    });
+    // v96: player-count controls removed from the host/join forms.
+    // Host now seats players during the lobby (local-setup style) and
+    // reassigns controllers via the avatar-click reassign popup.
 
     // Create Room button
     document.getElementById('btn-create-room').addEventListener('click', function () {
@@ -488,12 +498,11 @@ var UI = (function () {
         document.getElementById('host-status').className = 'online-status error';
         return;
       }
-      var pc = parseInt(document.getElementById('host-player-count').textContent, 10);
       document.getElementById('host-status').textContent = '';
       document.getElementById('host-status').className = 'online-status';
       document.getElementById('btn-create-room').disabled = true;
 
-      Online.hostGame(username, pc).then(function (code) {
+      Online.hostGame(username).then(function (code) {
         // Set up callbacks
         Online.onGameStart(function (players) {
           onlineBeginGame(players);
@@ -539,7 +548,6 @@ var UI = (function () {
         document.getElementById('join-status').className = 'online-status error';
         return;
       }
-      var pc = parseInt(document.getElementById('join-player-count').textContent, 10);
       document.getElementById('join-status').textContent = 'Connecting...';
       document.getElementById('join-status').className = 'online-status';
       document.getElementById('btn-join-room').disabled = true;
@@ -568,7 +576,7 @@ var UI = (function () {
         }
       });
 
-      Online.joinGame(code, username, pc).then(function () {
+      Online.joinGame(code, username).then(function () {
         document.getElementById('join-status').textContent = 'Waiting for host to accept...';
       }).catch(function (err) {
         document.getElementById('join-status').textContent = err.message || 'Could not connect.';
@@ -639,11 +647,16 @@ var UI = (function () {
     // Show lobby header, hide setup/game elements
     document.getElementById('online-lobby-header').style.display = '';
     document.getElementById('setup-header').style.display = 'none';
-    document.getElementById('player-count-control').style.display = 'none';
     document.getElementById('btn-deal').style.display = 'none';
     document.getElementById('game-hud').style.display = 'none';
     document.getElementById('game-actions').style.display = 'none';
     document.getElementById('deck-info').style.display = 'none';
+
+    // Host gets the central "Players: +/-" counter (same control the
+    // local-play setup uses) so they can add/remove seats. Joiners
+    // don't see it.
+    var pcc = document.getElementById('player-count-control');
+    if (pcc) pcc.style.display = Online.isHost() ? '' : 'none';
 
     // Show appropriate bottom element
     if (Online.isHost()) {
@@ -694,6 +707,20 @@ var UI = (function () {
     var lobbyState = Online.getLobbyState();
     var myDeviceId = Online.getMyDeviceId();
     var isHost = Online.isHost();
+
+    // Update the central "Players:" counter + its +/- button enabled
+    // states so the online host's UI mirrors the local setup screen.
+    var occupiedCount = lobbyState.seats.filter(function (s) { return s.occupied; }).length;
+    var pcd = document.getElementById('player-count-display');
+    if (pcd) pcd.textContent = occupiedCount;
+    var bf = document.getElementById('btn-fewer');
+    var bm = document.getElementById('btn-more');
+    if (bf) bf.disabled = (occupiedCount <= 2);
+    if (bm) bm.disabled = (occupiedCount >= 8);
+
+    // Enable/disable the Deal button based on seat count.
+    var dealBtn = document.getElementById('btn-online-deal');
+    if (dealBtn) dealBtn.disabled = occupiedCount < 2;
     // Every seat reserves the same top-row height above the avatar — matches
     // the local setup layout so the avatar center lands exactly at pos.y
     // (tangent to the table's outer wood edge). Empty seats get an invisible
@@ -719,26 +746,30 @@ var UI = (function () {
       topRow.className = 'seat-top-row';
 
       if (seat.occupied) {
+        // Controller-label badge. v96: shows the USERNAME of whichever
+        // device controls the seat (or "AI" for AI-controlled). Host
+        // clicks the avatar to reassign.
         var badge = document.createElement('div');
         badge.className = 'seat-type-badge';
         if (seat.isAI) {
           badge.classList.add('ai');
           badge.textContent = 'AI';
-        } else if (seat.deviceId === myDeviceId) {
-          badge.classList.add('human');
-          badge.textContent = 'You';
         } else if (seat.deviceId) {
           var dev = lobbyState.devices[seat.deviceId];
           badge.classList.add('human');
           badge.textContent = dev ? dev.username : '?';
+        } else {
+          badge.classList.add('human');
+          badge.textContent = '?';
         }
         topRow.appendChild(badge);
 
-        if (isHost && seat.isAI) {
+        // Host gets a × remove circle on every occupied seat, not just AI.
+        if (isHost) {
           var removeCircle = document.createElement('div');
           removeCircle.className = 'seat-remove-circle';
           removeCircle.textContent = '\u00d7';
-          removeCircle.title = 'Remove AI';
+          removeCircle.title = 'Remove player';
           removeCircle.addEventListener('click', (function (idx) {
             return function (e) {
               e.stopPropagation();
@@ -761,18 +792,26 @@ var UI = (function () {
           avatar.querySelector('img').style.width = '100%';
           avatar.querySelector('img').style.height = '100%';
         }
-        // Click avatar to change animal (own players only)
-        if (seat.deviceId === myDeviceId) {
-          avatar.style.cursor = 'pointer';
-          avatar.addEventListener('click', (function (seatIdx) {
-            return function () { openOnlineAnimalPicker(seatIdx); };
-          })(i));
-        }
+        // Click behaviour:
+        //   Host → open the reassign popup (controller: AI / Host /
+        //          any connected joiner).
+        //   Non-host owner → change animal (as before).
+        avatar.style.cursor = 'pointer';
+        avatar.addEventListener('click', (function (seatIdx) {
+          return function () {
+            if (Online.isHost()) {
+              openReassignPopup(seatIdx);
+            } else if (seat.deviceId === myDeviceId) {
+              openOnlineAnimalPicker(seatIdx);
+            }
+          };
+        })(i));
       } else if (isHost) {
-        // Empty seat — host can click it to add an AI
+        // Empty seat — host clicks to add a new player (defaults to
+        // host-controlled human; host can then reassign via the popup).
         el.style.cursor = 'pointer';
         el.addEventListener('click', (function (idx) {
-          return function () { Online.addAI(idx); };
+          return function () { Online.addPlayer(idx, /*asAI=*/false); };
         })(i));
       }
       el.appendChild(avatar);
@@ -796,6 +835,80 @@ var UI = (function () {
 
       ring.appendChild(el);
     }
+  }
+
+  // Host-only: open the reassign-controller popup for a given seat.
+  // Offers AI, Host, or any other connected joiner as the controller.
+  function openReassignPopup(seatIdx) {
+    if (!Online.isActive() || !Online.isHost()) return;
+    var lobbyState = Online.getLobbyState();
+    var seat = lobbyState.seats[seatIdx];
+    if (!seat || !seat.occupied) return;
+
+    var overlay = document.getElementById('reassign-overlay');
+    if (!overlay) return;
+    var card = document.getElementById('reassign-player-card');
+    var optsEl = document.getElementById('reassign-options');
+    var titleEl = document.getElementById('reassign-title');
+    titleEl.textContent = 'Who controls ' + (seat.name || 'this player') + '?';
+
+    // Player card header
+    card.innerHTML = '';
+    var av = document.createElement('div');
+    av.className = 'ra-avatar';
+    if (seat.animal) {
+      var img = SpriteEngine.createSpriteImg(seat.animal);
+      img.style.width = '100%'; img.style.height = '100%';
+      av.appendChild(img);
+    }
+    card.appendChild(av);
+    var nm = document.createElement('div');
+    nm.className = 'ra-name';
+    nm.textContent = seat.name;
+    card.appendChild(nm);
+
+    // Options: AI, Host (myDeviceId), each connected joiner
+    optsEl.innerHTML = '';
+    var myDeviceId = Online.getMyDeviceId();
+    function addOption(tag, label, value) {
+      var btn = document.createElement('button');
+      btn.className = 'reassign-option';
+      if (
+        (value === 'ai' && seat.isAI) ||
+        (value !== 'ai' && !seat.isAI && seat.deviceId === value)
+      ) {
+        btn.classList.add('current');
+      }
+      var tagSpan = document.createElement('span');
+      tagSpan.className = 'ra-tag';
+      tagSpan.textContent = tag;
+      btn.appendChild(tagSpan);
+      var labelSpan = document.createElement('span');
+      labelSpan.textContent = label;
+      btn.appendChild(labelSpan);
+      btn.addEventListener('click', function () {
+        Online.assignSeatController(seatIdx, value);
+        overlay.style.display = 'none';
+      });
+      optsEl.appendChild(btn);
+    }
+    addOption('AI', 'AI (auto-play)', 'ai');
+    var devices = lobbyState.devices || {};
+    // Host always appears first among human options.
+    if (devices[myDeviceId]) {
+      addOption('Host', devices[myDeviceId].username + ' (host)', myDeviceId);
+    }
+    // Other connected devices.
+    Object.keys(devices).forEach(function (pid) {
+      if (pid === myDeviceId) return;
+      var d = devices[pid];
+      addOption('Player', d.username || pid, pid);
+    });
+
+    document.getElementById('btn-reassign-cancel').onclick = function () {
+      overlay.style.display = 'none';
+    };
+    overlay.style.display = 'flex';
   }
 
   function openOnlineAnimalPicker(seatIdx) {
@@ -2329,6 +2442,18 @@ var UI = (function () {
   function updateHUD() {
     document.getElementById('hud-round').textContent = Game.getRoundNumber();
     updateDeckCount();
+    // Room-code row — visible whenever we're in an online session.
+    var roomRow = document.getElementById('hud-room-row');
+    var roomCodeEl = document.getElementById('hud-room-code');
+    if (roomRow && roomCodeEl) {
+      if (Online.isActive()) {
+        var code = (Online.getLobbyState && Online.getLobbyState().roomCode) || '---';
+        roomCodeEl.textContent = code;
+        roomRow.style.display = '';
+      } else {
+        roomRow.style.display = 'none';
+      }
+    }
   }
 
   function setMessage(msg) {

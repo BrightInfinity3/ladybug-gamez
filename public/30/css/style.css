@@ -1167,8 +1167,32 @@ html, body {
 .hud-round {
   justify-self: start;
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3vmin;
+}
+
+.hud-round > .hud-label,
+.hud-round > .hud-value {
+  /* First row: "Round: X" sits on one line */
+  display: inline;
+}
+
+/* Room-code row — only visible in online mode, sits directly below
+   the Round row. Smaller font so it doesn't dominate; the lobby-code
+   chip inside still draws the eye. */
+.hud-room-row {
+  display: flex;
   align-items: center;
   gap: 0.4vmin;
+  margin-top: 0.1vmin;
+}
+.hud-room-row .hud-label {
+  font-size: 1.4vmin;
+}
+.hud-room-row .lobby-code {
+  font-size: 1.6vmin;
+  padding: 0.1vmin 0.55vmin;
 }
 
 .hud-left {
@@ -1618,34 +1642,35 @@ html, body {
 .game-seat-total.leader {
   color: #fff8d8;
   font-weight: 900;
-  /* 3× bigger radius (max spread 80px → 240px) and bolder alphas so the
-     halo really reads from across the table. Still pure text-shadow —
-     no geometric circle behind the digits. */
+  /* Half-diameter (max spread 240px → 120px) but 3× more luminous —
+     alphas tripled (capped at 1.0), so the core glow is intensely
+     bright and only tapers off inside a tighter radius. Reads clearly
+     from across the table without bleeding into other seats' glow. */
   text-shadow:
-    0 0 12px  rgba(255, 245, 180, 1),
-    0 0 30px  rgba(255, 230, 125, 1),
-    0 0 66px  rgba(255, 220, 95,  0.9),
-    0 0 132px rgba(255, 215, 85,  0.6),
-    0 0 240px rgba(255, 210, 75,  0.35);
+    0 0 6px  rgba(255, 245, 180, 1),
+    0 0 15px rgba(255, 230, 125, 1),
+    0 0 33px rgba(255, 220, 95,  1),
+    0 0 66px rgba(255, 215, 85,  0.9),
+    0 0 120px rgba(255, 210, 75, 0.7);
   animation: leaderGlowPulse 2s ease-in-out infinite;
 }
 
 @keyframes leaderGlowPulse {
   0%, 100% {
     text-shadow:
-      0 0 12px  rgba(255, 245, 180, 1),
-      0 0 30px  rgba(255, 230, 125, 1),
-      0 0 66px  rgba(255, 220, 95,  0.9),
-      0 0 132px rgba(255, 215, 85,  0.6),
-      0 0 240px rgba(255, 210, 75,  0.35);
+      0 0 6px  rgba(255, 245, 180, 1),
+      0 0 15px rgba(255, 230, 125, 1),
+      0 0 33px rgba(255, 220, 95,  1),
+      0 0 66px rgba(255, 215, 85,  0.9),
+      0 0 120px rgba(255, 210, 75, 0.7);
   }
   50% {
     text-shadow:
-      0 0 15px  rgba(255, 250, 205, 1),
-      0 0 40px  rgba(255, 235, 140, 1),
-      0 0 85px  rgba(255, 225, 105, 1),
-      0 0 170px rgba(255, 220, 90,  0.75),
-      0 0 290px rgba(255, 215, 80,  0.5);
+      0 0 8px  rgba(255, 250, 205, 1),
+      0 0 20px rgba(255, 235, 140, 1),
+      0 0 42px rgba(255, 225, 105, 1),
+      0 0 85px rgba(255, 220, 90,  1),
+      0 0 145px rgba(255, 215, 80, 0.9);
   }
 }
 
@@ -1981,7 +2006,10 @@ html, body {
 .lobby-code {
   font-family: var(--font-display);
   font-size: 1.7vmin;
-  font-weight: 900;
+  /* Cinzel @ 700 — the 900 weight has a dramatic long-descender Q
+     that kept colliding with the next letter. 700 keeps the Roman
+     chisel look without the extended Q tail. */
+  font-weight: 700;
   color: var(--gold-light);
   letter-spacing: 0.15em;
   background: rgba(212, 160, 23, 0.12);
@@ -2193,6 +2221,163 @@ html, body {
 }
 
 /* ---------- Game Toast (short notification for all players) ---------- */
+/* ---------- Reassign-player popup (host-only, avatar-click) ---------- */
+.reassign-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 115;
+}
+.reassign-panel {
+  background: var(--bg-panel);
+  border: 0.2vmin solid var(--gold-dim);
+  border-radius: 1vmin;
+  padding: 2vmin 2.2vmin;
+  max-width: 48vmin;
+  width: 92%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 0 3vmin rgba(255, 200, 60, 0.15);
+}
+.reassign-panel h3 {
+  font-family: var(--font-display);
+  color: var(--gold-light);
+  margin: 0 0 1.1vmin 0;
+  text-align: center;
+  font-size: 2vmin;
+}
+.reassign-player-card {
+  display: flex;
+  align-items: center;
+  gap: 1vmin;
+  padding: 0.8vmin 1vmin;
+  margin-bottom: 1.4vmin;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 0.6vmin;
+}
+.reassign-player-card .ra-avatar {
+  width: 4.5vmin;
+  height: 4.5vmin;
+  border-radius: 50%;
+  border: 0.2vmin solid var(--wood-mid);
+  overflow: hidden;
+  flex-shrink: 0;
+  background: rgba(20,30,25,0.9);
+}
+.reassign-player-card .ra-avatar img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.reassign-player-card .ra-name {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 1.6vmin;
+  color: var(--text-light);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.reassign-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55vmin;
+  margin-bottom: 1.4vmin;
+}
+.reassign-option {
+  display: flex;
+  align-items: center;
+  gap: 0.8vmin;
+  padding: 0.65vmin 1vmin;
+  border: 0.14vmin solid rgba(255,255,255,0.12);
+  border-radius: 0.5vmin;
+  background: transparent;
+  color: var(--text-light);
+  font-family: var(--font-display);
+  font-size: 1.4vmin;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.reassign-option:hover {
+  border-color: var(--gold);
+  color: var(--gold-light);
+  background: rgba(212, 160, 23, 0.08);
+}
+.reassign-option.current {
+  background: rgba(212, 160, 23, 0.15);
+  border-color: var(--gold);
+  color: var(--gold-light);
+}
+.reassign-option .ra-tag {
+  display: inline-block;
+  min-width: 3.5vmin;
+  text-align: center;
+  padding: 0.15vmin 0.6vmin;
+  font-size: 0.95vmin;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 0.3vmin;
+  background: rgba(255,255,255,0.07);
+  color: var(--text-dim);
+}
+.reassign-option.current .ra-tag {
+  background: var(--gold);
+  color: #1a1a1a;
+}
+.reassign-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.8vmin;
+}
+.reassign-actions .btn {
+  font-size: 1.25vmin;
+  padding: 0.5vmin 1.6vmin;
+}
+
+/* ---------- Reconnect-gate popup (host-only) ---------- */
+.reconnect-gate-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 116;
+}
+.reconnect-gate-panel {
+  background: var(--bg-panel);
+  border: 0.2vmin solid var(--gold-dim);
+  border-radius: 1vmin;
+  padding: 2vmin 2.4vmin;
+  max-width: 40vmin;
+  width: 92%;
+  text-align: center;
+  box-shadow: 0 0 3vmin rgba(255, 200, 60, 0.15);
+}
+.reconnect-gate-panel h3 {
+  font-family: var(--font-display);
+  color: var(--gold-light);
+  margin: 0 0 0.8vmin 0;
+  font-size: 2vmin;
+}
+.reconnect-gate-sub {
+  font-size: 1.3vmin;
+  color: var(--text-dim);
+  margin: 0 0 1.4vmin 0;
+  line-height: 1.4;
+}
+.reconnect-gate-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.8vmin;
+}
+.reconnect-gate-actions .btn {
+  font-size: 1.25vmin;
+  padding: 0.55vmin 1.8vmin;
+}
+
 .game-toast {
   position: absolute;
   top: 12%;

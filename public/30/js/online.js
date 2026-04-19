@@ -164,7 +164,12 @@ var Online = (function () {
 
   // ======== HOST FUNCTIONS ========
 
-  function hostGame(username, playerCount) {
+  // v96: hostGame no longer takes playerCount. The host seats players
+  // manually during the lobby phase via the same +/- control that
+  // local play uses (or by clicking dotted-ring seats directly). Every
+  // newly-added player defaults to host-controlled; the host then
+  // clicks the avatar to reassign control to AI or a connected joiner.
+  function hostGame(username) {
     active = true;
     _isHost = true;
     gamePhase = 'lobby';
@@ -177,11 +182,8 @@ var Online = (function () {
 
       lobbyState.devices[myDeviceId] = {
         username: username,
-        playerCount: playerCount,
         isHost: true
       };
-
-      assignPlayersToSeats(myDeviceId, username, playerCount);
 
       // Set up network handlers
       Network.onConnect(function (peerId) {
@@ -191,15 +193,14 @@ var Online = (function () {
       Network.onMessage(handleHostMessage);
       Network.onDisconnect(handleGuestDisconnect);
 
-      // Paused — conn.close fired, entering grace period. Record the
-      // paused timestamp so shouldHostAutoPlay can hold off the AI
-      // takeover for PAUSE_AUTOPLAY_DELAY_MS (handles brief mobile
-      // screen-locks without auto-drawing). Scheduled callbacks:
-      //   - autoplayTimers: at 30s, kick the turn loop so host-AI
-      //     picks up their move if they still haven't come back.
-      //   - pauseModalTimers: at 8s, open the "device left" host-side
-      //     decision modal (cancelled on resume).
-      var PAUSE_MODAL_DELAY_MS = 8000;
+      // v96: onPaused is now a quiet event. We mark the device paused
+      // in lobbyState (so their badge can render differently if
+      // desired, and for debug) but we DON'T auto-draw, DON'T open a
+      // modal, and DON'T schedule any timers. If their turn comes up
+      // while they're away the game simply stalls — the host can
+      // click their avatar to reassign the seat to AI / themselves /
+      // another joiner, or the device can reconnect silently (reclaim
+      // keeps their peerId and seats).
       Network.onPaused(function (peerId) {
         console.log('[Online] Guest paused:', peerId);
         if (!lobbyState.devices[peerId]) return;
@@ -207,34 +208,6 @@ var Online = (function () {
         lobbyState.devices[peerId].pausedSince = Date.now();
         broadcastLobbyState();
         renderOnlineLobby();
-
-        if (_isHost && gamePhase === 'playing') {
-          // Schedule the delayed host-AI takeover. If the device comes
-          // back within 30s this timer is cancelled and their turn is
-          // still theirs to play.
-          if (autoplayTimers[peerId]) clearTimeout(autoplayTimers[peerId]);
-          autoplayTimers[peerId] = setTimeout(function () {
-            delete autoplayTimers[peerId];
-            var dev = lobbyState.devices[peerId];
-            if (!dev || !dev.paused) return;
-            console.log('[Online] 30s autoplay grace expired for', peerId);
-            if (typeof onHostAutoPlayCallback === 'function') {
-              onHostAutoPlayCallback();
-            }
-          }, PAUSE_AUTOPLAY_DELAY_MS);
-
-          // Schedule the leave-decision modal separately.
-          if (!pendingLeaves[peerId]) {
-            if (pauseModalTimers[peerId]) clearTimeout(pauseModalTimers[peerId]);
-            pauseModalTimers[peerId] = setTimeout(function () {
-              delete pauseModalTimers[peerId];
-              var dev2 = lobbyState.devices[peerId];
-              if (dev2 && dev2.paused && !pendingLeaves[peerId]) {
-                startPendingLeave(peerId, /*definitive=*/false);
-              }
-            }, PAUSE_MODAL_DELAY_MS);
-          }
-        }
       });
 
       // Resumed — conn reopened within grace. Flip paused off, cancel
@@ -325,12 +298,13 @@ var Online = (function () {
   }
 
   function handleGuestRejoin(peerId, data) {
-    console.log('[Online] Guest rejoin:', data.username);
-    // Guest reconnected — update their connection mapping
-    // Their seats still exist from before, just re-map deviceId if peer changed
-    var oldDeviceId = data.deviceId;
-    if (oldDeviceId !== peerId && lobbyState.devices[oldDeviceId]) {
-      // Peer ID changed — remap
+    console.log('[Online] Guest rejoin:', data && data.username);
+    // Guest's socket was dropped then reclaimed — after server-side
+    // reclaim the peerId stays the same, so there's nothing to remap
+    // normally. We still handle the legacy case where the old peerId
+    // might differ (e.g. after a full re-join).
+    var oldDeviceId = data && data.deviceId;
+    if (oldDeviceId && oldDeviceId !== peerId && lobbyState.devices[oldDeviceId]) {
       lobbyState.devices[peerId] = lobbyState.devices[oldDeviceId];
       delete lobbyState.devices[oldDeviceId];
       for (var i = 0; i < NUM_SEATS; i++) {
@@ -340,32 +314,73 @@ var Online = (function () {
       }
     }
 
-    // Re-sync state
+    // Still own any seats? → silent resume.
+    // Already reassigned away? → open the reconnect-gate popup so the
+    // host decides whether to let them back in as an observer.
+    var stillOwnsSeats = deviceSeatIndices(peerId).length > 0;
+    var dev = lobbyState.devices[peerId];
+    if (!stillOwnsSeats && dev) {
+      // Re-show as observer; host will see the reconnect-gate popup.
+      dev.wasReassigned = true;
+      showReconnectGate(peerId, dev.username);
+    }
+
+    // Clear any paused flag and the autoplay/modal timers too —
+    // they're fully back now.
+    if (dev) {
+      dev.paused = false;
+      dev.pausedSince = null;
+      dev.leaving = false;
+    }
+    if (autoplayTimers[peerId]) { clearTimeout(autoplayTimers[peerId]); delete autoplayTimers[peerId]; }
+    if (pauseModalTimers[peerId]) { clearTimeout(pauseModalTimers[peerId]); delete pauseModalTimers[peerId]; }
+    if (pendingLeaves[peerId]) { delete pendingLeaves[peerId]; renderDeviceLeaveModal(); }
+
+    // Re-sync full state so the reconnected device catches up.
     if (gamePhase === 'lobby') {
-      Network.send(peerId, { type: 'lobby_state', data: lobbyState });
+      Network.send(peerId, { type: 'lobby_state', data: JSON.parse(JSON.stringify(lobbyState)) });
       renderOnlineLobby();
     } else if (gamePhase === 'playing') {
       Network.send(peerId, {
         type: 'game_state_sync',
-        data: { gameState: Game.serialize() }
+        data: { gameState: Game.serialize(), lobbyState: JSON.parse(JSON.stringify(lobbyState)) }
       });
     }
   }
 
+  // Reconnect-gate popup. Only fires on host when a previously-
+  // reassigned device reclaims. If host allows, the peer stays as
+  // observer (no seats) and the host can click avatars to re-assign
+  // them manually. If deny, kick them.
+  function showReconnectGate(peerId, username) {
+    var overlay = document.getElementById('reconnect-gate-overlay');
+    if (!overlay || !_isHost) return;
+    document.getElementById('reconnect-gate-title').textContent =
+      (username || 'Someone') + ' is reconnecting';
+    var allowBtn = document.getElementById('btn-reconnect-gate-allow');
+    var denyBtn  = document.getElementById('btn-reconnect-gate-deny');
+    allowBtn.onclick = function () {
+      overlay.style.display = 'none';
+      // Observer stays in devices list; nothing else to do.
+      broadcastPlayerLeftNotice((username || 'A player') + ' reconnected as an observer.');
+    };
+    denyBtn.onclick = function () {
+      overlay.style.display = 'none';
+      Network.kickGuest(peerId, 'Host did not let you back in.');
+      if (lobbyState.devices[peerId]) delete lobbyState.devices[peerId];
+      broadcastLobbyState();
+    };
+    overlay.style.display = 'flex';
+  }
+
   function handleJoinRequest(peerId, data) {
-    var totalAfter = totalPlayerCount() + data.playerCount;
-    if (totalAfter > 8) {
-      Network.send(peerId, {
-        type: 'join_response',
-        data: { approved: false, reason: 'Too many players (max 8). Only ' + (8 - totalPlayerCount()) + ' slots available.' }
-      });
-      return;
-    }
-    // Add to pending — show popup to host
+    // v96: joiners no longer bring player counts. They connect as
+    // observers and the host assigns them to specific players via
+    // the avatar-click reassign popup. So the only gate here is the
+    // approve/deny decision — no seat-count math.
     pendingRequests.push({
       peerId: peerId,
-      username: data.username,
-      playerCount: data.playerCount
+      username: (data && data.username) || 'Guest'
     });
     renderJoinRequests();
   }
@@ -380,20 +395,8 @@ var Online = (function () {
     }
     if (!request) return;
 
-    // Check still enough room
-    if (totalPlayerCount() + request.playerCount > 8) {
-      Network.send(peerId, {
-        type: 'join_response',
-        data: { approved: false, reason: 'Not enough seats available anymore.' }
-      });
-      renderJoinRequests();
-      return;
-    }
-
-    // Defensive: make sure we haven't already assigned seats for this peer.
-    // If they somehow re-sent a join_request while already approved, don't
-    // double-assign or wipe their existing seats — just re-send the current
-    // state so they can catch up.
+    // Defensive: if this peer is already registered (e.g. a stale
+    // re-send of join_request), just re-sync their state.
     if (lobbyState.devices[peerId]) {
       console.warn('[Online] approveGuest: peer already registered, re-syncing:', peerId);
       Network.send(peerId, {
@@ -405,20 +408,13 @@ var Online = (function () {
       return;
     }
 
-    console.log('[Online] Approving guest:', request.username, 'peerId:', peerId, 'players:', request.playerCount);
-    console.log('[Online] Lobby BEFORE approve:', totalPlayerCount(), 'players');
+    console.log('[Online] Approving guest:', request.username, 'peerId:', peerId);
 
-    // Register device
+    // Register device (as observer — no seats yet).
     lobbyState.devices[peerId] = {
       username: request.username,
-      playerCount: request.playerCount,
       isHost: false
     };
-
-    // Assign seats
-    var assigned = assignPlayersToSeats(peerId, request.username, request.playerCount);
-    console.log('[Online] Assigned', request.username, 'to seats:', assigned);
-    console.log('[Online] Lobby AFTER approve:', totalPlayerCount(), 'players');
 
     // Notify guest
     Network.send(peerId, {
@@ -492,12 +488,13 @@ var Online = (function () {
   }
 
   function handleGuestDisconnect(peerId) {
+    var dev = lobbyState.devices[peerId];
+    var uname = dev ? dev.username : 'A player';
+
     if (gamePhase === 'lobby') {
-      // Lobby: pulling out before the game starts — remove their seats.
-      // 5-minute grace has already expired so we know they aren't coming
-      // back quickly; open those seats up for someone else.
-      var dev = lobbyState.devices[peerId];
-      var uname = dev ? dev.username : 'A player';
+      // Lobby: pulling out before the game starts. Remove the device
+      // AND clear any seats that were pointed at them (they weren't
+      // playing yet, so the seats are stale).
       removeDevicePlayers(peerId);
       pendingRequests = pendingRequests.filter(function (r) { return r.peerId !== peerId; });
       broadcastLobbyState();
@@ -505,11 +502,21 @@ var Online = (function () {
       renderOnlineLobby();
       renderJoinRequests();
     } else {
-      // During game: hand off to the "device left — host decides" flow.
-      // Host AI keeps playing their turns in the meantime so the game
-      // never stalls while the host is still picking.
-      startPendingLeave(peerId, /*definitive=*/true);
+      // v96 during game: DON'T auto-play, DON'T open a modal. The seats
+      // stay in place with deviceId pointing at the now-gone peer —
+      // their badge shows "?" and their turn simply stalls. The host
+      // handles them by clicking the avatar and picking a new
+      // controller from the reassign popup (AI, host, or another
+      // connected joiner).
+      delete lobbyState.devices[peerId];
+      broadcastLobbyState();
+      broadcastPlayerLeftNotice(uname + ' has left — click their avatar to reassign.');
     }
+
+    // Clean up timers in case any are still live.
+    if (autoplayTimers[peerId]) { clearTimeout(autoplayTimers[peerId]); delete autoplayTimers[peerId]; }
+    if (pauseModalTimers[peerId]) { clearTimeout(pauseModalTimers[peerId]); delete pauseModalTimers[peerId]; }
+    if (pendingLeaves[peerId]) { delete pendingLeaves[peerId]; renderDeviceLeaveModal(); }
   }
 
   function handleGuestLeave(peerId) {
@@ -706,8 +713,11 @@ var Online = (function () {
     }, 5000);
   }
 
-  // ---- Host: Add AI to a seat ----
-  function addAI(seatIdx) {
+  // ---- Host: Add a new player to an empty seat ----
+  // v96: new players default to HOST-controlled human. Host picks
+  // another controller (AI, or a connected joiner) by clicking the
+  // avatar and choosing from the reassign popup.
+  function addPlayer(seatIdx, asAI) {
     if (!_isHost || lobbyState.seats[seatIdx].occupied) return;
     var animals = SpriteEngine.getAnimalList();
     var usedAnimals = lobbyState.seats
@@ -721,12 +731,46 @@ var Online = (function () {
       occupied: true,
       animal: animal,
       name: pickNickname(animal),
-      isHuman: false,
-      isAI: true,
-      deviceId: null
+      isHuman: !asAI,
+      isAI: !!asAI,
+      deviceId: asAI ? null : myDeviceId
     };
     broadcastLobbyState();
     renderOnlineLobby();
+  }
+  // Back-compat alias: local and existing code calls addAI(seatIdx).
+  // In online mode, new players now default to host-controlled; but
+  // the local flow still uses this as "add an AI seat". We branch on
+  // `active` (online mode) to preserve local behaviour.
+  function addAI(seatIdx) {
+    return addPlayer(seatIdx, !active);
+  }
+
+  // ---- Host: Reassign the controller of an occupied seat ----
+  // `controller` is one of:
+  //   'ai'             — seat plays via AI
+  //   a peerId string  — that device controls the seat
+  function assignSeatController(seatIdx, controller) {
+    if (!_isHost) return;
+    var seat = lobbyState.seats[seatIdx];
+    if (!seat || !seat.occupied) return;
+    if (controller === 'ai') {
+      seat.isAI = true;
+      seat.isHuman = false;
+      seat.deviceId = null;
+    } else {
+      // peerId — must be a known device.
+      if (!lobbyState.devices[controller]) return;
+      seat.isAI = false;
+      seat.isHuman = true;
+      seat.deviceId = controller;
+    }
+    // Mirror onto the live Game player record so turn routing updates
+    // immediately (without waiting for a new round).
+    updateLivePlayerForSeat(seatIdx, seat.deviceId, seat.isAI);
+    broadcastLobbyState();
+    renderOnlineLobby();
+    if (typeof onHostAutoPlayCallback === 'function') onHostAutoPlayCallback();
   }
 
   // ---- Host: Remove a player/AI from a seat ----
@@ -734,11 +778,6 @@ var Online = (function () {
     if (!_isHost) return;
     var seat = lobbyState.seats[seatIdx];
     if (!seat.occupied) return;
-    // If it's a human from a device, remove that player
-    if (seat.deviceId) {
-      var dev = lobbyState.devices[seat.deviceId];
-      if (dev) dev.playerCount--;
-    }
     lobbyState.seats[seatIdx] = {
       occupied: false, animal: null, name: '',
       isHuman: false, isAI: false, deviceId: null
@@ -830,17 +869,16 @@ var Online = (function () {
 
   // ======== GUEST FUNCTIONS ========
 
-  function joinGame(code, username, playerCount) {
+  // v96: joinGame no longer takes playerCount. Joiners connect as
+  // observers; the host assigns them to specific player seats via the
+  // avatar-click reassign popup after approval.
+  function joinGame(code, username) {
     active = true;
     _isHost = false;
     myUsername = username;
     gamePhase = 'lobby';
 
-    // The server's join_room handler automatically notifies the host with
-    // a peer_joined / join_request — we don't need to send one ourselves
-    // anymore (the old PeerJS client had to). Username + playerCount go
-    // through the server as part of the join handshake.
-    return Network.joinRoom(code, username, playerCount).then(function () {
+    return Network.joinRoom(code, username, 0).then(function () {
       myDeviceId = Network.getMyPeerId();
 
       Network.onMessage(handleGuestMessage);
@@ -859,17 +897,16 @@ var Online = (function () {
         }
       });
 
-      // Reconnect — if the WebSocket drops and comes back, re-announce
-      // ourselves so the host remaps our (possibly new) peerId to our
-      // existing seats.
+      // Reconnect (reclaim) — tell the host we're back. Host uses this
+      // to decide: silent resume if our seats are still ours, or open
+      // the reconnect-gate popup if they'd already been reassigned.
       Network.onReconnect(function () {
         console.log('[Online] Reconnected, re-announcing...');
         Network.send('host', {
           type: 'rejoin',
           data: {
             username: myUsername,
-            deviceId: myDeviceId,
-            playerCount: playerCount
+            deviceId: myDeviceId
           }
         });
       });
@@ -1073,16 +1110,8 @@ var Online = (function () {
 
       var info = document.createElement('div');
       info.className = 'join-request-info';
-      info.innerHTML = '<strong>' + req.username + '</strong> wants to join with <strong>' + req.playerCount + '</strong> player' + (req.playerCount > 1 ? 's' : '');
+      info.innerHTML = '<strong>' + req.username + '</strong> wants to join';
       el.appendChild(info);
-
-      var slotsLeft = 8 - totalPlayerCount();
-      if (req.playerCount > slotsLeft) {
-        var warning = document.createElement('div');
-        warning.className = 'join-request-warning';
-        warning.textContent = 'Not enough slots (' + slotsLeft + ' available)';
-        el.appendChild(warning);
-      }
 
       var buttons = document.createElement('div');
       buttons.className = 'join-request-buttons';
@@ -1090,7 +1119,6 @@ var Online = (function () {
       var approveBtn = document.createElement('button');
       approveBtn.className = 'btn btn-gold btn-sm';
       approveBtn.textContent = 'Allow';
-      approveBtn.disabled = req.playerCount > slotsLeft;
       approveBtn.addEventListener('click', (function (peerId) {
         return function () { approveGuest(peerId); };
       })(req.peerId));
@@ -1198,28 +1226,14 @@ var Online = (function () {
     return !!(dev && dev.paused);
   }
 
-  // Returns true if the given player is a human on a device that is
-  // currently paused AND has been paused for at least the autoplay
-  // grace window. The grace prevents the "phone power button drew a
-  // card for me" experience: a brief screen-lock or network blip
-  // stalls the game silently until the device reconnects, and only
-  // after a sustained pause does the host's AI start playing for them.
-  function shouldHostAutoPlay(playerId) {
-    if (!_isHost) return false;
-    var players = Game.getState().players;
-    for (var i = 0; i < players.length; i++) {
-      var p = players[i];
-      if (p.id !== playerId) continue;
-      // AI players already play via normal AI path — don't override
-      if (p.isAI) return false;
-      // Host's own local players always play normally
-      if (p.deviceId === myDeviceId) return false;
-      if (!isDevicePaused(p.deviceId)) return false;
-      var dev = lobbyState.devices[p.deviceId];
-      if (!dev || !dev.pausedSince) return false;
-      // Only auto-play after the grace window has elapsed.
-      return (Date.now() - dev.pausedSince) >= PAUSE_AUTOPLAY_DELAY_MS;
-    }
+  // v96: host-AI NEVER auto-takes-over. If a device's player's turn
+  // comes up while they're disconnected, the game simply STALLS until
+  // either: (a) the device reconnects (their turn is still theirs), or
+  // (b) the host manually reassigns that player via the avatar-click
+  // reassign popup. This eliminates the "my phone slept for 5 seconds
+  // and a card got drawn for me" class of bugs — no automatic action
+  // is ever taken without explicit host intent.
+  function shouldHostAutoPlay(/*playerId*/) {
     return false;
   }
 
@@ -1233,7 +1247,9 @@ var Online = (function () {
     approveGuest: approveGuest,
     denyGuest: denyGuest,
     addAI: addAI,
+    addPlayer: addPlayer,
     removeFromSeat: removeFromSeat,
+    assignSeatController: assignSeatController,
     swapSeats: swapSeats,
     startOnlineGame: startOnlineGame,
     sendAction: sendAction,

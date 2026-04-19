@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=95">
+  <link rel="stylesheet" href="css/style.css?v=96">
 </head>
 <body>
 
@@ -84,25 +84,19 @@
         <button class="btn btn-outline online-tab" id="tab-join">Join a Game</button>
       </div>
 
-      <!-- Host form -->
+      <!-- Host form (v96: player count removed; host now seats players
+           manually during the lobby phase like in local play). -->
       <div class="online-form" id="form-host">
         <div class="online-field">
           <label>Your Username</label>
           <input type="text" id="host-username" maxlength="16" placeholder="Enter your name">
         </div>
-        <div class="online-field">
-          <label>Players on This Device</label>
-          <div class="pcc-row online-pcc">
-            <button class="btn btn-gold btn-sm online-pcc-btn" id="host-fewer">&minus;</button>
-            <span id="host-player-count">1</span>
-            <button class="btn btn-gold btn-sm online-pcc-btn" id="host-more">+</button>
-          </div>
-        </div>
         <button class="btn btn-gold btn-large" id="btn-create-room">Create Room</button>
         <div class="online-status" id="host-status"></div>
       </div>
 
-      <!-- Join form -->
+      <!-- Join form (v96: player count removed; joiners connect as
+           observers until the host assigns them to specific players). -->
       <div class="online-form" id="form-join" style="display:none">
         <div class="online-field">
           <label>Room Code</label>
@@ -111,14 +105,6 @@
         <div class="online-field">
           <label>Your Username</label>
           <input type="text" id="join-username" maxlength="16" placeholder="Enter your name">
-        </div>
-        <div class="online-field">
-          <label>Players on This Device</label>
-          <div class="pcc-row online-pcc">
-            <button class="btn btn-gold btn-sm online-pcc-btn" id="join-fewer">&minus;</button>
-            <span id="join-player-count">1</span>
-            <button class="btn btn-gold btn-sm online-pcc-btn" id="join-more">+</button>
-          </div>
         </div>
         <button class="btn btn-gold btn-large" id="btn-join-room">Join Room</button>
         <div class="online-status" id="join-status"></div>
@@ -140,6 +126,11 @@
       <div class="hud-round">
         <span class="hud-label">Round:</span>
         <span class="hud-value" id="hud-round">1</span>
+        <!-- Room code row — only shown during online play -->
+        <div class="hud-room-row" id="hud-room-row" style="display:none">
+          <span class="hud-label">Room:</span>
+          <span class="hud-value lobby-code" id="hud-room-code">---</span>
+        </div>
       </div>
       <div class="hud-left">
         <span id="hud-message"></span>
@@ -235,6 +226,36 @@
          Auto-dismisses after a few seconds. -->
     <div class="game-toast" id="game-toast" style="display:none"></div>
 
+    <!-- Reassign-player popup (host only). Opened by clicking any
+         character avatar during lobby OR mid-game. Lets the host
+         pick who controls that player: AI, Host, or any connected
+         joiner. -->
+    <div class="reassign-overlay" id="reassign-overlay" style="display:none">
+      <div class="reassign-panel">
+        <h3 id="reassign-title">Who controls this player?</h3>
+        <div class="reassign-player-card" id="reassign-player-card"></div>
+        <div class="reassign-options" id="reassign-options"></div>
+        <div class="reassign-actions">
+          <button class="btn btn-outline btn-sm" id="btn-reassign-cancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reconnect-after-reassign gate (host only). Shown when a
+         previously-disconnected device reclaims its socket AFTER the
+         host already reassigned its players to someone else. Host
+         picks allow-as-observer or deny. -->
+    <div class="reconnect-gate-overlay" id="reconnect-gate-overlay" style="display:none">
+      <div class="reconnect-gate-panel">
+        <h3 id="reconnect-gate-title">Someone is reconnecting</h3>
+        <p class="reconnect-gate-sub" id="reconnect-gate-sub">Allow them back into the room as an observer?</p>
+        <div class="reconnect-gate-actions">
+          <button class="btn btn-gold" id="btn-reconnect-gate-allow">Allow</button>
+          <button class="btn btn-outline" id="btn-reconnect-gate-deny">Deny</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Online animal picker overlay -->
     <div class="character-picker" id="online-animal-picker" style="display:none">
       <div class="picker-panel">
@@ -315,16 +336,16 @@
        now uses a plain WebSocket client (js/network.js) talking to the
        central Ladybug Gamez relay server. -->
   <script src="https://cdn.jsdelivr.net/npm/pixi.js@8/dist/pixi.min.js"></script>
-  <script src="js/sprites.js?v=95"></script>
-  <script src="js/cards.js?v=95"></script>
-  <script src="js/game.js?v=95"></script>
-  <script src="js/animations.js?v=95"></script>
-  <script src="js/textures.js?v=95"></script>
-  <script src="js/renderer.js?v=95"></script>
-  <script src="js/save.js?v=95"></script>
-  <script src="js/network.js?v=95"></script>
-  <script src="js/online.js?v=95"></script>
-  <script src="js/ui.js?v=95"></script>
+  <script src="js/sprites.js?v=96"></script>
+  <script src="js/cards.js?v=96"></script>
+  <script src="js/game.js?v=96"></script>
+  <script src="js/animations.js?v=96"></script>
+  <script src="js/textures.js?v=96"></script>
+  <script src="js/renderer.js?v=96"></script>
+  <script src="js/save.js?v=96"></script>
+  <script src="js/network.js?v=96"></script>
+  <script src="js/online.js?v=96"></script>
+  <script src="js/ui.js?v=96"></script>
 
 </body>
 </html>
