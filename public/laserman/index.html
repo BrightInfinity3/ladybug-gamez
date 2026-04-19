@@ -132,6 +132,22 @@
       0%, 100% { text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px var(--cyan), 0 0 40px var(--cyan), 0 0 80px var(--cyan); }
       50% { text-shadow: 0 0 5px #fff, 0 0 15px #fff, 0 0 30px var(--cyan), 0 0 60px var(--cyan), 0 0 100px var(--cyan), 0 0 140px rgba(0, 240, 255, 0.3); }
     }
+    @keyframes titlePulsePurple {
+      0%, 100% { text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px var(--purple), 0 0 40px var(--purple), 0 0 80px var(--purple); }
+      50% { text-shadow: 0 0 5px #fff, 0 0 15px #fff, 0 0 30px var(--purple), 0 0 60px var(--purple), 0 0 100px var(--purple), 0 0 140px rgba(123, 47, 255, 0.3); }
+    }
+    @keyframes titlePulseGreen {
+      0%, 100% { text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px var(--green), 0 0 40px var(--green), 0 0 80px var(--green); }
+      50% { text-shadow: 0 0 5px #fff, 0 0 15px #fff, 0 0 30px var(--green), 0 0 60px var(--green), 0 0 100px var(--green), 0 0 140px rgba(0, 255, 136, 0.3); }
+    }
+    @keyframes titlePulseAmber {
+      0%, 100% { text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px var(--amber), 0 0 40px var(--amber), 0 0 80px var(--amber); }
+      50% { text-shadow: 0 0 5px #fff, 0 0 15px #fff, 0 0 30px var(--amber), 0 0 60px var(--amber), 0 0 100px var(--amber), 0 0 140px rgba(255, 170, 0, 0.3); }
+    }
+    @keyframes titlePulseWhite {
+      0%, 100% { text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px rgba(255,255,255,0.8), 0 0 40px rgba(255,255,255,0.6), 0 0 80px rgba(255,255,255,0.4); }
+      50% { text-shadow: 0 0 5px #fff, 0 0 15px #fff, 0 0 30px rgba(255,255,255,0.9), 0 0 60px rgba(255,255,255,0.7), 0 0 100px rgba(255,255,255,0.5), 0 0 140px rgba(255, 255, 255, 0.3); }
+    }
 
     /* ===== TITLE SCREEN ===== */
     #title-screen {
@@ -140,7 +156,8 @@
       gap: 30px;
     }
 
-    #title-screen .game-title {
+    #title-screen .game-title,
+    .game-title.title-size {
       font-size: 4rem;
       margin-bottom: 20px;
     }
@@ -150,7 +167,41 @@
       font-size: 0.75rem;
       letter-spacing: 6px;
       color: rgba(0, 240, 255, 0.5);
-      margin-top: -20px;
+      margin-top: -25px;
+      margin-bottom: -20px;
+    }
+
+    /* Mode title (ONLINE, MULTIPLAYER, LASERLINK, OPTIONS) — white text with colored pulse glow, matching LASERMAN home-page feel */
+    .game-title.mode-label {
+      font-size: 3.2rem;
+      margin-bottom: 24px;
+      color: #fff;
+    }
+    .game-title.mode-label.ml-green {
+      text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px var(--green), 0 0 40px var(--green), 0 0 80px var(--green), 0 0 120px rgba(0, 255, 136, 0.4);
+      animation: titlePulseGreen 3s ease-in-out infinite;
+    }
+    .game-title.mode-label.ml-purple {
+      text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px var(--purple), 0 0 40px var(--purple), 0 0 80px var(--purple), 0 0 120px rgba(123, 47, 255, 0.4);
+      animation: titlePulsePurple 3s ease-in-out infinite;
+    }
+    .game-title.mode-label.ml-amber {
+      text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px var(--amber), 0 0 40px var(--amber), 0 0 80px var(--amber), 0 0 120px rgba(255, 170, 0, 0.4);
+      animation: titlePulseAmber 3s ease-in-out infinite;
+    }
+    .game-title.mode-label.ml-white {
+      text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px rgba(255,255,255,0.8), 0 0 40px rgba(255,255,255,0.6), 0 0 80px rgba(255,255,255,0.4), 0 0 120px rgba(255, 255, 255, 0.3);
+      animation: titlePulseWhite 3s ease-in-out infinite;
+    }
+
+    /* Entry heading color variants */
+    .entry-heading.eh-green {
+      color: var(--green);
+      text-shadow: 0 0 10px rgba(0,255,136,0.5);
+    }
+    .entry-heading.eh-amber {
+      color: var(--amber);
+      text-shadow: 0 0 10px rgba(255,170,0,0.5);
     }
 
     .menu-buttons {
@@ -219,6 +270,41 @@
       }
     }
 
+    .menu-btn.amber,
+    .menu-btn#btn-laserlink {
+      border-color: var(--amber);
+      color: var(--amber);
+      text-shadow: 0 0 8px rgba(255, 170, 0, 0.4);
+    }
+    .menu-btn.amber:active,
+    .menu-btn#btn-laserlink:active {
+      background: rgba(255, 170, 0, 0.15);
+      box-shadow: 0 0 25px rgba(255, 170, 0, 0.3), inset 0 0 15px rgba(255, 170, 0, 0.05);
+    }
+    @media (hover: hover) {
+      .menu-btn.amber:hover,
+      .menu-btn#btn-laserlink:hover {
+        background: rgba(255, 170, 0, 0.1);
+        box-shadow: 0 0 25px rgba(255, 170, 0, 0.3), inset 0 0 15px rgba(255, 170, 0, 0.05);
+      }
+    }
+
+    .menu-btn.green {
+      border-color: var(--green);
+      color: var(--green);
+      text-shadow: 0 0 8px rgba(0, 255, 136, 0.4);
+    }
+    .menu-btn.green:active {
+      background: rgba(0, 255, 136, 0.15);
+      box-shadow: 0 0 25px rgba(0, 255, 136, 0.3), inset 0 0 15px rgba(0, 255, 136, 0.05);
+    }
+    @media (hover: hover) {
+      .menu-btn.green:hover {
+        background: rgba(0, 255, 136, 0.1);
+        box-shadow: 0 0 25px rgba(0, 255, 136, 0.3), inset 0 0 15px rgba(0, 255, 136, 0.05);
+      }
+    }
+
     .menu-btn.white {
       border-color: #ffffff;
       color: #ffffff;
@@ -233,6 +319,33 @@
       .menu-btn.white:hover {
         background: rgba(255, 255, 255, 0.1);
         box-shadow: 0 0 25px rgba(255, 255, 255, 0.3), inset 0 0 15px rgba(255, 255, 255, 0.05);
+      }
+    }
+
+    .home-btn {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.4);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 4px;
+    }
+    .home-btn:active {
+      color: rgba(255, 255, 255, 0.8);
+      border-color: rgba(255, 255, 255, 0.5);
+      background: rgba(255, 255, 255, 0.1);
+    }
+    @media (hover: hover) {
+      .home-btn:hover {
+        color: rgba(255, 255, 255, 0.8);
+        border-color: rgba(255, 255, 255, 0.5);
+        background: rgba(255, 255, 255, 0.1);
       }
     }
 
@@ -331,12 +444,15 @@
     .color-btn[data-color="green"] { background: #00ff88; color: #00ff88; }
     .color-btn[data-color="blue"] { background: #4488ff; color: #4488ff; }
     .color-btn[data-color="yellow"] { background: #ffcc00; color: #ffcc00; }
+    .color-btn[data-color="orange"] { background: #ff8822; color: #ff8822; }
+    .color-btn[data-color="red"] { background: #ff3344; color: #ff3344; }
+    .color-btn[data-color="purple"] { background: #a855ff; color: #a855ff; }
+    .color-options.row2 { margin-top: 12px; }
 
     /* ===== WORD ENTRY SCREEN ===== */
     #word-entry-screen {
       justify-content: center;
       min-height: 80vh;
-      gap: 20px;
     }
 
     .entry-heading {
@@ -385,9 +501,15 @@
       outline: none;
       width: 280px;
       text-align: left;
-      text-transform: uppercase;
       transition: all 0.3s ease;
     }
+
+    /* Word and room-code inputs auto-uppercase; name inputs preserve case. */
+    #word-input,
+    #host-word-input,
+    #joiner-word-input,
+    #laserlink-word-input,
+    #join-code-input { text-transform: uppercase; }
 
     #word-input:focus, .word-input-styled:focus {
       border-color: var(--cyan);
@@ -433,11 +555,105 @@
       margin-right: auto;
     }
 
+    .word-input-row.narrow { width: 300px; }
+
     .word-input-row #word-input,
     .word-input-row .word-input-styled {
       flex: 1;
       width: auto;
       min-width: 0;
+    }
+
+    /* Error / spacer line — used between inputs and action buttons for consistent spacing across modes */
+    .error-line {
+      color: var(--red);
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.7rem;
+      letter-spacing: 2px;
+      min-height: 1.2em;
+      margin-top: 6px;
+    }
+
+    /* ===== DICTIONARY CHECK/X BOX — shared between toggle (input screens) and indicator (game screen) ===== */
+    .dict-box {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid;
+      border-radius: 4px;
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 700;
+      line-height: 1;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+    .dict-box.dict-ok {
+      border-color: var(--cyan);
+      color: var(--cyan);
+      text-shadow: 0 0 6px rgba(0, 240, 255, 0.5);
+      box-shadow: 0 0 6px rgba(0, 240, 255, 0.25);
+    }
+    .dict-box.dict-bad {
+      border-color: var(--red);
+      color: var(--red);
+      text-shadow: 0 0 6px rgba(255, 0, 68, 0.5);
+      box-shadow: 0 0 6px rgba(255, 0, 68, 0.25);
+    }
+    .dict-box.dict-pending {
+      border-color: rgba(255, 255, 255, 0.25);
+      color: rgba(255, 255, 255, 0.35);
+    }
+
+    /* Toggle on word input screens */
+    .dict-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.65rem;
+      letter-spacing: 2px;
+      color: rgba(0, 240, 255, 0.55);
+      user-select: none;
+      margin-top: 4px;
+      padding: 4px 0;
+    }
+    .dict-toggle-input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+      width: 0;
+      height: 0;
+    }
+    .dict-toggle .dict-box {
+      width: 22px;
+      height: 22px;
+      font-size: 0.85rem;
+    }
+    .dict-toggle:hover .dict-box {
+      filter: brightness(1.15);
+    }
+    .dict-toggle-input:focus-visible + .dict-box {
+      outline: 2px solid rgba(0, 240, 255, 0.5);
+      outline-offset: 2px;
+    }
+
+    /* Indicator on game screen */
+    #dict-indicator-row {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      justify-content: center;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: clamp(0.55rem, 1.5vw, 0.7rem);
+      color: rgba(0, 240, 255, 0.45);
+      letter-spacing: 2px;
+      margin-top: -4px;
+    }
+    #dict-indicator-row .dict-box {
+      width: 16px;
+      height: 16px;
+      font-size: 0.65rem;
     }
 
     .entry-actions {
@@ -507,6 +723,8 @@
       height: 16px;
       opacity: 0;
       transition: opacity 0.3s ease;
+      /* Pull up so skip-hint sits between canvas and show button, equal gap on both sides */
+      margin-top: -4px;
     }
     #skip-hint.visible {
       opacity: 1;
@@ -518,6 +736,8 @@
       align-items: center;
       gap: 10px;
       justify-content: center;
+      /* Match skip-hint margin so both rows have equal gap to canvas */
+      margin-top: -4px;
     }
     #category-text {
       font-family: 'Share Tech Mono', monospace;
@@ -541,6 +761,53 @@
     #toggle-cat-btn:hover {
       background: rgba(123, 47, 255, 0.15);
       border-color: var(--purple);
+    }
+
+    /* ===== LASERLINK SENDER ROW ===== */
+    #laserlink-sender-row {
+      display: none;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: clamp(0.55rem, 1.5vw, 0.7rem);
+      color: rgba(255, 170, 0, 0.7);
+      letter-spacing: 2px;
+      /* Match category-row margin for mode-to-mode consistency */
+      margin-top: -4px;
+    }
+    #laserlink-sender-name {
+      color: var(--amber);
+      text-shadow: 0 0 8px rgba(255, 170, 0, 0.5);
+      font-weight: 700;
+    }
+
+    /* ===== LASERLINK SCREEN ===== */
+    #laserlink-name-input.word-input-styled {
+      text-align: center;
+      width: min(280px, 80vw);
+    }
+    #laserlink-message {
+      width: 100%;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      color: var(--amber);
+      background: rgba(255, 170, 0, 0.06);
+      border: 1px solid rgba(255, 170, 0, 0.35);
+      border-radius: 6px;
+      padding: 12px;
+      resize: none;
+      outline: none;
+      letter-spacing: 1px;
+      /* Break long URLs only when they genuinely don't fit — keep short messages on one line */
+      overflow-wrap: anywhere;
+      word-break: normal;
+      box-sizing: border-box;
+      overflow: hidden; /* JS auto-sizes height to content */
+    }
+    #laserlink-message:focus {
+      border-color: var(--amber);
+      box-shadow: 0 0 12px rgba(255, 170, 0, 0.2);
     }
 
     /* ===== WORD DISPLAY ===== */
@@ -757,12 +1024,18 @@
       text-shadow: 0 0 8px var(--purple), 0 0 20px var(--purple), 0 0 40px var(--purple), 0 0 80px rgba(123,47,255,0.5);
     }
 
+    /* Purple theme: failure message renders gray so it doesn't blend with the purple palette */
+    .msg-line.lose.gray-fail {
+      color: #cfcfcf;
+      text-shadow: 0 0 8px #777, 0 0 20px #555, 0 0 40px #444, 0 0 80px rgba(120,120,120,0.5);
+    }
+
     /* ===== GAME BUTTONS ===== */
     .game-buttons {
       display: flex;
       gap: clamp(6px, 2vw, 12px);
       margin-top: clamp(1px, 0.4dvh, 4px);
-      max-width: 90vw;
+      width: min(380px, 90vw);
       justify-content: center;
     }
 
@@ -782,7 +1055,12 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 45vw;
+    }
+
+    /* Equal-width buttons within .game-buttons container */
+    .game-buttons .game-btn {
+      flex: 1;
+      min-width: 0;
     }
 
     .game-btn:active {
@@ -816,6 +1094,24 @@
       }
     }
 
+    .game-btn.amber {
+      border-color: var(--amber);
+      color: var(--amber);
+      text-shadow: 0 0 5px rgba(255, 170, 0, 0.3);
+    }
+    .game-btn.amber:active {
+      background: rgba(255, 170, 0, 0.15);
+      box-shadow: 0 0 20px rgba(255, 170, 0, 0.3);
+    }
+    @media (hover: hover) {
+      .game-btn.amber:hover {
+        border-color: var(--amber);
+        color: var(--amber);
+        background: rgba(255, 170, 0, 0.1);
+        box-shadow: 0 0 20px rgba(255, 170, 0, 0.3);
+      }
+    }
+
     /* ===== SCREEN SHAKE ===== */
     @keyframes shake {
       0%, 100% { transform: translate(0, 0); }
@@ -835,19 +1131,26 @@
     /* ===== RESPONSIVE ===== */
     @media (max-width: 600px) {
       .game-title { font-size: 2rem; letter-spacing: 4px; }
-      #title-screen .game-title { font-size: 2.6rem; }
+      #title-screen .game-title, .game-title.title-size { font-size: 2.6rem; }
+      .game-title.mode-label { font-size: 2.2rem; letter-spacing: 4px; margin-bottom: 20px; }
       .menu-btn { width: 260px; font-size: 0.9rem; padding: 14px 30px; }
       .char-option { width: 260px; font-size: 0.8rem; padding: 12px 25px; }
-      #word-input { font-size: 1.2rem; }
+      #word-input, .word-input-styled { font-size: 1.2rem; }
       .word-input-row, .entry-actions { width: min(320px, 90vw); }
+      .word-input-row.narrow { width: min(260px, 90vw); }
       #toggle-vis-btn { font-size: 0.75rem; }
+      .entry-heading { font-size: 0.85rem; letter-spacing: 3px; }
     }
 
     @media (max-width: 400px) {
       .menu-btn { width: 220px; font-size: 0.8rem; padding: 12px 20px; letter-spacing: 3px; }
       .char-option { width: 220px; font-size: 0.7rem; padding: 10px 20px; }
       .word-input-row, .entry-actions { width: min(280px, 92vw); }
+      .word-input-row.narrow { width: min(220px, 92vw); }
+      .game-title.mode-label { font-size: 1.8rem; margin-bottom: 14px; }
     }
+
+    /* Options screen — SELECT CHARACTER / COLOR / PERFORMANCE labels use .color-label for consistent spacing */
 
     /* Touch devices: ensure finger-friendly targets */
     @media (pointer: coarse) {
@@ -857,6 +1160,43 @@
       #toggle-vis-btn { padding: 12px 16px; min-width: 70px; }
       .color-btn { width: 48px; height: 48px; }
       .perf-btn { padding: 12px 22px; min-width: 90px; }
+    }
+
+    /* Options screen — compact layout for phones so all 5 characters, 6 colors, perf controls
+       and MAIN MENU button fit on one viewport without scrolling.
+       This block overrides the broad pointer:coarse sizes above for narrow screens. */
+    @media (max-width: 600px) {
+      #options-screen {
+        gap: 8px;
+        padding-top: 8px;
+        min-height: auto;          /* don't force 80vh — let content determine height */
+        max-height: 100dvh;
+        overflow-y: auto;           /* safety scroll if content still overflows */
+        -webkit-overflow-scrolling: touch;
+      }
+      #options-screen .game-title.mode-label { font-size: 1.5rem; margin-bottom: 6px; letter-spacing: 3px; }
+      #options-screen .color-section { margin-top: 0; }
+      #options-screen .color-label { font-size: 0.7rem; letter-spacing: 4px; margin-bottom: 4px; }
+      #options-screen .character-select { gap: 4px; }
+      #options-screen .char-option { width: 230px; font-size: 0.7rem; padding: 5px 16px; letter-spacing: 3px; border-width: 1.5px; }
+      #options-screen .char-lives { font-size: 0.55rem; letter-spacing: 1px; margin-top: 0; }
+      #options-screen .color-btn { width: 32px; height: 32px; border-width: 2px; }  /* overrides pointer:coarse */
+      #options-screen .color-options { gap: 14px; }
+      #options-screen .color-options.row2 { margin-top: 6px; }
+      #options-screen .perf-btn { padding: 6px 16px; min-width: 70px; font-size: 0.75rem; }  /* overrides pointer:coarse */
+      #options-screen .perf-options { gap: 10px; }
+      #options-screen .perf-auto-label { font-size: 0.6rem; letter-spacing: 2px; }
+      #options-screen #btn-options-back { margin-top: 4px !important; padding: 10px 28px; font-size: 0.85rem; }
+    }
+
+    /* Even tighter on very short viewports (e.g. small phones in landscape) */
+    @media (max-width: 600px) and (max-height: 640px) {
+      #options-screen { gap: 5px; }
+      #options-screen .game-title.mode-label { font-size: 1.3rem; margin-bottom: 3px; }
+      #options-screen .char-option { padding: 3px 14px; font-size: 0.65rem; }
+      #options-screen .char-lives { font-size: 0.5rem; }
+      #options-screen .color-btn { width: 28px; height: 28px; }
+      #options-screen .perf-btn { padding: 4px 12px; font-size: 0.7rem; min-width: 60px; }
     }
 
     /* Performance tier CSS toggles */
@@ -998,34 +1338,56 @@
       <button class="menu-btn" id="btn-solo">SOLO</button>
       <button class="menu-btn purple" id="btn-multi">MULTIPLAYER</button>
       <button class="menu-btn" id="btn-online" style="border-color:var(--green);color:var(--green);text-shadow:0 0 8px rgba(0,255,136,0.4)">ONLINE</button>
+      <button class="menu-btn" id="btn-laserlink" style="border-color:var(--amber);color:var(--amber);text-shadow:0 0 8px rgba(255,170,0,0.4)">LASERLINK</button>
       <button class="menu-btn white" id="btn-options">OPTIONS</button>
+      <button class="home-btn" id="btn-home" title="Back to home">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12L12 3l9 9"/>
+          <path d="M5 10v9a1 1 0 001 1h3v-5h6v5h3a1 1 0 001-1v-9"/>
+        </svg>
+      </button>
     </div>
   </div>
 
   <!-- ===== OPTIONS SCREEN ===== -->
   <div id="options-screen" class="screen">
-    <h1 class="game-title" style="font-size:2.2rem; margin-bottom:24px">OPTIONS</h1>
-    <div class="menu-subtitle">SELECT CHARACTER</div>
-    <div class="character-select">
-      <div class="char-option selected" data-char="laserman">
-        LASERMAN
-        <div class="char-lives">6 LIVES</div>
-      </div>
-      <div class="char-option" data-char="laserwoman">
-        LASERWOMAN
-        <div class="char-lives">8 LIVES</div>
-      </div>
-      <div class="char-option" data-char="lasercat">
-        LASERCAT
-        <div class="char-lives">9 LIVES</div>
+    <h1 class="game-title mode-label ml-white">OPTIONS</h1>
+    <div class="color-section">
+      <div class="color-label">SELECT CHARACTER</div>
+      <div class="character-select">
+        <div class="char-option selected" data-char="laserman">
+          LASERMAN
+          <div class="char-lives">6 LIVES</div>
+        </div>
+        <div class="char-option" data-char="laserwoman">
+          LASERWOMAN
+          <div class="char-lives">6 LIVES</div>
+        </div>
+        <div class="char-option" data-char="laserkid">
+          LASERKID
+          <div class="char-lives">7 LIVES</div>
+        </div>
+        <div class="char-option" data-char="lasercat">
+          LASERCAT
+          <div class="char-lives">9 LIVES</div>
+        </div>
+        <div class="char-option" data-char="laserbug">
+          LASERBUG
+          <div class="char-lives">10 LIVES</div>
+        </div>
       </div>
     </div>
     <div class="color-section">
       <div class="color-label">SELECT COLOR</div>
       <div class="color-options">
+        <div class="color-btn" data-color="red"></div>
         <div class="color-btn" data-color="yellow"></div>
-        <div class="color-btn selected" data-color="green"></div>
         <div class="color-btn" data-color="blue"></div>
+      </div>
+      <div class="color-options row2">
+        <div class="color-btn" data-color="orange"></div>
+        <div class="color-btn selected" data-color="green"></div>
+        <div class="color-btn" data-color="purple"></div>
       </div>
     </div>
     <div class="color-section">
@@ -1041,31 +1403,40 @@
 
   <!-- ===== WORD ENTRY SCREEN ===== -->
   <div id="word-entry-screen" class="screen">
-    <h1 class="game-title" style="font-size:2.4rem">LASERMAN</h1>
-    <div class="entry-heading">ENTER TARGET WORD</div>
-    <div class="word-input-row">
-      <input type="text" id="word-input" placeholder="TYPE WORD..." maxlength="20" autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="characters">
-      <button id="toggle-vis-btn">HIDE</button>
-    </div>
-    <div id="word-error" style="color:var(--red);font-family:'Orbitron',sans-serif;font-size:0.7rem;letter-spacing:2px;min-height:1.2em;"></div>
-    <div class="entry-actions">
-      <button class="menu-btn" id="btn-start-multi">START</button>
-      <button class="menu-btn purple" id="btn-entry-back">MAIN MENU</button>
+    <h1 class="game-title mode-label ml-purple">MULTIPLAYER</h1>
+    <div id="multi-entry" style="text-align:center">
+      <div class="entry-heading">ENTER TARGET WORD</div>
+      <div class="word-input-row" style="margin-top:16px">
+        <input type="text" id="word-input" placeholder="TYPE WORD..." maxlength="20" autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="characters">
+        <button id="toggle-vis-btn">HIDE</button>
+      </div>
+      <div id="word-error" class="error-line"></div>
+      <label class="dict-toggle">
+        <input type="checkbox" class="dict-toggle-input" data-dict-toggle>
+        <span class="dict-box dict-ok" data-dict-box>&#10003;</span>
+        <span>USE LASERMAN DICTIONARY</span>
+      </label>
+      <div class="menu-buttons" style="margin-top:8px">
+        <button class="menu-btn" id="btn-start-multi">START</button>
+        <button class="menu-btn purple" id="btn-entry-back">MAIN MENU</button>
+      </div>
     </div>
   </div>
 
   <!-- ===== ONLINE LOBBY SCREEN ===== -->
   <div id="online-screen" class="screen">
-    <h1 class="game-title" style="margin-bottom:4px">LASERMAN</h1>
-    <h1 class="game-title" style="font-size:2.2rem; margin-bottom:24px">ONLINE</h1>
+    <h1 class="game-title mode-label ml-green">ONLINE</h1>
 
     <!-- Name entry (shown first) -->
     <div id="online-name-entry" style="text-align:center">
-      <div class="menu-subtitle" style="margin-bottom:12px">ENTER YOUR NAME</div>
-      <div class="word-input-row" style="justify-content:center">
-        <input type="text" id="online-name-input" class="word-input-styled" placeholder="YOUR NAME..." maxlength="12" autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="characters" style="text-align:center;width:280px">
+      <div class="entry-heading eh-green">ENTER YOUR NAME</div>
+      <div class="word-input-row narrow" style="justify-content:center;margin-top:16px">
+        <input type="text" id="online-name-input" class="word-input-styled" placeholder="YOUR NAME..." maxlength="12" autocomplete="off" spellcheck="false" autocorrect="off" style="text-align:center;width:100%">
       </div>
-      <button class="menu-btn" id="btn-name-continue" style="margin-top:16px">CONTINUE</button>
+      <div class="error-line"></div>
+      <div class="menu-buttons" style="margin-top:8px">
+        <button class="menu-btn" id="btn-name-continue">CONTINUE</button>
+      </div>
     </div>
 
     <!-- Role selection (shown after name entry) -->
@@ -1100,34 +1471,48 @@
           <div class="color-label" style="margin-top:0">SELECT CHARACTER</div>
           <div class="character-select" id="host-char-select">
             <div class="char-option selected" data-char="laserman">LASERMAN<div class="char-lives">6 LIVES</div></div>
-            <div class="char-option" data-char="laserwoman">LASERWOMAN<div class="char-lives">8 LIVES</div></div>
+            <div class="char-option" data-char="laserwoman">LASERWOMAN<div class="char-lives">6 LIVES</div></div>
+            <div class="char-option" data-char="laserkid">LASERKID<div class="char-lives">7 LIVES</div></div>
             <div class="char-option" data-char="lasercat">LASERCAT<div class="char-lives">9 LIVES</div></div>
+            <div class="char-option" data-char="laserbug">LASERBUG<div class="char-lives">10 LIVES</div></div>
           </div>
           <div class="color-section">
             <div class="color-label">SELECT COLOR</div>
             <div class="color-options" id="host-color-select">
+              <div class="color-btn" data-color="red"></div>
               <div class="color-btn" data-color="yellow"></div>
-              <div class="color-btn selected" data-color="green"></div>
               <div class="color-btn" data-color="blue"></div>
+            </div>
+            <div class="color-options row2" id="host-color-select-2">
+              <div class="color-btn" data-color="orange"></div>
+              <div class="color-btn selected" data-color="green"></div>
+              <div class="color-btn" data-color="purple"></div>
             </div>
           </div>
         </div>
         <div class="word-input-row">
           <input type="text" id="host-word-input" class="word-input-styled" placeholder="TYPE WORD..." maxlength="20" autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="characters">
         </div>
-        <div id="host-word-error" style="color:var(--red);font-family:'Orbitron',sans-serif;font-size:0.7rem;letter-spacing:2px;min-height:1.2em;"></div>
+        <div id="host-word-error" class="error-line"></div>
+        <label class="dict-toggle">
+          <input type="checkbox" class="dict-toggle-input" data-dict-toggle>
+          <span class="dict-box dict-ok" data-dict-box>&#10003;</span>
+          <span>USE LASERMAN DICTIONARY</span>
+        </label>
         <button class="menu-btn" id="btn-host-start" style="margin-top:8px;border-color:var(--green);color:var(--green);text-shadow:0 0 8px rgba(0,255,136,0.4)">SEND WORD</button>
       </div>
     </div>
 
     <!-- Join view -->
     <div id="online-join-view" style="display:none;text-align:center">
-      <div class="menu-subtitle">ENTER ROOM CODE</div>
-      <div class="word-input-row" style="margin-top:12px">
-        <input type="text" id="join-code-input" placeholder="ROOM CODE..." maxlength="3" autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="characters" style="text-transform:uppercase;letter-spacing:6px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:1.4rem;background:rgba(0,240,255,0.04);border:1px solid rgba(0,240,255,0.25);border-radius:6px;color:var(--cyan);padding:12px 16px;width:100%;box-sizing:border-box">
+      <div class="entry-heading eh-green">ENTER ROOM CODE</div>
+      <div class="word-input-row narrow" style="justify-content:center;margin-top:16px">
+        <input type="text" id="join-code-input" placeholder="CODE..." maxlength="3" autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="characters" style="letter-spacing:6px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:1.4rem;background:rgba(0,240,255,0.04);border:1px solid rgba(0,240,255,0.25);border-radius:6px;color:var(--cyan);padding:12px 16px;width:100%;box-sizing:border-box">
       </div>
-      <div id="join-error" style="color:var(--red);font-family:'Orbitron',sans-serif;font-size:0.7rem;letter-spacing:2px;min-height:1.2em;margin-top:4px"></div>
-      <button class="menu-btn" id="btn-join-connect" style="margin-top:12px;border-color:var(--green);color:var(--green);text-shadow:0 0 8px rgba(0,255,136,0.4)">CONNECT</button>
+      <div id="join-error" class="error-line"></div>
+      <div class="menu-buttons" style="margin-top:8px">
+        <button class="menu-btn green" id="btn-join-connect">CONNECT</button>
+      </div>
       <div id="join-status" style="font-family:'Orbitron',sans-serif;font-size:0.75rem;letter-spacing:3px;color:var(--amber);margin-top:8px;min-height:1.2em"></div>
     </div>
 
@@ -1146,26 +1531,80 @@
         <div class="color-label" style="margin-top:0">SELECT CHARACTER</div>
         <div class="character-select" id="joiner-char-select">
           <div class="char-option selected" data-char="laserman">LASERMAN<div class="char-lives">6 LIVES</div></div>
-          <div class="char-option" data-char="laserwoman">LASERWOMAN<div class="char-lives">8 LIVES</div></div>
+          <div class="char-option" data-char="laserwoman">LASERWOMAN<div class="char-lives">6 LIVES</div></div>
+          <div class="char-option" data-char="laserkid">LASERKID<div class="char-lives">7 LIVES</div></div>
           <div class="char-option" data-char="lasercat">LASERCAT<div class="char-lives">9 LIVES</div></div>
+          <div class="char-option" data-char="laserbug">LASERBUG<div class="char-lives">10 LIVES</div></div>
         </div>
         <div class="color-section">
           <div class="color-label">SELECT COLOR</div>
           <div class="color-options" id="joiner-color-select">
+            <div class="color-btn" data-color="red"></div>
             <div class="color-btn" data-color="yellow"></div>
-            <div class="color-btn selected" data-color="green"></div>
             <div class="color-btn" data-color="blue"></div>
+          </div>
+          <div class="color-options row2" id="joiner-color-select-2">
+            <div class="color-btn" data-color="orange"></div>
+            <div class="color-btn selected" data-color="green"></div>
+            <div class="color-btn" data-color="purple"></div>
           </div>
         </div>
       </div>
       <div class="word-input-row">
         <input type="text" id="joiner-word-input" class="word-input-styled" placeholder="TYPE WORD..." maxlength="20" autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="characters">
       </div>
-      <div id="joiner-word-error" style="color:var(--red);font-family:'Orbitron',sans-serif;font-size:0.7rem;letter-spacing:2px;min-height:1.2em;"></div>
+      <div id="joiner-word-error" class="error-line"></div>
+      <label class="dict-toggle">
+        <input type="checkbox" class="dict-toggle-input" data-dict-toggle>
+        <span class="dict-box dict-ok" data-dict-box>&#10003;</span>
+        <span>USE LASERMAN DICTIONARY</span>
+      </label>
       <button class="menu-btn" id="btn-joiner-start" style="margin-top:8px;border-color:var(--green);color:var(--green);text-shadow:0 0 8px rgba(0,255,136,0.4)">SEND WORD</button>
     </div>
 
-    <button class="menu-btn purple" id="btn-online-back" style="margin-top:16px">MAIN MENU</button>
+    <button class="menu-btn purple" id="btn-online-back" style="margin-top:4px">MAIN MENU</button>
+  </div>
+
+  <!-- ===== LASERLINK SCREEN ===== -->
+  <div id="laserlink-screen" class="screen">
+    <h1 class="game-title mode-label ml-amber">LASERLINK</h1>
+
+    <!-- Compose view -->
+    <div id="laserlink-compose" style="text-align:center">
+      <div class="entry-heading eh-amber">ENTER YOUR NAME</div>
+      <div class="word-input-row" style="justify-content:center;margin-top:16px">
+        <input type="text" id="laserlink-name-input" class="word-input-styled" placeholder="YOUR NAME..." maxlength="12" autocomplete="off" spellcheck="false" autocorrect="off">
+      </div>
+      <div class="entry-heading eh-amber" style="margin-top:24px">ENTER TARGET WORD</div>
+      <div class="word-input-row" style="justify-content:center;margin-top:16px">
+        <input type="text" id="laserlink-word-input" class="word-input-styled" placeholder="TYPE WORD..." maxlength="20" autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="characters">
+      </div>
+      <div id="laserlink-error" class="error-line"></div>
+      <label class="dict-toggle">
+        <input type="checkbox" class="dict-toggle-input" data-dict-toggle>
+        <span class="dict-box dict-ok" data-dict-box>&#10003;</span>
+        <span>USE LASERMAN DICTIONARY</span>
+      </label>
+      <div class="menu-buttons" style="margin-top:8px">
+        <button class="menu-btn amber" id="btn-laserlink-create">CREATE LINK</button>
+        <button class="menu-btn purple" id="btn-laserlink-back">MAIN MENU</button>
+      </div>
+    </div>
+
+    <!-- Share view -->
+    <div id="laserlink-share" style="display:none; text-align:center; width:min(640px, 92vw)">
+      <div class="entry-heading eh-amber">SEND TO FRIEND</div>
+      <textarea id="laserlink-message" readonly rows="1" style="margin-top:16px"></textarea>
+      <div id="laserlink-copy-status" style="color:var(--amber);font-family:'Orbitron',sans-serif;font-size:0.7rem;letter-spacing:2px;min-height:1.2em;margin-top:8px"></div>
+      <div class="entry-actions" style="margin-top:4px">
+        <button class="menu-btn amber" id="btn-laserlink-copy">COPY</button>
+        <button class="menu-btn green" id="btn-laserlink-share-native" style="display:none">SHARE</button>
+      </div>
+      <div class="entry-actions" style="margin-top:10px">
+        <button class="menu-btn" id="btn-laserlink-new">NEW WORD</button>
+        <button class="menu-btn purple" id="btn-laserlink-done">MAIN MENU</button>
+      </div>
+    </div>
   </div>
 
   <!-- ===== GAME SCREEN ===== -->
@@ -1185,6 +1624,13 @@
     <div id="category-row">
       <span id="category-text">CATEGORY: ●●●●●●●●</span>
       <button id="toggle-cat-btn">SHOW</button>
+    </div>
+    <div id="laserlink-sender-row" style="display:none">
+      <span id="laserlink-sender-text">LASERLINK FROM <span id="laserlink-sender-name"></span></span>
+    </div>
+    <div id="dict-indicator-row">
+      <span>LASERMAN DICTIONARY WORD?</span>
+      <span class="dict-box dict-pending" id="dict-indicator-check">&#8230;</span>
     </div>
     <div id="word-display"></div>
     <div id="keyboard"></div>
@@ -1228,8 +1674,10 @@
     // ===========================
     const CHARACTER_CONFIGS = {
       laserman:   { name: 'LASERMAN',   lives: 6 },
-      laserwoman: { name: 'LASERWOMAN', lives: 8 },
+      laserwoman: { name: 'LASERWOMAN', lives: 6 },
+      laserkid:   { name: 'LASERKID',   lives: 7 },
       lasercat:   { name: 'LASERCAT',   lives: 9 },
+      laserbug:   { name: 'LASERBUG',   lives: 10 },
     };
     let selectedCharacter = 'laserman';
     let selectedColor = 'green';
@@ -1262,7 +1710,14 @@
       green:  { primary: '#00ff88', accent: '#00f0ff', body: '#00ff88', glow: 'rgba(0,255,136,0.6)',   core: '#88ffbb', rgb: [0, 255, 136] },
       blue:   { primary: '#4488ff', accent: '#66ccff', body: '#4488ff', glow: 'rgba(68,136,255,0.6)',  core: '#99bbff', rgb: [68, 136, 255] },
       yellow: { primary: '#ffcc00', accent: '#ffee44', body: '#ffcc00', glow: 'rgba(255,204,0,0.6)',   core: '#ffee88', rgb: [255, 204, 0] },
+      orange: { primary: '#ff8822', accent: '#ffaa44', body: '#ff8822', glow: 'rgba(255,136,34,0.6)',  core: '#ffcc88', rgb: [255, 136, 34] },
+      red:    { primary: '#ff3344', accent: '#ff6677', body: '#ff3344', glow: 'rgba(255,51,68,0.6)',   core: '#ff99aa', rgb: [255, 51, 68] },
+      purple: { primary: '#a855ff', accent: '#c788ff', body: '#a855ff', glow: 'rgba(168,85,255,0.6)',  core: '#d4b3ff', rgb: [168, 85, 255] },
     };
+
+    // Per-theme flags read during drawing
+    let grayLaserMode = false;     // true for red theme — turrets & laser etching drawn gray
+    let grayFailMode = false;      // true for purple theme — failure message drawn gray
 
     function applyColorPalette(color) {
       const p = COLOR_PALETTES[color] || COLOR_PALETTES.green;
@@ -1271,6 +1726,35 @@
       COL.bodyGreen = p.body;
       COL.greenGlow = p.glow;
       COL.coreGreen = p.core;
+
+      grayLaserMode = (color === 'red');
+      grayFailMode  = (color === 'purple');
+
+      if (grayLaserMode) {
+        // Red theme: laser etching + hit body render gray. Turrets KEEP the palette (red) color
+        // on their "alive" state — they only transition to gray during the firing animation
+        // (via the fireUp target color and the fired COL.red below).
+        COL.red       = '#555555';      // fired-turret color → gray
+        COL.bodyRed   = '#aaaaaa';      // hit body parts → gray
+        COL.redGlow   = 'rgba(170,170,170,0.55)';
+        COL.laserCore = '#cccccc';
+        COL.laserGlow = 'rgba(200,200,200,0.6)';
+        COL.pink      = '#888888';
+        COL.traceBright = '#bbbbbb';    // replaces hardcoded '#ff6677'
+        COL.traceCore   = '#dddddd';    // replaces hardcoded '#ff8899'
+      } else {
+        COL.red       = '#ff0044';
+        COL.bodyRed   = '#ff4466';
+        COL.redGlow   = 'rgba(255, 0, 68, 0.6)';
+        COL.laserCore = '#ff2244';
+        COL.laserGlow = 'rgba(255, 34, 68, 0.6)';
+        COL.pink      = '#ff0066';
+        COL.traceBright = '#ff6677';
+        COL.traceCore   = '#ff8899';
+      }
+      // Turret "alive" color always matches the palette primary — the firing animation
+      // interpolates toward the fired color (red normally, gray for red theme).
+      COL.turretGreen = p.primary;
     }
 
     // ===========================
@@ -1333,6 +1817,105 @@
     // Migrate old 'medium' tier to 'high'
     if (!PERF_PRESETS[perfTier]) perfTier = 'high';
     let PERF = { ...PERF_PRESETS[perfTier] };
+
+    // ===========================
+    // LASERMAN DICTIONARY (validation)
+    // ===========================
+    // When the "USE LASERMAN DICTIONARY" toggle is on, word submissions in
+    // Multiplayer / Online / Laserlink are validated against the master word list.
+    let lasermanDictionary = null;      // Set<string> once loaded
+    let dictionaryLoadPromise = null;   // de-dup concurrent fetches
+    // Default to ON for first-time users; respect the user's explicit choice once saved.
+    const _savedUseDict = localStorage.getItem('laserman_use_dict');
+    let useLasermanDict = _savedUseDict === null ? true : _savedUseDict === 'true';
+
+    function loadLasermanDictionary() {
+      if (lasermanDictionary) return Promise.resolve(lasermanDictionary);
+      if (dictionaryLoadPromise) return dictionaryLoadPromise;
+      dictionaryLoadPromise = fetch('laserman-master-dictionary.txt', { cache: 'force-cache' })
+        .then(r => {
+          if (!r.ok) throw new Error('Failed to fetch dictionary: ' + r.status);
+          return r.text();
+        })
+        .then(text => {
+          const words = text.split('\n').map(l => l.trim()).filter(Boolean);
+          lasermanDictionary = new Set(words);
+          return lasermanDictionary;
+        })
+        .catch(e => {
+          console.warn('Dictionary load failed:', e);
+          dictionaryLoadPromise = null;  // allow retry
+          return null;
+        });
+      return dictionaryLoadPromise;
+    }
+
+    // Validate a word against the dictionary. Returns:
+    //   true  → word is valid (or toggle is off, or dict failed to load)
+    //   false → word is not in dictionary
+    //   'loading' → dict still loading, caller should wait
+    async function validateWordAgainstDict(word) {
+      if (!useLasermanDict) return true;
+      const dict = await loadLasermanDictionary();
+      if (!dict) return true;  // load failed — don't block the user
+      return dict.has(String(word).toUpperCase());
+    }
+
+    // Keep every dict toggle checkbox AND its adjacent check/x box in sync with the current state
+    function syncDictToggles() {
+      document.querySelectorAll('[data-dict-toggle]').forEach(el => {
+        el.checked = useLasermanDict;
+      });
+      document.querySelectorAll('[data-dict-box]').forEach(el => {
+        if (useLasermanDict) {
+          el.classList.remove('dict-bad');
+          el.classList.add('dict-ok');
+          el.innerHTML = '&#10003;';  // check mark
+        } else {
+          el.classList.remove('dict-ok');
+          el.classList.add('dict-bad');
+          el.innerHTML = '&#10007;';  // x mark
+        }
+      });
+    }
+
+    function setUseLasermanDict(val) {
+      useLasermanDict = !!val;
+      localStorage.setItem('laserman_use_dict', String(useLasermanDict));
+      syncDictToggles();
+      if (useLasermanDict) loadLasermanDictionary();  // warm the cache
+    }
+
+    // Updates the "LASERMAN DICTIONARY WORD?" indicator on the game screen.
+    // Always shows on the game screen; shows "..." while the dictionary loads,
+    // then cyan check for in-dict / red x for not-in-dict.
+    function updateDictIndicator(word) {
+      const row = document.getElementById('dict-indicator-row');
+      const mark = document.getElementById('dict-indicator-check');
+      if (!row || !mark || !word) return;
+      row.style.display = 'flex';
+      mark.classList.remove('dict-ok', 'dict-bad');
+      mark.classList.add('dict-pending');
+      mark.innerHTML = '&#8230;'; // ellipsis while loading
+      const checking = String(word).toUpperCase();
+      loadLasermanDictionary().then(dict => {
+        // Bail if the game has moved on to a new word
+        if (gameState.word !== checking) return;
+        if (!dict) {
+          // Fetch failed — hide the indicator rather than show a misleading value
+          row.style.display = 'none';
+          return;
+        }
+        mark.classList.remove('dict-pending');
+        if (dict.has(checking)) {
+          mark.classList.add('dict-ok');
+          mark.innerHTML = '&#10003;'; // check
+        } else {
+          mark.classList.add('dict-bad');
+          mark.innerHTML = '&#10007;'; // x
+        }
+      });
+    }
 
     function applyPerfTier(tier) {
       perfTier = tier;
@@ -1593,11 +2176,29 @@
     let bodyPartStates = [];
     // Turret states: 'green', 'firing', 'red' (populated by startGame)
     let turretStates = [];
+
+    // === Accessory state (drawn alongside bodyPartStates parts, driven by final-combo animations) ===
+    // Laserwoman hair / flower: always visible. On the final head shot, they animate to red based on mode.
+    // {fillColor: 'green'|'red', fillProgress: 0..1, fillDir: 'bot2top'|'top2bot', side: 'left'|'right'}
+    let lwHairAnim = null;    // null = fully green (default render). Non-null = animating.
+    let lwFlowerAnim = null;  // null = fully green. Non-null = red fade-in.
+    // Laserwoman head backfill (for modes B/C/D where head isn't the primary, fills around after).
+    let lwHeadBackfill = null;  // {progress: 0..1}
+    // Laserbug spots fill (win/lose animation). [{progress: 0..1, color: 'green'|'red'}]
+    let laserbugSpotState = [];
+    // Laserbug spot-fill animation (during win/lose): {startTime, durationPerSpot, spots: [...]}
+    let laserbugSpotAnim = null;
     // Shot sequence: {turret, part} pairs mapping closest turrets to body parts
     // Turret positions (30deg rotation): 0=upper-right, 1=right, 2=lower-right, 3=lower-left, 4=left, 5=upper-left
     // Body parts: 0=head, 1=torso, 2=left-arm, 3=right-arm, 4=left-leg, 5=right-leg
     let shotOrder = [];
     let hairFromRight = false; // true = turret on right hits hair, animate right-to-left
+    // For Laserkid: which side the yo-yo hangs ('left' or 'right'). Decided each round in generateShotOrder.
+    let laserkidYoyoSide = 'right';
+    // Final-combo mode for Laserwoman/Laserkid ('A'|'B'|'C'|'D'), chosen in generateShotOrder
+    let finalComboMode = 'A';
+    // Secondary-phase animation state for combo characters (post-primary trace)
+    let secondaryAnim = null;
 
     function shuffleArray(arr) {
       for (let i = arr.length - 1; i > 0; i--) {
@@ -1608,54 +2209,171 @@
 
     function generateShotOrder() {
       const count = getMaxWrong();
-
-      // Turret mappings per character (body part index → turret index)
-      // After rotation: Laserman 30° CW, Laserwoman 22.5° CW, Lasercat 0°
       let partToTurret;
 
-      if (count === 6) {
+      if (selectedCharacter === 'laserman') {
         // Laserman (6, 30°): 0=upper-right, 1=right, 2=lower-right, 3=lower-left, 4=left, 5=upper-left
         const headTurret = Math.random() < 0.5 ? 0 : 5;
         const torsoTurret = headTurret === 0 ? 5 : 0;
         partToTurret = [headTurret, torsoTurret, 4, 1, 3, 2];
-      } else if (count === 8) {
-        // Laserwoman (8, 22.5°): 0=top-right, 1=right, 2=lower-right, 3=lower, 4=lower-left, 5=left, 6=upper-left, 7=top-left-ish
-        // Randomly assign turrets 0(top-right) and 6(upper-left) to hair(6) and flower(7)
-        hairFromRight = Math.random() < 0.5;
-        const hairTurret = hairFromRight ? 0 : 6;
-        const flowerTurret = hairFromRight ? 6 : 0;
-        // 7→head, remaining body turrets randomized between two variants
-        const draw = Math.random() < 0.5 ? 'a' : 'b';
-        if (draw === 'a') {
-          partToTurret = [7, 5, 4, 1, 3, 2, hairTurret, flowerTurret];
-        } else {
-          partToTurret = [7, 1, 5, 2, 4, 3, hairTurret, flowerTurret];
+        const body = [2, 3, 4, 5];
+        shuffleArray(body);
+        const order = body.map(p => ({ part: p, turret: partToTurret[p] }));
+        order.push({ part: 1, turret: partToTurret[1] });
+        order.push({ part: 0, turret: partToTurret[0] });
+        return order;
+      }
+
+      if (selectedCharacter === 'laserwoman') {
+        // 6 lives, 6 turrets (rotation 30°):
+        //   0=upper-right, 1=right, 2=lower-right, 3=lower-left, 4=left, 5=upper-left.
+        // Final-combo mode A/B/C/D determines primary AND which top turret fires the head shot.
+        //   A = head first, B = flower first, C = hair-left first, D = hair-right first.
+        // Rules:
+        //   - Head: top turret (5 for C, 0 for D, random otherwise).
+        //   - Arm on head turret's side: OTHER top turret hits that arm.
+        //   - Torso: random side turret (1 or 4).
+        //   - Remaining limbs must be reached WITHOUT crossing other body parts:
+        //       R-arm only from right turrets {0,1,2}
+        //       L-arm only from left turrets  {3,4,5}
+        //       R-leg from right turrets + lower-left {0,1,2,3}
+        //       L-leg from left turrets + lower-right {3,4,5,2}
+        const modes = ['A', 'B', 'C', 'D'];
+        finalComboMode = modes[Math.floor(Math.random() * modes.length)];
+        let headTurret;
+        if (finalComboMode === 'C')      headTurret = 5;
+        else if (finalComboMode === 'D') headTurret = 0;
+        else                             headTurret = Math.random() < 0.5 ? 0 : 5;
+        const armTurret = headTurret === 0 ? 5 : 0;
+        const armPartIdx = headTurret === 0 ? 2 : 3;  // head=0 -> L-arm from 5; head=5 -> R-arm from 0
+        const torsoTurret = Math.random() < 0.5 ? 1 : 4;
+
+        const assigned = { 0: headTurret, 1: torsoTurret };
+        assigned[armPartIdx] = armTurret;
+        const usedTurrets = new Set([headTurret, torsoTurret, armTurret]);
+        const remainingParts = [2, 3, 4, 5].filter(p => !(p in assigned));
+
+        // Allowed-turret sets per part (enforces no-cross-body-parts rule)
+        const LW_ALLOWED = {
+          2: [3, 4, 5],        // L-arm
+          3: [0, 1, 2],        // R-arm
+          4: [3, 4, 5, 2],     // L-leg
+          5: [0, 1, 2, 3],     // R-leg
+        };
+
+        // Backtracking assignment
+        const partsOrder = [...remainingParts];
+        shuffleArray(partsOrder);
+        const solution = {};
+        function bt(i) {
+          if (i >= partsOrder.length) return true;
+          const p = partsOrder[i];
+          const choices = LW_ALLOWED[p].filter(t => !usedTurrets.has(t));
+          shuffleArray(choices);
+          for (const t of choices) {
+            usedTurrets.add(t);
+            solution[p] = t;
+            if (bt(i + 1)) return true;
+            usedTurrets.delete(t);
+            delete solution[p];
+          }
+          return false;
         }
-      } else {
+        if (!bt(0)) {
+          // Shouldn't happen with these constraints — fallback to random.
+          const remainingTurrets = [0, 1, 2, 3, 4, 5].filter(t => !usedTurrets.has(t));
+          shuffleArray(remainingTurrets);
+          remainingParts.forEach((p, i) => { solution[p] = remainingTurrets[i]; });
+        }
+        Object.assign(assigned, solution);
+
+        partToTurret = [assigned[0], assigned[1], assigned[2], assigned[3], assigned[4], assigned[5]];
+        const body = [2, 3, 4, 5];
+        shuffleArray(body);
+        const order = body.map(p => ({ part: p, turret: partToTurret[p] }));
+        order.push({ part: 1, turret: partToTurret[1] });
+        order.push({ part: 0, turret: partToTurret[0] });
+        return order;
+      }
+
+      if (selectedCharacter === 'laserkid') {
+        // 7 lives, 7 turrets (rotation 0° — turret 0 directly at the top, other 6 evenly around).
+        // Turret layout: 0=top, 1=upper-right, 2=right, 3=lower-right, 4=lower-left, 5=left, 6=upper-left.
+        // Head: top turret (0). Yo-yo hangs below one hand (random left/right each round);
+        // the side turret on that side hits the yo-yo.
+        laserkidYoyoSide = Math.random() < 0.5 ? 'left' : 'right';
+        if (laserkidYoyoSide === 'left') {
+          // Yo-yo on left → turret 5 (left) hits it. Reshuffle upper turrets for torso/arms.
+          partToTurret = [
+            0,  // 0: head (top)
+            1,  // 1: torso (upper-right)
+            6,  // 2: L-arm (upper-left, since left side is taken by yo-yo)
+            2,  // 3: R-arm (right)
+            4,  // 4: L-leg (lower-left)
+            3,  // 5: R-leg (lower-right)
+            5,  // 6: yo-yo (left)
+          ];
+        } else {
+          // Yo-yo on right → turret 2 (right) hits it.
+          partToTurret = [
+            0,  // 0: head (top)
+            6,  // 1: torso (upper-left)
+            5,  // 2: L-arm (left)
+            1,  // 3: R-arm (upper-right)
+            4,  // 4: L-leg (lower-left)
+            3,  // 5: R-leg (lower-right)
+            2,  // 6: yo-yo (right)
+          ];
+        }
+        // All 6 non-head parts randomized (torso, limbs, yo-yo)
+        const body = [1, 2, 3, 4, 5, 6];
+        shuffleArray(body);
+        const order = body.map(p => ({ part: p, turret: partToTurret[p] }));
+        order.push({ part: 0, turret: partToTurret[0] });
+        return order;
+      }
+
+      if (selectedCharacter === 'lasercat') {
         // Lasercat (9): fixed same-side mappings
         partToTurret = [0, 5, 7, 2, 6, 3, 8, 1, 4];
+        const body = [2, 3, 4, 5, 6, 7, 8];
+        shuffleArray(body);
+        const order = body.map(p => ({ part: p, turret: partToTurret[p] }));
+        order.push({ part: 1, turret: partToTurret[1] });
+        order.push({ part: 0, turret: partToTurret[0] });
+        return order;
       }
 
-      let body;
-      if (count === 8) {
-        // Laserwoman: hair(6), flower(7), and 4 limbs(2-5) all in one shuffled bucket
-        body = [2, 3, 4, 5, 6, 7];
+      if (selectedCharacter === 'laserbug') {
+        // 10 lives, 10 turrets (rotation 0°)
+        // Parts: 0=head, 1=body, 2-4=L-legs (top/mid/bot), 5-7=R-legs, 8=L-antenna, 9=R-antenna
+        // Turrets (rotation 0°): 0=top, 1..4=right side, 5=bottom, 6..9=left side
+        partToTurret = [
+          0,   // head -> top turret
+          5,   // body -> bottom turret
+          8, 7, 6,   // L-legs top→bot -> upper-left-mid, left, lower-left
+          2, 3, 4,   // R-legs top→bot -> upper-right-mid, right, lower-right
+          9,   // L-antenna -> top-left-ish
+          1,   // R-antenna -> top-right-ish
+        ];
+        // All legs + antennae shuffled first (8 shots), then body, then head
+        const body = [2, 3, 4, 5, 6, 7, 8, 9];
         shuffleArray(body);
-      } else if (count === 9) {
-        // Lasercat: all 7 non-torso/head parts in one shuffled bucket
-        body = [2, 3, 4, 5, 6, 7, 8];
-        shuffleArray(body);
-      } else {
-        // Laserman: 4 limbs shuffled
-        body = [2, 3, 4, 5];
-        shuffleArray(body);
+        const order = body.map(p => ({ part: p, turret: partToTurret[p] }));
+        order.push({ part: 1, turret: partToTurret[1] });
+        order.push({ part: 0, turret: partToTurret[0] });
+        return order;
       }
 
-      // Build order: body → torso → head (always last)
-      const order = body.map(part => ({ part, turret: partToTurret[part] }));
-      order.push({ part: 1, turret: partToTurret[1] }); // torso
-      order.push({ part: 0, turret: partToTurret[0] });  // head always last
-
+      // Fallback (unknown character): identity mapping
+      partToTurret = [];
+      for (let i = 0; i < count; i++) partToTurret.push(i);
+      const body = [];
+      for (let i = 2; i < count; i++) body.push(i);
+      shuffleArray(body);
+      const order = body.map(p => ({ part: p, turret: partToTurret[p] }));
+      order.push({ part: 1, turret: partToTurret[1] });
+      order.push({ part: 0, turret: partToTurret[0] });
       return order;
     }
 
@@ -1668,7 +2386,24 @@
     const FIELD_CY = CENTER_Y;
     const FIELD_RADIUS = 170;
 
+    // Accessory geometry helpers — hair/flower for Laserwoman and Laserkid.
+    // Accessories aren't in bodyPartStates; they're drawn on top based on their own state.
+    function getLaserwomanHairGeom() {
+      const hCx = CENTER_X, hCy = CENTER_Y - 65;
+      return {
+        cx: hCx, topY: hCy - 27, botY: hCy + 55,
+        topHW: 15, botHW: 42,
+      };
+    }
+    function getLaserwomanFlowerGeom() {
+      const hCx = CENTER_X, hCy = CENTER_Y - 65;
+      return { cx: hCx - 12, cy: hCy - 28, r: 3.5, petalR: 5, petals: 5 };
+    }
+
     function getBodyParts() {
+      if (selectedCharacter === 'laserkid') return getLaserkidParts();
+      if (selectedCharacter === 'laserbug') return getLaserbugParts();
+
       const hCx = CENTER_X, hCy = CENTER_Y - 65, hR = 28;
       const base = [
         { type: 'circle', cx: hCx, cy: hCy, r: hR },                                              // 0: head
@@ -1678,48 +2413,158 @@
         { type: 'line', x1: CENTER_X - 45, y1: CENTER_Y + 105, x2: CENTER_X, y2: CENTER_Y + 45 }, // 4: left leg
         { type: 'line', x1: CENTER_X + 45, y1: CENTER_Y + 105, x2: CENTER_X, y2: CENTER_Y + 45 }, // 5: right leg
       ];
-      if (selectedCharacter === 'laserwoman') {
-        // Hair: solid filled trapezoid behind head, traced bottom-to-top
+      // Laserwoman now has 6 body parts (same as Laserman). Hair and flower are drawn
+      // as accessories in drawAllBodyParts; they animate on the final (head) shot.
+      if (selectedCharacter === 'lasercat') {
         base.push(
-          { type: 'solidHair', // 6: solid trapezoid hair
-            cx: hCx,
-            topY: hCy - 27,     // crown of head
-            botY: hCy + 55,     // shoulder level
-            topHW: 15,           // half-width at top (narrow, hidden behind head)
-            botHW: 42,           // half-width at bottom (fans out past shoulders)
-            reverse: hairFromRight, // true = animate right-to-left
-            x1: hairFromRight ? hCx + 42 : hCx - 42, y1: hCy + 55, // laser target: outer bottom corner (side depends on turret)
-            x2: hCx, y2: hCy - 27 },    // trace end: top center
-          { type: 'flower', // 7: flower accessory in hair (top-left)
-            cx: hCx - 12, cy: hCy - 28,
-            r: 3.5,              // center radius
-            petalR: 5,           // petal radius
-            petals: 5,
-            x1: hCx - 12, y1: hCy - 28,  // laser target: flower center
-            x2: hCx - 12, y2: hCy - 28 },
-        );
-      } else if (selectedCharacter === 'lasercat') {
-        // Ears: x1=ear tip, x2=near-head base (outside-in trace)
-        // Tail: x1=tail tip, x2=body attachment (outside-in, lowered to clear arm)
-        base.push(
-          { type: 'ear',                                                                          // 6: left ear (triangle, no bottom)
-            tipX: hCx - 20, tipY: hCy - hR - 23,     // top point of ear
-            baseInX: hCx - 1, baseInY: hCy - hR,      // inner base (on circle, near top)
-            baseOutX: hCx - 17, baseOutY: hCy - 22,   // outer base (on circle, upper-left)
-            x1: hCx - 20, y1: hCy - hR - 23,         // laser target: ear tip
-            x2: hCx - 9, y2: hCy - 25 },             // trace end (midpoint of bases)
-          { type: 'ear',                                                                          // 7: right ear (triangle, no bottom)
-            tipX: hCx + 20, tipY: hCy - hR - 23,     // top point of ear
-            baseInX: hCx + 1, baseInY: hCy - hR,      // inner base (on circle, near top)
-            baseOutX: hCx + 17, baseOutY: hCy - 22,   // outer base (on circle, upper-right)
-            x1: hCx + 20, y1: hCy - hR - 23,         // laser target: ear tip
-            x2: hCx + 9, y2: hCy - 25 },             // trace end (midpoint of bases)
-          { type: 'bezier', x1: CENTER_X + 65, y1: CENTER_Y + 40,                                 // 8: tail (tip→hip, longer)
+          { type: 'ear',
+            tipX: hCx - 20, tipY: hCy - hR - 23,
+            baseInX: hCx - 1, baseInY: hCy - hR,
+            baseOutX: hCx - 17, baseOutY: hCy - 22,
+            x1: hCx - 20, y1: hCy - hR - 23,
+            x2: hCx - 9, y2: hCy - 25 },
+          { type: 'ear',
+            tipX: hCx + 20, tipY: hCy - hR - 23,
+            baseInX: hCx + 1, baseInY: hCy - hR,
+            baseOutX: hCx + 17, baseOutY: hCy - 22,
+            x1: hCx + 20, y1: hCy - hR - 23,
+            x2: hCx + 9, y2: hCy - 25 },
+          { type: 'bezier', x1: CENTER_X + 65, y1: CENTER_Y + 40,
             cpx: CENTER_X + 55, cpy: CENTER_Y + 55,
             x2: CENTER_X, y2: CENTER_Y + 45 },
         );
       }
       return base;
+    }
+
+    // === Laserkid (7 lives) ===
+    // 2/3 Laserman dimensions. Head tangent to the top of the torso line. Hair tuft at crown.
+    function getLaserkidParts() {
+      const s = 2 / 3;
+      const hR = Math.round(28 * s);     // 19
+      const hCx = CENTER_X;
+      // Torso placed first; head sits tangent to its top.
+      const tTop = CENTER_Y - Math.round(28 * s);  // ~-19 from center — similar height to Laserman's torso-top
+      const tBot = tTop + Math.round(82 * s);      // 55 long
+      const hCy = tTop - hR;                        // head bottom == torso top (tangent)
+      const armDx = Math.round(50 * s); // 33
+      const armUp = Math.round(45 * s); // 30
+      const armShoulderY = tTop;
+      const legDx = Math.round(45 * s); // 30
+      const legDy = Math.round(60 * s); // 40
+      const footY = tBot + legDy;
+      return [
+        { type: 'circle', cx: hCx, cy: hCy, r: hR },                                                     // 0: head
+        { type: 'line', x1: CENTER_X, y1: tTop, x2: CENTER_X, y2: tBot },                                // 1: torso
+        { type: 'line', x1: CENTER_X - armDx, y1: armShoulderY + armUp - 5, x2: CENTER_X, y2: armShoulderY }, // 2: left arm
+        { type: 'line', x1: CENTER_X + armDx, y1: armShoulderY + armUp - 5, x2: CENTER_X, y2: armShoulderY }, // 3: right arm
+        { type: 'line', x1: CENTER_X - legDx, y1: footY, x2: CENTER_X, y2: tBot },                        // 4: left leg
+        { type: 'line', x1: CENTER_X + legDx, y1: footY, x2: CENTER_X, y2: tBot },                        // 5: right leg
+        // 6: yo-yo — a small disk on a string hanging below the left or right hand.
+        //   Hand position is the outer endpoint of the arm (x1,y1 of arm part).
+        //   laserkidYoyoSide ('left'|'right') picks which hand it hangs from each round.
+        (function() {
+          const sideSign = laserkidYoyoSide === 'left' ? -1 : 1;
+          const handX = CENTER_X + sideSign * armDx;       // matches arm tip x
+          const handY = armShoulderY + armUp - 5;          // matches arm tip y
+          const stringLen = 26;
+          const ballR = 7;
+          const ballX = handX;
+          const ballY = handY + stringLen + ballR;         // ball center below hand
+          return { type: 'yoyo',
+            anchorX: handX, anchorY: handY,   // top of string (at hand)
+            ballX: ballX, ballY: ballY, ballR: ballR,
+            // x1/y1: default target (overridden in setupBeamFromBlink to closest-point on ball)
+            x1: ballX, y1: ballY,
+            x2: handX, y2: handY };
+        })(),
+      ];
+    }
+
+    // === Laserbug (10 lives) — ladybug design ===
+    // Parts: 0=head, 1=body, 2-4=left legs (top/mid/bot), 5-7=right legs, 8=left antenna, 9=right antenna.
+    // Spots are drawn on the body but aren't body parts; they animate during win/lose.
+    // Head/legs/antennae attach TANGENT to their connecting circles (no overlap).
+    // Legs are bent about 2/3 of the way down (upper segment heads outward, lower segment angles down).
+    function getLaserbugParts() {
+      const bodyCx = CENTER_X, bodyCy = CENTER_Y + 10, bodyR = 55;
+      const headR = 20; // 10% larger (was 18)
+      const headCx = bodyCx;
+      // Head sits tangent to body (head bottom touches body top)
+      const headCy = bodyCy - bodyR - headR;
+
+      // Compute leg attach points on body edge (tangent): for each leg's angle from body center,
+      // the attach point is (bodyCx ± bodyR*cos(angle), bodyCy + bodyR*sin(angle)).
+      // Leg goes outward from attach point through a "knee" (bend) then down to a "foot".
+      // Values below place legs symmetrically at angles roughly -45°, 0°, +45° (left and right).
+      function leg(sideSign, bodyAngleDeg) {
+        const a = bodyAngleDeg * Math.PI / 180;
+        const ax = bodyCx + sideSign * bodyR * Math.cos(a);   // attach x (body edge)
+        const ay = bodyCy + bodyR * Math.sin(a);              // attach y (body edge)
+        // Upper segment: goes outward from body (away from center) about 22px
+        const outDx = sideSign * Math.cos(a) * 22;
+        const outDy = Math.sin(a) * 22;
+        const kneeX = ax + outDx;
+        const kneeY = ay + outDy;
+        // Lower segment: bends down (and slightly inward) about 14px — gives bug-leg silhouette
+        const footX = kneeX + sideSign * 2;  // tiny inward splay
+        const footY = kneeY + 14;
+        return {
+          type: 'bentLine',
+          // x1/y1 = tip (foot) — laser target, etching starts here
+          x1: footX, y1: footY,
+          bendX: kneeX, bendY: kneeY,
+          x2: ax, y2: ay,  // final end: body edge
+        };
+      }
+
+      return [
+        // 0: head (small circle on top of body, tangent)
+        { type: 'circle', cx: headCx, cy: headCy, r: headR },
+        // 1: body (large circle)
+        { type: 'bugBody', cx: bodyCx, cy: bodyCy, r: bodyR,
+          x1: bodyCx, y1: bodyCy - bodyR, x2: bodyCx, y2: bodyCy }, // defaults; real target is computed in setupBeam
+        // 2-4: left legs (top, mid, bot) — bentLine from foot to body edge
+        leg(-1, -40), leg(-1, 0), leg(-1, 40),
+        // 5-7: right legs (top, mid, bot) — mirrored
+        leg( 1, -40), leg( 1, 0), leg( 1, 40),
+        // 8-9: antennae — bezier curves from tip (x1) through control point, ending at head edge (tangent)
+        //   base of antenna is on the head's circumference (upper-left at -40° and upper-right at -140°, measuring
+        //   standard math angles from +x). We compute the tangent point analytically.
+        (function(sideSign) {
+          const a = (sideSign === -1 ? -110 : -70) * Math.PI / 180; // upper-side of head
+          const baseX = headCx + headR * Math.cos(a);
+          const baseY = headCy + headR * Math.sin(a);
+          const tipX = baseX + sideSign * 12;
+          const tipY = baseY - 24;
+          const cpx = baseX + sideSign * 4;
+          const cpy = baseY - 14;
+          return { type: 'antenna', x1: tipX, y1: tipY, cpx, cpy, x2: baseX, y2: baseY };
+        })(-1),
+        (function(sideSign) {
+          const a = (sideSign === -1 ? -110 : -70) * Math.PI / 180;
+          const baseX = headCx + headR * Math.cos(a);
+          const baseY = headCy + headR * Math.sin(a);
+          const tipX = baseX + sideSign * 12;
+          const tipY = baseY - 24;
+          const cpx = baseX + sideSign * 4;
+          const cpy = baseY - 14;
+          return { type: 'antenna', x1: tipX, y1: tipY, cpx, cpy, x2: baseX, y2: baseY };
+        })(1),
+      ];
+    }
+
+    // Ladybug spot positions (relative to body center). 6 spots arranged symmetrically.
+    function getLaserbugSpots() {
+      const bodyCx = CENTER_X, bodyCy = CENTER_Y + 10;
+      return [
+        { cx: bodyCx - 22, cy: bodyCy - 20, r: 9 },
+        { cx: bodyCx + 22, cy: bodyCy - 20, r: 9 },
+        { cx: bodyCx - 28, cy: bodyCy + 8,  r: 10 },
+        { cx: bodyCx + 28, cy: bodyCy + 8,  r: 10 },
+        { cx: bodyCx - 15, cy: bodyCy + 32, r: 8 },
+        { cx: bodyCx + 15, cy: bodyCy + 32, r: 8 },
+      ];
     }
 
     function getHairStrands(part) {
@@ -1744,8 +2589,14 @@
 
     function makeTurretRing(radius) {
       const count = getMaxWrong();
-      // Rotate turrets per character so bottom turret doesn't aim at crotch
-      const rotationDeg = count === 6 ? 30 : count === 8 ? 22.5 : 0;
+      // Rotate turrets per character so bottom turret doesn't aim at crotch:
+      //   Laserman/Laserwoman (6):   30° CW → places 0=upper-right, 5=upper-left
+      //   Laserkid (7):              0°     → turret 0 sits directly at the top (aims at hair tuft)
+      //   Lasercat (9):              0°
+      //   Laserbug (10):             0°     → places 0 at top (head) and 5 at bottom (body)
+      let rotationDeg = 0;
+      if (count === 6) rotationDeg = 30;
+      else if (count === 8) rotationDeg = 22.5; // legacy — unused now but safe
       const rotationRad = rotationDeg * Math.PI / 180;
       const positions = [];
       for (let i = 0; i < count; i++) {
@@ -1999,7 +2850,8 @@
     function drawTurretAt(x, y, state, time, idx, scale) {
       const isGreen = state === 'green';
       const isFiring = state === 'firing';
-      const color = isGreen ? COL.green : COL.red;
+      // For red theme, turrets render gray instead of the palette primary.
+      const color = isGreen ? (COL.turretGreen || COL.green) : COL.red;
       const pulse = 0.7 + 0.3 * Math.sin(time * 0.004 + idx * 1.2);
 
       // LOW: 2 concentric circles (ring + core), no shadow/glow, no save/restore
@@ -2106,8 +2958,9 @@
       ctx.globalAlpha = style.alpha || 1;
 
       if (part.type === 'circle') {
+        const startAngle = part.startAngle !== undefined ? part.startAngle : -Math.PI / 2;
         ctx.beginPath();
-        ctx.arc(part.cx, part.cy, part.r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+        ctx.arc(part.cx, part.cy, part.r, startAngle, startAngle + Math.PI * 2 * progress);
         ctx.stroke();
         if (progress >= 1) {
           ctx.fillStyle = style.eyeColor || COL.green;
@@ -2141,8 +2994,24 @@
               ctx.lineTo(part.cx + 18, part.cy + 4 + w * 4);
               ctx.stroke();
             }
+          } else if (selectedCharacter === 'laserbug') {
+            // Ladybug head (r=20): two small beady dots in the upper half of the face.
+            ctx.beginPath();
+            ctx.arc(part.cx - 6, part.cy - 8, 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(part.cx + 6, part.cy - 8, 2, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (selectedCharacter === 'laserkid') {
+            // Kid: eyes scaled 2/3
+            ctx.beginPath();
+            ctx.arc(part.cx - 6, part.cy - 5, 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(part.cx + 6, part.cy - 5, 2, 0, Math.PI * 2);
+            ctx.fill();
           } else {
-            // Human eyes
+            // Human eyes (laserman/laserwoman)
             ctx.beginPath();
             ctx.arc(part.cx - 9, part.cy - 7, 2.5, 0, Math.PI * 2);
             ctx.fill();
@@ -2157,6 +3026,26 @@
         ctx.beginPath();
         ctx.moveTo(part.x1, part.y1);
         ctx.lineTo(endX, endY);
+        ctx.stroke();
+      } else if (part.type === 'bentLine') {
+        // Two segments: x1/y1 (tip) -> bendX/bendY (knee) -> x2/y2 (body attach).
+        // Trace progresses along total length (tip-to-knee then knee-to-attach).
+        const s1x = part.bendX - part.x1, s1y = part.bendY - part.y1;
+        const s1 = Math.hypot(s1x, s1y);
+        const s2x = part.x2 - part.bendX, s2y = part.y2 - part.bendY;
+        const s2 = Math.hypot(s2x, s2y);
+        const total = s1 + s2;
+        const covered = Math.min(1, progress) * total;
+        ctx.beginPath();
+        ctx.moveTo(part.x1, part.y1);
+        if (covered <= s1) {
+          const t = covered / s1;
+          ctx.lineTo(part.x1 + s1x * t, part.y1 + s1y * t);
+        } else {
+          ctx.lineTo(part.bendX, part.bendY);
+          const t = (covered - s1) / s2;
+          ctx.lineTo(part.bendX + s2x * t, part.bendY + s2y * t);
+        }
         ctx.stroke();
       } else if (part.type === 'ear') {
         // Two lines from tip, traced simultaneously downward (no bottom leg)
@@ -2214,12 +3103,66 @@
         }
         // Center dot
         if (progress > 0.5) {
-          const centerCol = style.eyeColor === COL.red ? '#ff8899' : '#ffffaa';
+          const centerCol = style.eyeColor === COL.red ? COL.traceCore : '#ffffaa';
           ctx.fillStyle = centerCol;
           ctx.shadowColor = centerCol;
           ctx.beginPath();
           ctx.arc(part.cx, part.cy, part.r, 0, Math.PI * 2);
           ctx.fill();
+        }
+      } else if (part.type === 'antenna') {
+        // Bezier curve from base to tip, with a small ball at tip when drawn.
+        const t = progress;
+        const mt = 1 - t;
+        const endX = mt*mt*part.x1 + 2*mt*t*part.cpx + t*t*part.x2;
+        const endY = mt*mt*part.y1 + 2*mt*t*part.cpy + t*t*part.y2;
+        ctx.beginPath();
+        ctx.moveTo(part.x1, part.y1);
+        ctx.quadraticCurveTo(part.cpx, part.cpy, endX, endY);
+        ctx.stroke();
+        if (progress >= 0.95) {
+          // Small ball at antenna tip (the laser-target end, x1/y1)
+          ctx.fillStyle = style.color || COL.bodyGreen;
+          ctx.beginPath();
+          ctx.arc(part.x1, part.y1, 3.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (part.type === 'bugBody') {
+        // Large body outline — arc drawn CW starting from the turret-contact angle (defaults to top)
+        const startAngle = part.startAngle !== undefined ? part.startAngle : -Math.PI / 2;
+        ctx.beginPath();
+        ctx.arc(part.cx, part.cy, part.r, startAngle, startAngle + Math.PI * 2 * progress);
+        ctx.stroke();
+      } else if (part.type === 'yoyo') {
+        // Yo-yo: string from hand (anchor) to a small disk (ball). Two-phase etching:
+        //   0..0.5 → ball arc traces clockwise from the turret-contact angle
+        //   0.5..1 → string traces from ball-top upward to the anchor (hand)
+        const p = Math.min(1, progress);
+        const startAngle = part.startAngle !== undefined ? part.startAngle : -Math.PI / 2;
+        // Ball arc
+        const ballP = Math.min(1, p * 2);
+        ctx.beginPath();
+        ctx.arc(part.ballX, part.ballY, part.ballR, startAngle, startAngle + Math.PI * 2 * ballP);
+        ctx.stroke();
+        // Inner detail dot (yo-yo axle) once the ball is fully drawn
+        if (ballP >= 1) {
+          ctx.save();
+          ctx.fillStyle = style.color || COL.bodyGreen;
+          ctx.beginPath();
+          ctx.arc(part.ballX, part.ballY, 2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+        // String
+        if (p > 0.5) {
+          const stringP = (p - 0.5) * 2;
+          const topY = part.ballY - part.ballR;
+          const endX = part.ballX + (part.anchorX - part.ballX) * stringP;
+          const endY = topY + (part.anchorY - topY) * stringP;
+          ctx.beginPath();
+          ctx.moveTo(part.ballX, topY);
+          ctx.lineTo(endX, endY);
+          ctx.stroke();
         }
       }
       ctx.restore();
@@ -2231,7 +3174,7 @@
         const isRed = bodyPartStates[idx] === 'red';
         const mainColor = isRed ? COL.bodyRed : COL.bodyGreen;
         const glowColor = isRed ? COL.redGlow : COL.greenGlow;
-        const coreColor = isRed ? '#ff8899' : COL.coreGreen;
+        const coreColor = isRed ? COL.traceCore : COL.coreGreen;
         const eyeColor = isRed ? COL.red : COL.green;
 
         // Main glow
@@ -2254,6 +3197,10 @@
           });
         }
       }
+      // --- Accessories (drawn first so body parts render on top) ---
+      // Laserwoman hair (behind head, clipped to exclude head circle)
+      if (selectedCharacter === 'laserwoman') drawLaserwomanHair();
+
       // 1) SolidHair first (renders behind head, clipped to exclude head circle)
       parts.forEach((part, idx) => {
         if (part.type === 'solidHair') {
@@ -2278,13 +3225,183 @@
           ctx.restore();
         }
       });
-      // 3) Regular body parts (head, torso, limbs, tail, etc.)
+      // 3) Regular body parts (head, torso, limbs, tail, body, legs, antennae, cap, etc.)
       parts.forEach((part, idx) => {
         if (part.type !== 'solidHair' && part.type !== 'flower' && part.type !== 'ear') drawPart(part, idx);
       });
-      // 3) Flower last (renders on top of head)
-      parts.forEach((part, idx) => {
-        if (part.type === 'flower') drawPart(part, idx);
+      // 4) Head-backfill overlay (Laserwoman cascade) — draws a red arc progressing over the green head
+      const backfill = lwHeadBackfill;
+      if (backfill && parts[0] && parts[0].type === 'circle') {
+        drawBodyPartShape(parts[0], Math.min(1, backfill.progress), {
+          color: COL.traceBright, lineWidth: 5, shadowBlur: 25, shadowColor: COL.red, eyeColor: COL.red,
+        });
+      }
+      // 5) Flower (on top of head for Laserwoman — via accessory)
+      if (selectedCharacter === 'laserwoman') drawLaserwomanFlower();
+      // 6) Laserbug spots (on top of body outline)
+      if (selectedCharacter === 'laserbug') drawLaserbugSpots();
+    }
+
+    // Returns {cx, cy, r} for the current character's head circle — used for clipping hair/ears behind head.
+    function getHeadClipCircle() {
+      if (selectedCharacter === 'laserkid') {
+        const s = 2 / 3;
+        return { cx: CENTER_X, cy: CENTER_Y - Math.round(65 * s), r: Math.round(28 * s) + 2 };
+      }
+      if (selectedCharacter === 'laserbug') {
+        const bodyCy = CENTER_Y + 10, bodyR = 55, headR = 18;
+        return { cx: CENTER_X, cy: bodyCy - bodyR - headR + 4, r: headR + 2 };
+      }
+      // Laserman / Laserwoman / Lasercat
+      return { cx: CENTER_X, cy: CENTER_Y - 65, r: 30 };
+    }
+
+    // Draws Laserwoman's hair trapezoid behind the head. Uses lwHairAnim to animate red fill.
+    function drawLaserwomanHair() {
+      const g = getLaserwomanHairGeom();
+      _drawTrapezoidHairWithFill(g, lwHairAnim, /*headCy*/ CENTER_Y - 65, /*headR*/ 30);
+    }
+    // Shared renderer for the hair trapezoid. Draws green base layer, then red overlay based on anim.
+    // ONCE the hair is fully zapped (fillProgress >= 1), drops the green base entirely so the halo
+    // is red (or gray for red theme). Before that, the usual green+red-overlay transition animates.
+    function _drawTrapezoidHairWithFill(g, anim, headCy, clipR) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+      ctx.arc(g.cx, headCy, clipR, 0, Math.PI * 2, true);
+      ctx.clip();
+
+      const fullyZapped = anim && anim.fillProgress >= 1;
+
+      if (fullyZapped) {
+        // Post-zap: draw the whole hair red with red glow ONLY — no green base, so the halo is red.
+        ctx.fillStyle = COL.bodyRed;
+        ctx.shadowBlur = 22;
+        ctx.shadowColor = COL.redGlow;
+        ctx.beginPath();
+        ctx.moveTo(g.cx - g.botHW, g.botY);
+        ctx.lineTo(g.cx + g.botHW, g.botY);
+        ctx.lineTo(g.cx + g.topHW, g.topY);
+        ctx.lineTo(g.cx - g.topHW, g.topY);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+        return;
+      }
+
+      // Still in the "alive" or "being zapped" state — palette green base + optional red overlay.
+      ctx.fillStyle = COL.bodyGreen;
+      ctx.shadowBlur = 18;
+      ctx.shadowColor = COL.greenGlow;
+      ctx.beginPath();
+      ctx.moveTo(g.cx - g.botHW, g.botY);
+      ctx.lineTo(g.cx + g.botHW, g.botY);
+      ctx.lineTo(g.cx + g.topHW, g.topY);
+      ctx.lineTo(g.cx - g.topHW, g.topY);
+      ctx.closePath();
+      ctx.fill();
+
+      if (anim && anim.fillProgress > 0) {
+        const p = Math.min(1, anim.fillProgress);
+        ctx.fillStyle = COL.bodyRed;
+        ctx.shadowBlur = 22;
+        ctx.shadowColor = COL.redGlow;
+        let fillTopY, fillBotY;
+        if (anim.fillDir === 'bot2top') {
+          fillBotY = g.botY;
+          fillTopY = g.botY - (g.botY - g.topY) * p;
+        } else {
+          fillTopY = g.topY;
+          fillBotY = g.topY + (g.botY - g.topY) * p;
+        }
+        function hwAt(y) {
+          const t = (y - g.topY) / (g.botY - g.topY);
+          return g.topHW + (g.botHW - g.topHW) * t;
+        }
+        const topHW = hwAt(fillTopY);
+        const botHW = hwAt(fillBotY);
+        ctx.beginPath();
+        ctx.moveTo(g.cx - botHW, fillBotY);
+        ctx.lineTo(g.cx + botHW, fillBotY);
+        ctx.lineTo(g.cx + topHW, fillTopY);
+        ctx.lineTo(g.cx - topHW, fillTopY);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // Laserwoman's flower. Green by default. On red fill, blends to red over lwFlowerAnim.fillProgress.
+    function drawLaserwomanFlower() {
+      const g = getLaserwomanFlowerGeom();
+      const redP = lwFlowerAnim ? Math.min(1, lwFlowerAnim.fillProgress) : 0;
+      ctx.save();
+      // Petals
+      const petalCol = redP >= 0.5 ? COL.bodyRed : COL.bodyGreen;
+      const glowCol = redP >= 0.5 ? COL.redGlow : COL.greenGlow;
+      ctx.fillStyle = petalCol;
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = glowCol;
+      for (let i = 0; i < g.petals; i++) {
+        const angle = (i / g.petals) * Math.PI * 2 - Math.PI / 2;
+        const px = g.cx + Math.cos(angle) * (g.r + g.petalR * 0.5);
+        const py = g.cy + Math.sin(angle) * (g.r + g.petalR * 0.5);
+        ctx.beginPath();
+        ctx.arc(px, py, g.petalR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Center dot
+      const centerCol = redP >= 0.5 ? COL.traceCore : '#ffffaa';
+      ctx.fillStyle = centerCol;
+      ctx.shadowColor = centerCol;
+      ctx.beginPath();
+      ctx.arc(g.cx, g.cy, g.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Laserbug spots.
+    //   - Spots are HOLLOW by default (just an outlined circle on the body).
+    //   - Border is a subtle dark outline before the body is etched; switches to red
+    //     (or gray for the red theme) once the body is hit — a damage cue.
+    //   - Only during the win/lose animation does laserbugSpotState paint a growing
+    //     color fill from the spot's center.
+    function drawLaserbugSpots() {
+      const spots = getLaserbugSpots();
+      const bodyIsRed = bodyPartStates[1] === 'red';
+      spots.forEach((spot, idx) => {
+        const state = laserbugSpotState[idx] || { progress: 0, color: 'green' };
+        ctx.save();
+
+        // Win/lose fill (only when animating).
+        if (state.progress > 0) {
+          const fillCol = state.color === 'green' ? COL.bodyGreen : COL.bodyRed;
+          const glowCol = state.color === 'green' ? COL.greenGlow : COL.redGlow;
+          ctx.fillStyle = fillCol;
+          ctx.shadowBlur = 14;
+          ctx.shadowColor = glowCol;
+          ctx.beginPath();
+          ctx.arc(spot.cx, spot.cy, spot.r * state.progress, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Border — palette (chosen) color by default; switches to red (or gray for red theme)
+        // once the body is etched as a damage cue.
+        if (bodyIsRed) {
+          ctx.strokeStyle = COL.bodyRed;
+          ctx.shadowBlur = 6;
+          ctx.shadowColor = COL.redGlow;
+          ctx.lineWidth = 2.5;
+        } else {
+          ctx.strokeStyle = COL.bodyGreen;
+          ctx.shadowBlur = 4;
+          ctx.shadowColor = COL.greenGlow;
+          ctx.lineWidth = 2;
+        }
+        ctx.beginPath();
+        ctx.arc(spot.cx, spot.cy, spot.r, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
       });
     }
 
@@ -2382,27 +3499,69 @@
     function setupBeamFromBlink() {
       // Transition from blink/fireUp to beam — calculate target on body part
       const parts = getBodyParts();
-      const part = parts[laserAnim.partIndex];
+      let part = parts[laserAnim.partIndex];
       const turrets = getTurretPositions();
       const turret = turrets[laserAnim.turretIndex];
 
       turretStates[laserAnim.turretIndex] = 'firing';
 
+      // === Final-combo override: Laserwoman head shot re-targets based on mode ===
+      //   A=head first, B=flower first, C=hair-left first, D=hair-right first
+      laserAnim.comboMode = null;
+      laserAnim.comboCharacter = null;
+      if (laserAnim.partIndex === 0) {
+        if (selectedCharacter === 'laserwoman') {
+          laserAnim.comboCharacter = 'laserwoman';
+          laserAnim.comboMode = finalComboMode;
+          const hairG = getLaserwomanHairGeom();
+          const flowerG = getLaserwomanFlowerGeom();
+          if (finalComboMode === 'B') {
+            part = { type: 'flower', cx: flowerG.cx, cy: flowerG.cy,
+                     r: flowerG.r, petalR: flowerG.petalR, petals: flowerG.petals,
+                     x1: flowerG.cx, y1: flowerG.cy, x2: flowerG.cx, y2: flowerG.cy };
+          } else if (finalComboMode === 'C') {
+            part = { type: 'solidHair', cx: hairG.cx,
+                     topY: hairG.topY, botY: hairG.botY, topHW: hairG.topHW, botHW: hairG.botHW,
+                     reverse: false,   // fill bottom-to-top from the LEFT side
+                     x1: hairG.cx - hairG.botHW, y1: hairG.botY, x2: hairG.cx, y2: hairG.topY };
+          } else if (finalComboMode === 'D') {
+            part = { type: 'solidHair', cx: hairG.cx,
+                     topY: hairG.topY, botY: hairG.botY, topHW: hairG.topHW, botHW: hairG.botHW,
+                     reverse: true,    // fill bottom-to-top from the RIGHT side
+                     x1: hairG.cx + hairG.botHW, y1: hairG.botY, x2: hairG.cx, y2: hairG.topY };
+          }
+          // Mode 'A' uses the default head-circle part, no override.
+        }
+      }
+
       let targetX, targetY;
-      if (part.type === 'circle') {
-        // Head: top turret (12 o'clock) fires straight down → top of head
-        targetX = part.cx;
-        targetY = part.cy - part.r;
-      } else if (laserAnim.partIndex === 1) {
-        // Torso: target the "heart" (arm attachment point)
-        targetX = CENTER_X;
-        targetY = CENTER_Y - 20;
-      } else if (part.type === 'bezier') {
-        // Bezier parts (e.g. cat tail): target the start point
+      if (part.type === 'circle' || part.type === 'bugBody') {
+        // Closest point on circle circumference to the firing turret.
+        const dx = turret.x - part.cx;
+        const dy = turret.y - part.cy;
+        const d = Math.hypot(dx, dy) || 1;
+        targetX = part.cx + (dx / d) * part.r;
+        targetY = part.cy + (dy / d) * part.r;
+        // Record hit angle so the arc-trace starts from the contact point and sweeps clockwise.
+        part.startAngle = Math.atan2(dy, dx);
+      } else if (laserAnim.partIndex === 1 && selectedCharacter !== 'laserbug') {
+        // Torso: etching still starts at the neck and goes down regardless of turret.
         targetX = part.x1;
         targetY = part.y1;
+      } else if (part.type === 'bezier' || part.type === 'antenna' || part.type === 'bentLine') {
+        // Start at the tip / outer endpoint (x1)
+        targetX = part.x1;
+        targetY = part.y1;
+      } else if (part.type === 'yoyo') {
+        // Yo-yo: closest point on the ball (circle) to the firing turret; arc sweeps from there.
+        const dx = turret.x - part.ballX;
+        const dy = turret.y - part.ballY;
+        const d = Math.hypot(dx, dy) || 1;
+        targetX = part.ballX + (dx / d) * part.ballR;
+        targetY = part.ballY + (dy / d) * part.ballR;
+        part.startAngle = Math.atan2(dy, dx);
       } else {
-        // Limbs/hair/ears: target hand/foot/tip endpoint
+        // Lines / hair / ears / flower etc.: target start endpoint (tip)
         targetX = part.x1;
         targetY = part.y1;
       }
@@ -2465,7 +3624,10 @@
       if (laserAnim.phase === 'fireUp') {
         laserAnim.shakeTime = (laserAnim.shakeTime || 0) + 0.017 * _dtScale;
         const level = laserAnim.shakeLevel || 1;
-        const duration = (1.5 + 0.5 * level) / 4; // 0.5s (level 1), 0.625s (level 2), 0.75s (level 3)
+        // level 1: 0.5s (3rd-to-last shot)
+        // level 2: 0.9375s — 0.625s × 1.5 (2nd-to-last shot, +50% dramatic lead-up)
+        // level 3: 1.5s — 0.75s × 2 (final shot, doubled for maximum drama)
+        const duration = level === 3 ? 1.5 : level === 2 ? 0.9375 : 0.5;
         const progress = Math.min(1, laserAnim.shakeTime / duration);
         laserAnim.greenToRed = progress;
         laserAnim.shakeProgress = progress;
@@ -2494,14 +3656,30 @@
         const part = laserAnim.part;
         if (Math.random() < 0.4) {
           let px, py;
-          if (part.type === 'circle') {
-            const angle = -Math.PI / 2 + Math.PI * 2 * laserAnim.traceProgress;
+          if (part.type === 'circle' || part.type === 'bugBody') {
+            const startAngle = part.startAngle !== undefined ? part.startAngle : -Math.PI / 2;
+            const angle = startAngle + Math.PI * 2 * laserAnim.traceProgress;
             px = part.cx + Math.cos(angle) * part.r;
             py = part.cy + Math.sin(angle) * part.r;
-          } else if (part.type === 'bezier') {
+          } else if (part.type === 'bezier' || part.type === 'antenna') {
             const t = laserAnim.traceProgress;
             px = (1-t)*(1-t)*part.x1 + 2*(1-t)*t*part.cpx + t*t*part.x2;
             py = (1-t)*(1-t)*part.y1 + 2*(1-t)*t*part.cpy + t*t*part.y2;
+          } else if (part.type === 'bentLine') {
+            const s1x = part.bendX - part.x1, s1y = part.bendY - part.y1;
+            const s1 = Math.hypot(s1x, s1y);
+            const s2x = part.x2 - part.bendX, s2y = part.y2 - part.bendY;
+            const s2 = Math.hypot(s2x, s2y);
+            const covered = laserAnim.traceProgress * (s1 + s2);
+            if (covered <= s1) {
+              const t = covered / s1;
+              px = part.x1 + s1x * t;
+              py = part.y1 + s1y * t;
+            } else {
+              const t = (covered - s1) / s2;
+              px = part.bendX + s2x * t;
+              py = part.bendY + s2y * t;
+            }
           } else if (part.type === 'solidHair') {
             // Trace up from bottom (hit point) to top of hair
             const tp = laserAnim.traceProgress;
@@ -2519,6 +3697,21 @@
               px = part.tipX + (part.baseInX - part.tipX) * tp;
               py = part.tipY + (part.baseInY - part.tipY) * tp;
             }
+          } else if (part.type === 'yoyo') {
+            const p = laserAnim.traceProgress;
+            if (p <= 0.5) {
+              // Ball-arc phase — sparks on the circumference
+              const startA = part.startAngle !== undefined ? part.startAngle : -Math.PI / 2;
+              const angle = startA + Math.PI * 2 * (p * 2);
+              px = part.ballX + Math.cos(angle) * part.ballR;
+              py = part.ballY + Math.sin(angle) * part.ballR;
+            } else {
+              // String phase — sparks travel up the string
+              const sp = (p - 0.5) * 2;
+              const topY = part.ballY - part.ballR;
+              px = part.ballX + (part.anchorX - part.ballX) * sp;
+              py = topY + (part.anchorY - topY) * sp;
+            }
           } else {
             px = part.x1 + (part.x2 - part.x1) * laserAnim.traceProgress;
             py = part.y1 + (part.y2 - part.y1) * laserAnim.traceProgress;
@@ -2527,17 +3720,74 @@
         }
 
         if (laserAnim.traceProgress >= 1) {
-          // Mark body part as red, turret as red
-          bodyPartStates[laserAnim.partIndex] = 'red';
+          // Mark turret as red
           turretStates[laserAnim.turretIndex] = 'red';
           const endX = laserAnim.part.type === 'circle' ? laserAnim.part.cx : laserAnim.part.x2;
           const endY = laserAnim.part.type === 'circle' ? laserAnim.part.cy : laserAnim.part.y2;
           emitParticles(endX, endY, PARTICLE_COUNT_HIT, COL.red, 5, 50);
+
+          // === Final-combo special: start secondary cascade before finishing ===
+          if (laserAnim.comboCharacter === 'laserwoman') {
+            const mode = laserAnim.comboMode;
+            // Lock in primary's final red visual state
+            if (mode === 'A') {
+              bodyPartStates[0] = 'red';  // head traced red during beam, commit it
+            } else if (mode === 'B') {
+              lwFlowerAnim = { fillProgress: 1 };  // flower fully red
+            } else if (mode === 'C' || mode === 'D') {
+              lwHairAnim = { fillProgress: 1, fillDir: 'bot2top' };  // hair fully red bottom-to-top
+            }
+            secondaryAnim = {
+              character: 'laserwoman', mode,
+              startTime: performance.now(),
+              duration: 450,
+              onComplete: laserAnim.onComplete,
+            };
+            laserAnim = null;
+            unlockKeyboard();
+            return;
+          }
+
+          // Normal non-combo completion
+          bodyPartStates[laserAnim.partIndex] = 'red';
           const cb = laserAnim.onComplete;
           laserAnim = null;
           unlockKeyboard();
           if (cb) cb();
         }
+      }
+    }
+
+    // Drives the post-primary cascade for Laserwoman/Laserkid final shots.
+    function updateSecondaryAnim() {
+      if (!secondaryAnim) return;
+      const t = performance.now() - secondaryAnim.startTime;
+      const progress = Math.min(1, t / secondaryAnim.duration);
+
+      if (secondaryAnim.character === 'laserwoman') {
+        const mode = secondaryAnim.mode;
+        if (mode === 'A') {
+          // Head already red. Hair fills top-to-bottom, flower goes red.
+          lwHairAnim = { fillProgress: progress, fillDir: 'top2bot' };
+          lwFlowerAnim = { fillProgress: progress };
+        } else if (mode === 'B') {
+          // Flower already red. Head fills via backfill arc, hair fills top-to-bottom.
+          lwHeadBackfill = { progress };
+          lwHairAnim = { fillProgress: progress, fillDir: 'top2bot' };
+        } else if (mode === 'C' || mode === 'D') {
+          // Hair already red. Head fills via backfill, flower goes red.
+          lwHeadBackfill = { progress };
+          lwFlowerAnim = { fillProgress: progress };
+        }
+      }
+
+      if (progress >= 1) {
+        // Commit final head state and clear backfill
+        bodyPartStates[0] = 'red';
+        lwHeadBackfill = null;
+        const cb = secondaryAnim.onComplete;
+        secondaryAnim = null;
+        if (cb) cb();
       }
     }
 
@@ -2609,11 +3859,12 @@
         const sx = Math.sin(t * freq) * amp;
         const sy = Math.cos(t * freq * 1.3) * amp * 0.7;
 
-        // Interpolate color: selected palette → red(255,0,68)
+        // Interpolate color: selected palette → red (or gray in red theme so turret stays gray)
         const pal = COLOR_PALETTES[selectedColor] || COLOR_PALETTES.green;
-        const r = Math.round(pal.rgb[0] + (255 - pal.rgb[0]) * gtr);
-        const g = Math.round(pal.rgb[1] * (1 - gtr));
-        const b = Math.round(pal.rgb[2] + (68 - pal.rgb[2]) * gtr);
+        const target = grayLaserMode ? [85, 85, 85] : [255, 0, 68];
+        const r = Math.round(pal.rgb[0] + (target[0] - pal.rgb[0]) * gtr);
+        const g = Math.round(pal.rgb[1] + (target[1] - pal.rgb[1]) * gtr);
+        const b = Math.round(pal.rgb[2] + (target[2] - pal.rgb[2]) * gtr);
         const color = `rgb(${r},${g},${b})`;
 
         // Draw shaking turret dots (overrides normal turret draw)
@@ -2729,14 +3980,15 @@
       if (laserAnim.phase === 'trace') {
         // StringyHair/Ear: clip behind head so trace stays behind head circle
         if (laserAnim.part.type === 'solidHair' || laserAnim.part.type === 'ear') {
+          const hc = getHeadClipCircle();
           ctx.save();
           ctx.beginPath();
           ctx.rect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-          ctx.arc(CENTER_X, CENTER_Y - 65, 30, 0, Math.PI * 2, true);
+          ctx.arc(hc.cx, hc.cy, hc.r, 0, Math.PI * 2, true);
           ctx.clip();
         }
         drawBodyPartShape(laserAnim.part, laserAnim.traceProgress, {
-          color: '#ff6677',
+          color: COL.traceBright,
           lineWidth: 5,
           shadowBlur: 25,
           shadowColor: COL.red,
@@ -2751,7 +4003,7 @@
             const isRd = bodyPartStates[idx] === 'red';
             const mc = isRd ? COL.bodyRed : COL.bodyGreen;
             const gc = isRd ? COL.redGlow : COL.greenGlow;
-            const cc = isRd ? '#ff8899' : COL.coreGreen;
+            const cc = isRd ? COL.traceCore : COL.coreGreen;
             const ec = isRd ? COL.red : COL.green;
             drawBodyPartShape(p, 1, { color: mc, lineWidth: 4, shadowBlur: 18, shadowColor: gc, eyeColor: ec });
             drawBodyPartShape(p, 1, { color: cc, lineWidth: 2, shadowBlur: 8, shadowColor: mc, alpha: 0.7, eyeColor: ec });
@@ -2760,28 +4012,55 @@
 
         // Bright tracing point
         let tipX, tipY;
-        if (laserAnim.part.type === 'circle') {
-          const angle = -Math.PI / 2 + Math.PI * 2 * laserAnim.traceProgress;
-          tipX = laserAnim.part.cx + Math.cos(angle) * laserAnim.part.r;
-          tipY = laserAnim.part.cy + Math.sin(angle) * laserAnim.part.r;
-        } else if (laserAnim.part.type === 'bezier') {
+        const p = laserAnim.part;
+        if (p.type === 'circle' || p.type === 'bugBody') {
+          const startAngle = p.startAngle !== undefined ? p.startAngle : -Math.PI / 2;
+          const angle = startAngle + Math.PI * 2 * laserAnim.traceProgress;
+          tipX = p.cx + Math.cos(angle) * p.r;
+          tipY = p.cy + Math.sin(angle) * p.r;
+        } else if (p.type === 'bezier' || p.type === 'antenna') {
           const t = laserAnim.traceProgress;
-          tipX = (1-t)*(1-t)*laserAnim.part.x1 + 2*(1-t)*t*laserAnim.part.cpx + t*t*laserAnim.part.x2;
-          tipY = (1-t)*(1-t)*laserAnim.part.y1 + 2*(1-t)*t*laserAnim.part.cpy + t*t*laserAnim.part.y2;
-        } else if (laserAnim.part.type === 'solidHair') {
+          tipX = (1-t)*(1-t)*p.x1 + 2*(1-t)*t*p.cpx + t*t*p.x2;
+          tipY = (1-t)*(1-t)*p.y1 + 2*(1-t)*t*p.cpy + t*t*p.y2;
+        } else if (p.type === 'bentLine') {
+          const s1x = p.bendX - p.x1, s1y = p.bendY - p.y1;
+          const s1 = Math.hypot(s1x, s1y);
+          const s2x = p.x2 - p.bendX, s2y = p.y2 - p.bendY;
+          const s2 = Math.hypot(s2x, s2y);
+          const covered = laserAnim.traceProgress * (s1 + s2);
+          if (covered <= s1) {
+            const t = covered / s1;
+            tipX = p.x1 + s1x * t; tipY = p.y1 + s1y * t;
+          } else {
+            const t = (covered - s1) / s2;
+            tipX = p.bendX + s2x * t; tipY = p.bendY + s2y * t;
+          }
+        } else if (p.type === 'solidHair') {
           const tp = laserAnim.traceProgress;
-          const curHW = laserAnim.part.botHW - (laserAnim.part.botHW - laserAnim.part.topHW) * tp;
-          const side = laserAnim.part.reverse ? -1 : 1;
-          tipX = laserAnim.part.cx + side * curHW;
-          tipY = laserAnim.part.botY - (laserAnim.part.botY - laserAnim.part.topY) * tp;
-        } else if (laserAnim.part.type === 'ear') {
-          // Show bright dot on outer leg (more visible)
+          const curHW = p.botHW - (p.botHW - p.topHW) * tp;
+          const side = p.reverse ? -1 : 1;
+          tipX = p.cx + side * curHW;
+          tipY = p.botY - (p.botY - p.topY) * tp;
+        } else if (p.type === 'ear') {
           const tp = laserAnim.traceProgress;
-          tipX = laserAnim.part.tipX + (laserAnim.part.baseOutX - laserAnim.part.tipX) * tp;
-          tipY = laserAnim.part.tipY + (laserAnim.part.baseOutY - laserAnim.part.tipY) * tp;
+          tipX = p.tipX + (p.baseOutX - p.tipX) * tp;
+          tipY = p.tipY + (p.baseOutY - p.tipY) * tp;
+        } else if (p.type === 'yoyo') {
+          const tp = laserAnim.traceProgress;
+          if (tp <= 0.5) {
+            const startA = p.startAngle !== undefined ? p.startAngle : -Math.PI / 2;
+            const angle = startA + Math.PI * 2 * (tp * 2);
+            tipX = p.ballX + Math.cos(angle) * p.ballR;
+            tipY = p.ballY + Math.sin(angle) * p.ballR;
+          } else {
+            const sp = (tp - 0.5) * 2;
+            const topY = p.ballY - p.ballR;
+            tipX = p.ballX + (p.anchorX - p.ballX) * sp;
+            tipY = topY + (p.anchorY - topY) * sp;
+          }
         } else {
-          tipX = laserAnim.part.x1 + (laserAnim.part.x2 - laserAnim.part.x1) * laserAnim.traceProgress;
-          tipY = laserAnim.part.y1 + (laserAnim.part.y2 - laserAnim.part.y1) * laserAnim.traceProgress;
+          tipX = p.x1 + (p.x2 - p.x1) * laserAnim.traceProgress;
+          tipY = p.y1 + (p.y2 - p.y1) * laserAnim.traceProgress;
         }
 
         ctx.save();
@@ -2810,15 +4089,32 @@
       for (let i = 0; i < burstTotal; i++) {
         emitParticles(CENTER_X, CENTER_Y, 1, colors[i % colors.length], 7, 90);
       }
-      // Start smile animation on Laserman's head (he already has eyes!)
-      const headCY = CENTER_Y - 65;
+      // Start smile animation on the character's head (scaled per character)
+      let smileCy, smileR;
+      if (selectedCharacter === 'laserkid') {
+        // Proportional to Laserman (smile cy = hCy - 2, r = 14; 19/28 scale → -1, 9).
+        const s = 2 / 3;
+        const hR = Math.round(28 * s);
+        const tTop = CENTER_Y - Math.round(28 * s);
+        const kHCy = tTop - hR;
+        smileCy = kHCy - 1;
+        smileR = 9;
+      } else if (selectedCharacter === 'laserbug') {
+        // New head cy = CENTER_Y - 65 (headR=20, tangent). Smile slightly above head center.
+        smileCy = CENTER_Y - 66;
+        smileR = 9;
+      } else {
+        smileCy = CENTER_Y - 65 - 2;
+        smileR = 14;
+      }
       smileyAnim = {
         phase: 'delay',
         time: 0,
-        smile: { cx: CENTER_X, cy: headCY - 2, r: 14,
-                 startDeg: 155, endDeg: 25 },
+        smile: { cx: CENTER_X, cy: smileCy, r: smileR, startDeg: 155, endDeg: 25 },
         smileProgress: 0,
       };
+      // Laserbug: start green spot fill on win
+      if (selectedCharacter === 'laserbug') startLaserbugSpotFill('green');
     }
 
     function getEyePositions() {
@@ -2826,12 +4122,38 @@
       if (selectedCharacter === 'lasercat') {
         return { left: { x: hCx - 10, y: hCy - 8, r: 3 }, right: { x: hCx + 10, y: hCy - 8, r: 3 } };
       }
+      if (selectedCharacter === 'laserkid') {
+        const s = 2 / 3;
+        const hR = Math.round(28 * s);
+        const tTop = CENTER_Y - Math.round(28 * s);
+        const kHCy = tTop - hR;   // matches getLaserkidParts: head tangent to torso top
+        return { left: { x: hCx - 6, y: kHCy - 5, r: 2 }, right: { x: hCx + 6, y: kHCy - 5, r: 2 } };
+      }
+      if (selectedCharacter === 'laserbug') {
+        const bHCy = CENTER_Y + 10 - 55 - 20; // match laserbug head cy (headR=20, tangent)
+        return { left: { x: hCx - 6, y: bHCy - 8, r: 2 }, right: { x: hCx + 6, y: bHCy - 8, r: 2 } };
+      }
       return { left: { x: hCx - 9, y: hCy - 7, r: 2.5 }, right: { x: hCx + 9, y: hCy - 7, r: 2.5 } };
     }
 
     function getFaceFeatures() {
       const hCx = CENTER_X, hCy = CENTER_Y - 65;
       const features = [];
+      if (selectedCharacter === 'laserkid') {
+        const s = 2 / 3;
+        const hR = Math.round(28 * s);
+        const tTop = CENTER_Y - Math.round(28 * s);
+        const kHCy = tTop - hR;
+        features.push({ type: 'eye', x: hCx - 6, y: kHCy - 5, r: 2 });
+        features.push({ type: 'eye', x: hCx + 6, y: kHCy - 5, r: 2 });
+        return features;
+      }
+      if (selectedCharacter === 'laserbug') {
+        const bHCy = CENTER_Y + 10 - 55 - 20;
+        features.push({ type: 'eye', x: hCx - 6, y: bHCy - 8, r: 2 });
+        features.push({ type: 'eye', x: hCx + 6, y: bHCy - 8, r: 2 });
+        return features;
+      }
       if (selectedCharacter === 'lasercat') {
         // Cat: eyes, nose, then each whisker
         features.push({ type: 'eye', x: hCx - 10, y: hCy - 8, r: 3 });
@@ -2865,7 +4187,24 @@
       setTimeout(() => document.getElementById('game-screen').classList.remove('shake'), 500);
       emitParticles(CENTER_X, CENTER_Y - 20, 50, COL.red, 6, 70);
       emitParticles(CENTER_X, CENTER_Y + 20, 30, COL.amber, 5, 60);
-      const headCY = CENTER_Y - 65;
+      // Per-character frown geometry
+      let frownCy, frownR;
+      if (selectedCharacter === 'laserkid') {
+        // Proportional to Laserman (frown cy = hCy + 18, r = 14; scale to hR/28 → +12, 9).
+        const s = 2 / 3;
+        const hR = Math.round(28 * s);
+        const tTop = CENTER_Y - Math.round(28 * s);
+        const kHCy = tTop - hR;
+        frownCy = kHCy + 12;
+        frownR = 9;
+      } else if (selectedCharacter === 'laserbug') {
+        // Move frown up a bit — sits centered on the upper face so the sad arc curves above it
+        frownCy = CENTER_Y - 54;
+        frownR = 9;
+      } else {
+        frownCy = CENTER_Y - 65 + 18;
+        frownR = 14;
+      }
       const faceFeatures = getFaceFeatures();
       const eyeBlastTotal = PERF.reducedEffects
         ? (selectedCharacter === 'lasercat' ? 30 : 10)
@@ -2877,10 +4216,86 @@
         featureIndex: 0,
         featureProgress: 0,
         framesPerFeature: Math.max(4, Math.floor(eyeBlastTotal / faceFeatures.length)),
-        frown: { cx: CENTER_X, cy: headCY + 18, r: 14,
-                 startDeg: 205, endDeg: 335 },
+        frown: { cx: CENTER_X, cy: frownCy, r: frownR, startDeg: 205, endDeg: 335 },
         frownProgress: 0,
       };
+      // Laserbug: fill spots red on loss
+      if (selectedCharacter === 'laserbug') startLaserbugSpotFill('red');
+    }
+
+    // Animate Laserbug spots filling sequentially — like Lasercat's face-feature sweep.
+    // The "active" turrets (greens on win, all reds on lose) aim at one spot at a time, filling it,
+    // then move to the next spot.
+    function startLaserbugSpotFill(color) {
+      const spots = getLaserbugSpots();
+      laserbugSpotAnim = {
+        startTime: performance.now(),
+        color,
+        perSpot: 260,           // ms per spot
+        spotCount: spots.length,
+        currentSpot: 0,
+        currentProgress: 0,
+      };
+    }
+
+    function updateLaserbugSpotAnim() {
+      if (!laserbugSpotAnim) return;
+      const a = laserbugSpotAnim;
+      const elapsed = performance.now() - a.startTime;
+      const spotIdx = Math.floor(elapsed / a.perSpot);
+      const localElapsed = elapsed - spotIdx * a.perSpot;
+      const spotProgress = Math.min(1, localElapsed / a.perSpot);
+
+      if (spotIdx >= a.spotCount) {
+        // All spots done — commit fully-filled state
+        for (let i = 0; i < a.spotCount; i++) {
+          laserbugSpotState[i] = { progress: 1, color: a.color };
+        }
+        laserbugSpotAnim = null;
+        return;
+      }
+
+      // Spots before current are full; current is animating; later are empty
+      for (let i = 0; i < a.spotCount; i++) {
+        if (i < spotIdx) laserbugSpotState[i] = { progress: 1, color: a.color };
+        else if (i === spotIdx) laserbugSpotState[i] = { progress: spotProgress, color: a.color };
+        else laserbugSpotState[i] = { progress: 0, color: a.color };
+      }
+      a.currentSpot = spotIdx;
+      a.currentProgress = spotProgress;
+    }
+
+    // Draw beams from the "active" turrets to the currently-filling spot — moves target-to-target
+    // just like Lasercat's face animation. On win, green (unfired) turrets; on lose, all red turrets.
+    function drawLaserbugSpotBeams() {
+      if (!laserbugSpotAnim) return;
+      const a = laserbugSpotAnim;
+      const idx = a.currentSpot;
+      const spots = getLaserbugSpots();
+      if (idx >= spots.length) return;
+      const spot = spots[idx];
+      const col = a.color === 'green' ? COL.bodyGreen : COL.bodyRed;
+      const glow = a.color === 'green' ? COL.greenGlow : COL.redGlow;
+      const turrets = getTurretPositions();
+      const activeTurrets = [];
+      turretStates.forEach((s, i) => {
+        if (a.color === 'green' && s === 'green') activeTurrets.push(i);
+        else if (a.color === 'red' && s === 'red') activeTurrets.push(i);
+      });
+      activeTurrets.forEach(ti => {
+        const t = turrets[ti];
+        ctx.save();
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.75 * (1 - a.currentProgress * 0.4);
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = glow;
+        ctx.beginPath();
+        ctx.moveTo(t.x, t.y);
+        ctx.lineTo(spot.cx, spot.cy);
+        ctx.stroke();
+        ctx.restore();
+      });
     }
 
     function drawWinEffect(time) {
@@ -3176,11 +4591,12 @@
         const feature = frownAnim.features[fi];
         const progress = frownAnim.featureProgress;
 
-        // Feature color transitions selected→red; beams are always red
+        // Feature color transitions selected→red (or →gray in red theme)
         const pal = COLOR_PALETTES[selectedColor] || COLOR_PALETTES.green;
-        const fr = Math.round(pal.rgb[0] + (255 - pal.rgb[0]) * progress);
-        const fg = Math.round(pal.rgb[1] * (1 - progress));
-        const fb = Math.round(pal.rgb[2] + (68 - pal.rgb[2]) * progress);
+        const targetFX = grayLaserMode ? [85, 85, 85] : [255, 0, 68];
+        const fr = Math.round(pal.rgb[0] + (targetFX[0] - pal.rgb[0]) * progress);
+        const fg = Math.round(pal.rgb[1] + (targetFX[1] - pal.rgb[1]) * progress);
+        const fb = Math.round(pal.rgb[2] + (targetFX[2] - pal.rgb[2]) * progress);
         const featureColor = `rgb(${fr}, ${fg}, ${fb})`;
         const beamAlpha = 0.3 + 0.5 * progress;
 
@@ -3378,7 +4794,10 @@
       drawAllBodyParts();
       drawTurrets(time);
       updateLaser();
+      updateSecondaryAnim();
+      updateLaserbugSpotAnim();
       drawLaser();
+      drawLaserbugSpotBeams();
       updateParticles();
       drawParticles();
       drawWinEffect(time);
@@ -3465,8 +4884,9 @@
       const lines = text.split('<br>');
       msgTop.innerHTML = lines[0] || '';
       msgBottom.innerHTML = lines.slice(1).join('<br>') || '';
-      msgTop.className = 'msg-line ' + type;
-      msgBottom.className = 'msg-line ' + type;
+      const extra = (type === 'lose' && grayFailMode) ? ' gray-fail' : '';
+      msgTop.className = 'msg-line ' + type + extra;
+      msgBottom.className = 'msg-line ' + type + extra;
       overlay.classList.add(type + '-layout');
       overlay.classList.add('show');
     }
@@ -3603,6 +5023,15 @@
       loseEffect = null;
       smileyAnim = null;
       frownAnim = null;
+      secondaryAnim = null;
+      // Reset accessory animation state (hair/flower/spots)
+      lwHairAnim = null;
+      lwFlowerAnim = null;
+      lwHeadBackfill = null;
+      laserbugSpotState = selectedCharacter === 'laserbug'
+        ? getLaserbugSpots().map(() => ({ progress: 0, color: 'green' }))
+        : [];
+      laserbugSpotAnim = null;
       onlineGuessQueue = [];
       onlineWaitingForPeerAnim = false;
       if (gameState.mode === 'online' || gameState.mode === 'online-host') {
@@ -3632,6 +5061,29 @@
         catBtn.textContent = 'SHOW';
       } else {
         catRow.style.display = 'none';
+      }
+
+      // LASERLINK receiver: show sender row
+      const llRow = document.getElementById('laserlink-sender-row');
+      if (gameState.mode === 'laserlink' && gameState.laserlinkSender) {
+        llRow.style.display = 'flex';
+        document.getElementById('laserlink-sender-name').textContent = gameState.laserlinkSender;
+      } else {
+        llRow.style.display = 'none';
+      }
+
+      // Dictionary indicator — shows on all modes whether the current word is in the master dictionary
+      updateDictIndicator(word);
+
+      // LASERLINK mode: show CREATE LINK button (amber) instead of NEW GAME
+      const newGameBtn = document.getElementById('new-game-btn');
+      if (gameState.mode === 'laserlink') {
+        newGameBtn.textContent = 'CREATE LINK';
+        newGameBtn.classList.remove('purple');
+        newGameBtn.classList.add('amber');
+      } else {
+        newGameBtn.textContent = 'NEW GAME';
+        newGameBtn.classList.remove('amber');
       }
 
       // Online host: reveal word and lock keyboard (spectator mode)
@@ -4018,7 +5470,8 @@
     }
 
     function onlineNameContinue() {
-      const name = document.getElementById('online-name-input').value.trim().toUpperCase();
+      // Preserve user's case (they can have "Mike" instead of forced "MIKE")
+      const name = document.getElementById('online-name-input').value.trim();
       if (!name) {
         document.getElementById('online-name-input').focus();
         return;
@@ -4129,15 +5582,27 @@
       });
     }
 
-    function hostSendWord() {
+    async function hostSendWord() {
       const word = document.getElementById('host-word-input').value.trim().toUpperCase();
+      const errEl = document.getElementById('host-word-error');
       if (word.length < 2) {
-        document.getElementById('host-word-error').textContent = 'WORD MUST BE AT LEAST 2 LETTERS';
+        errEl.textContent = 'WORD MUST BE AT LEAST 2 LETTERS';
         return;
       }
       if (!/^[A-Z]+$/.test(word)) {
-        document.getElementById('host-word-error').textContent = 'LETTERS ONLY';
+        errEl.textContent = 'LETTERS ONLY';
         return;
+      }
+      if (useLasermanDict) {
+        errEl.textContent = 'CHECKING DICTIONARY...';
+        errEl.style.color = 'var(--amber)';
+        const ok = await validateWordAgainstDict(word);
+        errEl.style.color = '';
+        if (!ok) {
+          errEl.textContent = '"' + word + '" NOT IN LASERMAN DICTIONARY';
+          return;
+        }
+        errEl.textContent = '';
       }
       // Send word to joiner (joiner guesses)
       onlineGuesserName = onlineOpponentName; // joiner is guessing
@@ -4149,15 +5614,27 @@
       onlineSend({ type: 'start-game', word: word, character: selectedCharacter, color: selectedColor, shotOrder: shotOrder, hairFromRight: hairFromRight });
     }
 
-    function joinerSendWord() {
+    async function joinerSendWord() {
       const word = document.getElementById('joiner-word-input').value.trim().toUpperCase();
+      const errEl = document.getElementById('joiner-word-error');
       if (word.length < 2) {
-        document.getElementById('joiner-word-error').textContent = 'WORD MUST BE AT LEAST 2 LETTERS';
+        errEl.textContent = 'WORD MUST BE AT LEAST 2 LETTERS';
         return;
       }
       if (!/^[A-Z]+$/.test(word)) {
-        document.getElementById('joiner-word-error').textContent = 'LETTERS ONLY';
+        errEl.textContent = 'LETTERS ONLY';
         return;
+      }
+      if (useLasermanDict) {
+        errEl.textContent = 'CHECKING DICTIONARY...';
+        errEl.style.color = 'var(--amber)';
+        const ok = await validateWordAgainstDict(word);
+        errEl.style.color = '';
+        if (!ok) {
+          errEl.textContent = '"' + word + '" NOT IN LASERMAN DICTIONARY';
+          return;
+        }
+        errEl.textContent = '';
       }
       // Send word to host (host guesses)
       onlineGuesserName = onlineOpponentName; // host is guessing
@@ -4202,6 +5679,15 @@
         if (!touchFired) fn(e);
         touchFired = false;
       });
+    }
+
+    // Home button — navigate to parent site's home page
+    const homeBtn = document.getElementById('btn-home');
+    if (window.location.pathname.startsWith('/laserman')) {
+      onTap(homeBtn, () => { window.location.href = '/'; });
+    } else {
+      // Running standalone (GitHub Pages or local) — hide home button
+      homeBtn.style.display = 'none';
     }
 
     // Title screen
@@ -4262,7 +5748,8 @@
     onTap(document.getElementById('btn-online'), goToOnlineLobby);
     onTap(document.getElementById('btn-name-continue'), onlineNameContinue);
     document.getElementById('online-name-input').addEventListener('input', (e) => {
-      e.target.value = e.target.value.replace(/[^a-zA-Z0-9 ]/g, '').toUpperCase();
+      // Allow lowercase — only strip disallowed characters
+      e.target.value = e.target.value.replace(/[^a-zA-Z0-9 ]/g, '');
     });
     document.getElementById('online-name-input').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') onlineNameContinue();
@@ -4431,11 +5918,27 @@
       }
     });
 
-    onTap(document.getElementById('btn-start-multi'), () => {
-      const word = document.getElementById('word-input').value.trim();
+    onTap(document.getElementById('btn-start-multi'), async () => {
+      const word = document.getElementById('word-input').value.trim().toUpperCase();
+      const errEl = document.getElementById('word-error');
       if (word.length < 2) {
-        document.getElementById('word-error').textContent = 'WORD MUST BE AT LEAST 2 LETTERS';
+        errEl.textContent = 'WORD MUST BE AT LEAST 2 LETTERS';
         return;
+      }
+      if (!/^[A-Z]+$/.test(word)) {
+        errEl.textContent = 'LETTERS ONLY';
+        return;
+      }
+      if (useLasermanDict) {
+        errEl.textContent = 'CHECKING DICTIONARY...';
+        errEl.style.color = 'var(--amber)';
+        const ok = await validateWordAgainstDict(word);
+        errEl.style.color = '';
+        if (!ok) {
+          errEl.textContent = '"' + word + '" NOT IN LASERMAN DICTIONARY';
+          return;
+        }
+        errEl.textContent = '';
       }
       startGame(word);
     });
@@ -4464,6 +5967,9 @@
         document.getElementById('new-game-btn').textContent = 'WAITING FOR ' + name + '...';
       } else if (gameState.mode === 'multi') {
         goToWordEntry();
+      } else if (gameState.mode === 'laserlink') {
+        // Go to laserlink compose screen to create a new link
+        goToLaserlink();
       } else {
         startSoloGame();
       }
@@ -4475,6 +5981,8 @@
           cleanupPeer();
           goToMainMenu();
         });
+      } else if (gameState.mode === 'laserlink') {
+        goToMainMenu();
       } else {
         cleanupPeer();
         goToMainMenu();
@@ -4524,6 +6032,247 @@
     });
 
     // ===========================
+    // LASERLINK
+    // ===========================
+    // Encode/decode URL-safe base64 (no padding, + -> -, / -> _)
+    function b64urlEncode(str) {
+      return btoa(unescape(encodeURIComponent(str)))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+    function b64urlDecode(str) {
+      str = str.replace(/-/g, '+').replace(/_/g, '/');
+      while (str.length % 4) str += '=';
+      try { return decodeURIComponent(escape(atob(str))); } catch(e) { return null; }
+    }
+
+    const LL_CHARS = ['laserman', 'laserwoman', 'lasercat', 'laserkid', 'laserbug'];
+    const LL_COLORS = ['green', 'blue', 'yellow'];
+
+    function buildLaserlinkUrl(word, name, character, color) {
+      const ci = Math.max(0, LL_CHARS.indexOf(character));
+      const co = Math.max(0, LL_COLORS.indexOf(color));
+      const payload = word + '|' + name + '|' + ci + '|' + co;
+      const token = b64urlEncode(payload);
+      const base = window.location.origin + window.location.pathname;
+      return base + '?ll=' + token;
+    }
+
+    function parseLaserlinkUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('ll');
+      if (!token) return null;
+      const raw = b64urlDecode(token);
+      if (!raw) return null;
+      try {
+        const parts = raw.split('|');
+        if (parts.length >= 4) {
+          const word = parts[0].toUpperCase().slice(0, 30);
+          if (!word || !/^[A-Z]+$/.test(word)) return null;
+          const name = (parts[1] || 'FRIEND').toUpperCase().slice(0, 12);
+          const character = LL_CHARS[parseInt(parts[2])] || 'laserman';
+          const color = LL_COLORS[parseInt(parts[3])] || 'green';
+          return { word, name, character, color };
+        }
+        // Fallback: try JSON for backward compat
+        const data = JSON.parse(raw);
+        if (!data.w || typeof data.w !== 'string') return null;
+        return {
+          word: String(data.w).toUpperCase().slice(0, 30),
+          name: (data.n ? String(data.n) : 'FRIEND').toUpperCase().slice(0, 12),
+          character: (data.c && CHARACTER_CONFIGS[data.c]) ? data.c : 'laserman',
+          color: (['green','blue','yellow'].includes(data.col)) ? data.col : 'green',
+        };
+      } catch(e) { return null; }
+    }
+
+    // Try to shorten a URL via is.gd. Returns the shortened URL, or null on failure/timeout.
+    async function shortenUrl(url) {
+      try {
+        const resp = await fetch('https://is.gd/create.php?format=json&url=' + encodeURIComponent(url));
+        if (!resp.ok) return null;
+        const data = await resp.json();
+        return data && data.shorturl ? data.shorturl : null;
+      } catch(e) {
+        return null;
+      }
+    }
+
+    // --- Sender UI ---
+    function goToLaserlink() {
+      hideMessage();
+      // Pre-fill saved name
+      const savedName = localStorage.getItem('laserman_online_name') || '';
+      document.getElementById('laserlink-name-input').value = savedName;
+      document.getElementById('laserlink-word-input').value = '';
+      document.getElementById('laserlink-error').textContent = '';
+      document.getElementById('laserlink-compose').style.display = '';
+      document.getElementById('laserlink-share').style.display = 'none';
+      showScreen('laserlink-screen');
+      // Focus name if empty, else word
+      if (!savedName) document.getElementById('laserlink-name-input').focus();
+      else document.getElementById('laserlink-word-input').focus();
+    }
+
+    onTap(document.getElementById('btn-laserlink'), goToLaserlink);
+    onTap(document.getElementById('btn-laserlink-back'), goToMainMenu);
+
+    // Name input: sanitize (allow lowercase)
+    document.getElementById('laserlink-name-input').addEventListener('input', (e) => {
+      e.target.value = e.target.value.replace(/[^a-zA-Z0-9 ]/g, '');
+    });
+
+    // Word input: sanitize (letters only, force uppercase)
+    document.getElementById('laserlink-word-input').addEventListener('input', (e) => {
+      e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase();
+    });
+
+    // Enter on inputs triggers create
+    ['laserlink-name-input', 'laserlink-word-input'].forEach(id => {
+      document.getElementById(id).addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') document.getElementById('btn-laserlink-create').click();
+      });
+    });
+
+    onTap(document.getElementById('btn-laserlink-create'), async () => {
+      const nameRaw = document.getElementById('laserlink-name-input').value.trim();
+      const wordRaw = document.getElementById('laserlink-word-input').value.trim();
+      const word = wordRaw.toUpperCase(); // game logic needs uppercase
+      const err = document.getElementById('laserlink-error');
+      if (!nameRaw) { err.textContent = 'ENTER YOUR NAME'; return; }
+      if (word.length < 2) { err.textContent = 'WORD MUST BE AT LEAST 2 LETTERS'; return; }
+      if (!/^[A-Z]+$/.test(word)) { err.textContent = 'LETTERS ONLY'; return; }
+      err.textContent = '';
+      if (useLasermanDict) {
+        err.textContent = 'CHECKING DICTIONARY...';
+        err.style.color = 'var(--amber)';
+        const dictOk = await validateWordAgainstDict(word);
+        err.style.color = '';
+        if (!dictOk) {
+          err.textContent = '"' + word + '" NOT IN LASERMAN DICTIONARY';
+          return;
+        }
+        err.textContent = '';
+      }
+      localStorage.setItem('laserman_online_name', nameRaw);
+
+      // Show loading state while trying to shorten
+      const btn = document.getElementById('btn-laserlink-create');
+      const originalText = btn.textContent;
+      btn.textContent = 'CREATING...';
+      btn.disabled = true;
+
+      const longUrl = buildLaserlinkUrl(word, nameRaw, selectedCharacter, selectedColor);
+      // Try to shorten (with 4s timeout) — silently fall back to long URL on failure
+      let finalUrl = longUrl;
+      try {
+        const shortUrl = await Promise.race([
+          shortenUrl(longUrl),
+          new Promise(r => setTimeout(() => r(null), 4000))
+        ]);
+        if (shortUrl) finalUrl = shortUrl;
+      } catch(e) {}
+
+      btn.textContent = originalText;
+      btn.disabled = false;
+
+      const message = nameRaw + ' has sent you a Laserlink! ' + finalUrl;
+      const ta = document.getElementById('laserlink-message');
+      ta.value = message;
+      document.getElementById('laserlink-copy-status').textContent = '';
+      document.getElementById('laserlink-compose').style.display = 'none';
+      document.getElementById('laserlink-share').style.display = '';
+      // Show native SHARE button if supported
+      const shareBtn = document.getElementById('btn-laserlink-share-native');
+      shareBtn.style.display = (navigator.share) ? '' : 'none';
+      // Auto-size textarea height to content (must run after share view is visible)
+      requestAnimationFrame(autosizeLaserlinkMessage);
+    });
+
+    // Sizes the share-link textarea to exactly fit its content — no blank trailing lines
+    // AND narrows the container so the box ends where the text ends (capped at 92vw).
+    function autosizeLaserlinkMessage() {
+      const ta = document.getElementById('laserlink-message');
+      const share = document.getElementById('laserlink-share');
+      if (!ta || !share || ta.offsetParent === null || !ta.value) return;
+
+      // Measure the text's natural single-line width with a hidden mirror.
+      const measurer = document.createElement('span');
+      measurer.style.cssText =
+        'position:absolute;visibility:hidden;white-space:pre;' +
+        'font-family:"Share Tech Mono",monospace;' +
+        'font-size:0.85rem;letter-spacing:1px';
+      measurer.textContent = ta.value;
+      document.body.appendChild(measurer);
+      const textWidth = measurer.offsetWidth;
+      document.body.removeChild(measurer);
+
+      // Container width = text width + textarea padding (24px) + border (2px) + small buffer
+      // Capped at 92vw so narrow screens still wrap nicely.
+      const desired = textWidth + 30;
+      const maxAllowed = window.innerWidth * 0.92;
+      share.style.width = Math.min(desired, maxAllowed) + 'px';
+
+      // Auto-size height to fit (may be 2+ lines if desired > maxAllowed and text wraps)
+      ta.style.height = 'auto';
+      ta.style.height = (ta.scrollHeight + 2) + 'px';
+    }
+    // Recompute on viewport changes (rotations, window resizes) so line wrapping stays tight
+    window.addEventListener('resize', autosizeLaserlinkMessage);
+
+    onTap(document.getElementById('btn-laserlink-copy'), async () => {
+      const msg = document.getElementById('laserlink-message').value;
+      const status = document.getElementById('laserlink-copy-status');
+      try {
+        await navigator.clipboard.writeText(msg);
+        status.textContent = 'COPIED!';
+        status.style.color = 'var(--amber)';
+      } catch(e) {
+        // Fallback: select the textarea
+        const ta = document.getElementById('laserlink-message');
+        ta.focus(); ta.select();
+        try {
+          document.execCommand('copy');
+          status.textContent = 'COPIED!';
+          status.style.color = 'var(--amber)';
+        } catch(e2) {
+          status.textContent = 'TAP & HOLD TO COPY';
+          status.style.color = 'var(--amber)';
+        }
+      }
+      setTimeout(() => { status.textContent = ''; }, 2500);
+    });
+
+    onTap(document.getElementById('btn-laserlink-share-native'), async () => {
+      const msg = document.getElementById('laserlink-message').value;
+      try {
+        await navigator.share({ text: msg });
+      } catch(e) { /* user cancelled or unsupported */ }
+    });
+
+    onTap(document.getElementById('btn-laserlink-new'), () => {
+      document.getElementById('laserlink-word-input').value = '';
+      document.getElementById('laserlink-error').textContent = '';
+      document.getElementById('laserlink-compose').style.display = '';
+      document.getElementById('laserlink-share').style.display = 'none';
+      document.getElementById('laserlink-word-input').focus();
+    });
+
+    onTap(document.getElementById('btn-laserlink-done'), goToMainMenu);
+
+    // --- Receiver: start laserlink game ---
+    function startLaserlinkGame(info) {
+      gameState.mode = 'laserlink';
+      gameState.category = '';
+      gameState.laserlinkSender = info.name;
+      selectedCharacter = info.character;
+      selectedColor = info.color;
+      applyColorPalette(selectedColor);
+      // Clean the URL so a refresh doesn't replay — keeps the link single-use per visit
+      try { window.history.replaceState({}, '', window.location.pathname); } catch(e) {}
+      startGame(info.word);
+    }
+
+    // ===========================
     // INIT
     // ===========================
     // Load saved selections (character defaults to laserman, always start green)
@@ -4534,7 +6283,20 @@
     // Apply performance tier (toggles CSS overlays, sets star count)
     applyPerfTier(perfTier);
 
-    showScreen('title-screen');
+    // Wire up every dictionary toggle to the shared state; all stay in sync.
+    document.querySelectorAll('[data-dict-toggle]').forEach(el => {
+      el.addEventListener('change', (e) => setUseLasermanDict(e.target.checked));
+    });
+    syncDictToggles();
+    if (useLasermanDict) loadLasermanDictionary();  // warm the cache on startup if enabled
+
+    // Check for LASERLINK URL param — if present, jump straight to game
+    const _laserlinkInfo = parseLaserlinkUrl();
+    if (_laserlinkInfo) {
+      startLaserlinkGame(_laserlinkInfo);
+    } else {
+      showScreen('title-screen');
+    }
     requestAnimationFrame(render);
   </script>
 </body>
