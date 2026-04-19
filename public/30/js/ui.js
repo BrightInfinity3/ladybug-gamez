@@ -1,0 +1,2283 @@
+/* ============================================================
+   30 - UI Controller
+   Screen management, rendering, event handling, game flow
+   Canvas-integrated for high-quality card & table rendering
+   Setup and game share a single screen with phase switching
+   ============================================================ */
+
+var UI = (function () {
+  'use strict';
+
+  // ---- Constants ----
+  var NUM_TABLE_SEATS = 8;
+  // Fixed seat fill order: top, bottom, left, right, top-left, bottom-right, bottom-left, top-right
+  // Slot numbers (8 seats around table, 0=bottom, going counter-clockwise):
+  //   0=bottom, 1=bottom-left, 2=left, 3=top-left, 4=top, 5=top-right, 6=right, 7=bottom-right
+  var SEAT_FILL_ORDER = [4, 0, 2, 6, 3, 7, 1, 5];
+  var DEFAULT_NAMES = ['Player 1', 'Player 2', 'Player 3', 'Player 4',
+                       'Player 5', 'Player 6', 'Player 7', 'Player 8'];
+  // Animal-to-name mapping — each animal has 3 possible names, chosen randomly
+  var ANIMAL_NICKNAMES = {
+    bear:      ['Bruno',   'Grizzly',  'Kodiak'],
+    cat:       ['Shadow',  'Mittens',  'Whiskers'],
+    owl:       ['Hoot',    'Sage',     'Luna'],
+    penguin:   ['Waddles', 'Tux',      'Frost'],
+    raccoon:   ['Bandit',  'Rascal',   'Stripe'],
+    frog:      ['Ribbit',  'Lily',     'Marsh'],
+    dog:       ['Buddy',   'Rex',      'Scout'],
+    panda:     ['Bamboo',  'Oreo',     'Patches'],
+    monkey:    ['Coco',    'Chip',     'Mango'],
+    deer:      ['Dasher',  'Fawn',     'Buck'],
+    hedgehog:  ['Spike',   'Bramble',  'Thistle'],
+    shark:     ['Finn',    'Jaws',     'Reef'],
+    octopus:   ['Inky',    'Coral',    'Squid'],
+    hamster:   ['Nibbles', 'Peanut',   'Biscuit'],
+    parrot:    ['Polly',   'Stella',   'Rio'],
+    turtle:    ['Shelly',  'Mossy',    'Tank'],
+    goat:      ['Billy',   'Cliffs',   'Bleat'],
+    spider:    ['Webster', 'Silk',     'Fang'],
+    ladybug:   ['Dotty',   'Pepper',   'Ruby'],
+    bee:       ['Buzz',    'Abby',     'Nectar'],
+    crocodile: ['Snappy',  'Chomp',    'Marsh'],
+    dolphin:   ['Splash',  'Snowflake','Echo'],
+    rabbit:    ['Clover',  'Hopper',   'Thumper'],
+    dodo:      ['Doodle',  'Pebble',   'Waddle']
+  };
+
+  // ---- Setup State ----
+  var setupSeats = []; // array of { occupied, animal, name, isHuman, isDealer, nameEdited }
+  var seatPendingType = []; // 'ai' or 'human' for each unfilled seat's toggle
+  var playerCount = 2;
+  var pickerTargetSeat = -1;
+  var pickerIsNewSeat = false; // true when picker is for adding a new player
+  var addOrder = []; // tracks order players were added for removal
+  var gameFlowLocked = false;
+  // When false, dealer is randomly re-assigned every time a seat is added/removed.
+  // When the player clicks a hollow dealer slot, this becomes true and the
+  // dealer stays put until the player manually reassigns it again.
+  var dealerManuallySet = false;
+
+  // ---- Phase State ----
+  var gamePhase = 'none'; // 'none' | 'setup' | 'playing'
+
+  // ---- Player Count Button State ----
+  // Gray out - at 2 players, + at 8 players
+  function updatePlayerCountButtons() {
+    document.getElementById('btn-fewer').disabled = (playerCount <= 2);
+    document.getElementById('btn-more').disabled = (playerCount >= 8);
+  }
+
+  // ---- Responsive Avatar Size Helpers ----
+  // Returns the actual CSS avatar size in pixels (vmin-based).
+  function getVmin() {
+    var vw = document.documentElement.clientWidth || window.innerWidth;
+    var vh = document.documentElement.clientHeight || window.innerHeight;
+    return Math.min(vw, vh) / 100;
+  }
+  function getSetupAvatarSize() {
+    return 7.8 * getVmin(); // matches 7.8vmin in CSS
+  }
+  function getGameAvatarSize() {
+    return 7.8 * getVmin(); // matches 7.8vmin in CSS (same as setup)
+  }
+
+  // ---- Dealer Chip Positioning ----
+  // Positions the dealer chip to the LEFT of the avatar, edges touching, vertically centered.
+  function positionDealerChip(chipEl, avatarSize) {
+    var avatarR = avatarSize / 2;
+    var chipSize = 3.3 * getVmin(); // matches 3.3vmin in CSS
+    chipEl.style.left = 'calc(50% - ' + (avatarR + chipSize) + 'px)';
+    chipEl.style.top = (avatarR - chipSize / 2) + 'px';
+  }
+
+  // ---- Remove Circle Positioning ----
+  // Positions the remove circle to the RIGHT of the avatar, edges touching, vertically centered.
+  function positionRemoveCircle(circleEl, avatarSize) {
+    var avatarR = avatarSize / 2;
+    var circleSize = 3.6 * getVmin(); // matches 3.6vmin in CSS
+    circleEl.style.left = 'calc(50% + ' + avatarR + 'px)';
+    circleEl.style.top = (avatarR - circleSize / 2) + 'px';
+  }
+
+  // ---- Canvas State ----
+  var canvasReady = false;
+  var handDisplay = {};  // playerId -> [{card, faceUp, flipProgress}]
+  var glowingPlayerId = null;  // playerId to highlight cards with golden glow
+  var glowStartTime = 0;      // timestamp for pulsing animation
+  var resizeListenerAdded = false;
+
+  // ---- Unified viewport-change handler (resize + orientation change) ----
+  // Rebuilds the canvas renderer and re-lays out HTML overlays. Called on
+  // window.resize, orientationchange, and visualViewport.resize. On iOS, the
+  // orientation event fires BEFORE the final layout is known, so we re-run
+  // after short delays to catch the settled dimensions.
+  function handleViewportChange() {
+    if (!canvasReady) return;
+    if (!document.getElementById('screen-game').classList.contains('active')) return;
+    Renderer.resize();
+    if (gamePhase === 'setup') {
+      renderSetupSeats();
+    } else if (gamePhase === 'online-lobby') {
+      renderOnlineLobbySeats();
+    } else {
+      positionGameOverlays();
+    }
+  }
+
+  function installViewportHandlers() {
+    if (resizeListenerAdded) return;
+    resizeListenerAdded = true;
+
+    // Debounce: only run handleViewportChange after the dimensions have been
+    // stable for ~100ms. Prevents expensive table-texture/particle rebuilds
+    // on every intermediate step during URL-bar animations, DevTools resize,
+    // or window drag on desktop.
+    var debounceTimer = null;
+    var lastW = 0, lastH = 0;
+    function schedule() {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(function () {
+        debounceTimer = null;
+        var w = window.innerWidth, h = window.innerHeight;
+        if (w === lastW && h === lastH) return; // no-op if nothing changed
+        lastW = w; lastH = h;
+        handleViewportChange();
+      }, 100);
+    }
+
+    // Standard resize
+    window.addEventListener('resize', schedule);
+
+    // iOS Safari: orientationchange fires before layout settles; re-run on a
+    // series of delayed ticks to catch the correct dimensions after the URL
+    // bar and status bar redraw.
+    window.addEventListener('orientationchange', function () {
+      // Force-run after each delay (bypass the no-op guard in schedule)
+      var forceRun = function () { lastW = -1; schedule(); };
+      forceRun();
+      setTimeout(forceRun, 100);
+      setTimeout(forceRun, 300);
+      setTimeout(forceRun, 600);
+    });
+
+    // visualViewport captures changes that `resize` misses on mobile (like
+    // the URL bar hiding/showing while scrolling, keyboard, pinch-zoom).
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', schedule);
+    }
+
+    // When the tab becomes visible after being backgrounded, the WebGL
+    // canvas can be blank (context lost without firing the event, especially
+    // on integrated-GPU Chrome). Force a full rebuild of the table texture
+    // on return-to-visibility to recover.
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible' && canvasReady &&
+          document.getElementById('screen-game').classList.contains('active')) {
+        // Force-run bypassing the no-op guard
+        lastW = -1;
+        schedule();
+      }
+    });
+  }
+
+  // ---- Initialize ----
+  function init() {
+    initSetupSeats();
+    bindEvents();
+    bindOnlineEvents();
+    createFloatingSuits();
+    showScreen('screen-title');
+    // Warm up card-texture canvases in the background so Local Play starts fast.
+    if (typeof Renderer !== 'undefined' && Renderer.precacheCardCanvases) {
+      try { Renderer.precacheCardCanvases(); } catch (e) { /* non-fatal */ }
+    }
+  }
+
+  function initSetupSeats() {
+    setupSeats = [];
+    seatPendingType = [];
+    for (var i = 0; i < NUM_TABLE_SEATS; i++) {
+      setupSeats.push({
+        occupied: false,
+        animal: null,
+        name: '',
+        isHuman: false,
+        isDealer: false,
+        nameEdited: false
+      });
+      seatPendingType.push('ai');
+    }
+  }
+
+  // ---- Screen Management ----
+  function showScreen(id) {
+    var screens = document.querySelectorAll('.screen');
+    for (var i = 0; i < screens.length; i++) {
+      screens[i].classList.remove('active');
+    }
+    var target = document.getElementById(id);
+    if (target) target.classList.add('active');
+
+    // Stop canvas render loop when leaving game screen
+    if (id !== 'screen-game' && canvasReady) {
+      Renderer.stopLoop();
+    }
+  }
+
+  // ---- Floating Suit Particles (Title Screen) ----
+  function createFloatingSuits() {
+    var container = document.querySelector('.floating-suits');
+    if (!container) return;
+    var suits = ['\u2665', '\u2666', '\u2663', '\u2660'];
+    for (var i = 0; i < 20; i++) {
+      var el = document.createElement('div');
+      el.className = 'float-suit';
+      el.textContent = suits[i % 4];
+      el.style.left = Math.random() * 100 + '%';
+      el.style.animationDelay = Math.random() * 8 + 's';
+      el.style.fontSize = (0.8 + Math.random() * 1.2) + 'rem';
+      container.appendChild(el);
+    }
+  }
+
+  // ---- Mobile Fullscreen ----
+  function isMobile() {
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+           (navigator.maxTouchPoints > 1 && window.innerWidth < 1024);
+  }
+  function requestFullscreen() {
+    if (!isMobile()) return;
+    var el = document.documentElement;
+    var rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+    if (rfs) {
+      rfs.call(el).catch(function() { /* ignore — user gesture required */ });
+    }
+  }
+
+  // ---- Event Binding ----
+  function bindEvents() {
+    // Title screen — Play enters setup on the game screen
+    document.getElementById('btn-play').addEventListener('click', function () {
+      requestFullscreen();
+      enterSetup();
+    });
+    document.getElementById('btn-how-to-play').addEventListener('click', function () {
+      showScreen('screen-rules');
+    });
+    document.getElementById('btn-rules-back').addEventListener('click', function () {
+      showScreen('screen-title');
+    });
+
+    // Setup controls (inside game screen)
+    document.getElementById('btn-setup-back').addEventListener('click', function () {
+      gamePhase = 'none';
+      showScreen('screen-title');
+    });
+    document.getElementById('btn-deal').addEventListener('click', startGame);
+    document.getElementById('btn-fewer').addEventListener('click', function () {
+      if (playerCount <= 2) return;
+      // Remove the last non-human player that was added
+      for (var i = addOrder.length - 1; i >= 0; i--) {
+        var idx = addOrder[i];
+        if (setupSeats[idx].occupied && !setupSeats[idx].isHuman) {
+          removeSeat(idx);
+          break;
+        }
+      }
+    });
+    document.getElementById('btn-more').addEventListener('click', function () {
+      if (playerCount >= 8) return;
+      // Find the next seat in the fixed fill order
+      for (var i = 0; i < SEAT_FILL_ORDER.length; i++) {
+        if (!setupSeats[SEAT_FILL_ORDER[i]].occupied) {
+          addSeat(SEAT_FILL_ORDER[i]);
+          break;
+        }
+      }
+    });
+
+    // Character picker
+    document.getElementById('btn-picker-cancel').addEventListener('click', closePicker);
+
+    // Game actions
+    document.getElementById('btn-draw').addEventListener('click', function () {
+      if (!gameFlowLocked) humanAction('draw');
+    });
+    document.getElementById('btn-stay').addEventListener('click', function () {
+      if (!gameFlowLocked) humanAction('stay');
+    });
+
+    // Menu button (in-game) — shows confirm dialog
+    document.getElementById('btn-menu').addEventListener('click', function () {
+      if (Online.isActive()) {
+        var title = document.getElementById('exit-title');
+        var sub = document.getElementById('exit-sub');
+        title.textContent = 'Leave Room?';
+        sub.textContent = Online.isHost()
+          ? 'This will disband the room for all players.'
+          : 'This will disband the room for all players.';
+      } else {
+        var title2 = document.getElementById('exit-title');
+        var sub2 = document.getElementById('exit-sub');
+        title2.textContent = 'Return to Main Menu?';
+        sub2.textContent = 'Your current game will be lost.';
+      }
+      document.getElementById('confirm-exit').style.display = 'flex';
+    });
+
+    // Confirm exit dialog
+    document.getElementById('btn-confirm-yes').addEventListener('click', function () {
+      document.getElementById('confirm-exit').style.display = 'none';
+      if (Online.isActive()) {
+        Online.leaveRoom();
+      }
+      gamePhase = 'none';
+      Renderer.stopLoop();
+      showScreen('screen-title');
+    });
+    document.getElementById('btn-confirm-no').addEventListener('click', function () {
+      document.getElementById('confirm-exit').style.display = 'none';
+    });
+
+    // Results
+    document.getElementById('btn-play-again').addEventListener('click', function () {
+      if (Online.isActive() && !Online.isHost()) return; // only host
+      playAgain();
+      if (Online.isActive()) {
+        Online.setGamePhase('playing');
+        Online.broadcastGameAction({ type: 'play_again' });
+      }
+    });
+    document.getElementById('btn-new-game').addEventListener('click', function () {
+      if (Online.isActive()) {
+        // In online mode, show leave room confirmation
+        var title = document.getElementById('exit-results-title');
+        var sub = document.getElementById('exit-results-sub');
+        title.textContent = 'Leave Room?';
+        sub.textContent = Online.isHost()
+          ? 'This will disband the room for all players.'
+          : 'This will disband the room for all players.';
+      }
+      document.getElementById('confirm-exit-results').style.display = 'flex';
+    });
+    document.getElementById('btn-confirm-results-yes').addEventListener('click', function () {
+      document.getElementById('confirm-exit-results').style.display = 'none';
+      if (Online.isActive()) {
+        Online.leaveRoom();
+      }
+      gamePhase = 'none';
+      showScreen('screen-title');
+    });
+    document.getElementById('btn-confirm-results-no').addEventListener('click', function () {
+      document.getElementById('confirm-exit-results').style.display = 'none';
+    });
+  }
+
+  // ================================================================
+  //  ONLINE EVENT BINDING
+  // ================================================================
+
+  function bindOnlineEvents() {
+    // Title screen — Online button
+    document.getElementById('btn-online').addEventListener('click', function () {
+      requestFullscreen();
+      showScreen('screen-online');
+    });
+
+    // Online screen — tabs
+    document.getElementById('tab-host').addEventListener('click', function () {
+      document.getElementById('tab-host').classList.add('active');
+      document.getElementById('tab-host').classList.remove('btn-outline');
+      document.getElementById('tab-host').classList.add('btn-gold');
+      document.getElementById('tab-join').classList.remove('active');
+      document.getElementById('tab-join').classList.add('btn-outline');
+      document.getElementById('tab-join').classList.remove('btn-gold');
+      document.getElementById('form-host').style.display = '';
+      document.getElementById('form-join').style.display = 'none';
+    });
+    document.getElementById('tab-join').addEventListener('click', function () {
+      document.getElementById('tab-join').classList.add('active');
+      document.getElementById('tab-join').classList.remove('btn-outline');
+      document.getElementById('tab-join').classList.add('btn-gold');
+      document.getElementById('tab-host').classList.remove('active');
+      document.getElementById('tab-host').classList.add('btn-outline');
+      document.getElementById('tab-host').classList.remove('btn-gold');
+      document.getElementById('form-join').style.display = '';
+      document.getElementById('form-host').style.display = 'none';
+    });
+
+    // Host player count
+    var hostPC = 1;
+    document.getElementById('host-fewer').addEventListener('click', function () {
+      if (hostPC > 1) { hostPC--; document.getElementById('host-player-count').textContent = hostPC; }
+    });
+    document.getElementById('host-more').addEventListener('click', function () {
+      if (hostPC < 7) { hostPC++; document.getElementById('host-player-count').textContent = hostPC; }
+    });
+
+    // Join player count
+    var joinPC = 1;
+    document.getElementById('join-fewer').addEventListener('click', function () {
+      if (joinPC > 1) { joinPC--; document.getElementById('join-player-count').textContent = joinPC; }
+    });
+    document.getElementById('join-more').addEventListener('click', function () {
+      if (joinPC < 7) { joinPC++; document.getElementById('join-player-count').textContent = joinPC; }
+    });
+
+    // Create Room button
+    document.getElementById('btn-create-room').addEventListener('click', function () {
+      var username = document.getElementById('host-username').value.trim();
+      if (!username) {
+        document.getElementById('host-status').textContent = 'Please enter a username.';
+        document.getElementById('host-status').className = 'online-status error';
+        return;
+      }
+      var pc = parseInt(document.getElementById('host-player-count').textContent, 10);
+      document.getElementById('host-status').textContent = '';
+      document.getElementById('host-status').className = 'online-status';
+      document.getElementById('btn-create-room').disabled = true;
+
+      Online.hostGame(username, pc).then(function (code) {
+        // Set up callbacks
+        Online.onGameStart(function (players) {
+          onlineBeginGame(players);
+        });
+        Online.onAction(function (data) {
+          onlineHandleRemoteAction(data);
+        });
+        Online.onRenderLobby(function () {
+          renderOnlineLobbySeats();
+        });
+        // When a guest's device drops/pauses mid-game, and we're currently
+        // stuck waiting on *their* action, re-enter the turn loop so the
+        // host can take over as AI for them.
+        Online.onHostAutoPlay(function () {
+          if (gamePhase === 'playing' && !gameFlowLocked) {
+            var cur = Game.getCurrentPlayer();
+            if (cur && Online.shouldHostAutoPlay(cur.id)) {
+              nextTurn();
+            }
+          }
+        });
+        enterOnlineLobby();
+        Online.renderOnlineLobby();
+        document.getElementById('btn-create-room').disabled = false;
+      }).catch(function (err) {
+        document.getElementById('host-status').textContent = 'Error: ' + (err.message || err);
+        document.getElementById('host-status').className = 'online-status error';
+        document.getElementById('btn-create-room').disabled = false;
+      });
+    });
+
+    // Join Room button
+    document.getElementById('btn-join-room').addEventListener('click', function () {
+      var code = document.getElementById('join-room-code').value.trim().toUpperCase();
+      var username = document.getElementById('join-username').value.trim();
+      if (!code || code.length !== 4) {
+        document.getElementById('join-status').textContent = 'Please enter a 4-character room code.';
+        document.getElementById('join-status').className = 'online-status error';
+        return;
+      }
+      if (!username) {
+        document.getElementById('join-status').textContent = 'Please enter a username.';
+        document.getElementById('join-status').className = 'online-status error';
+        return;
+      }
+      var pc = parseInt(document.getElementById('join-player-count').textContent, 10);
+      document.getElementById('join-status').textContent = 'Connecting...';
+      document.getElementById('join-status').className = 'online-status';
+      document.getElementById('btn-join-room').disabled = true;
+
+      Online.onJoinResponse(function (approved, reason) {
+        if (approved) {
+          // Set up callbacks
+          Online.onGameStart(function (players) {
+            onlineBeginGame(players);
+          });
+          Online.onGameAction(function (data) {
+            onlineHandleGameAction(data);
+          });
+          Online.onGameStateSync(function (data) {
+            onlineHandleStateSync(data);
+          });
+          Online.onRenderLobby(function () {
+            renderOnlineLobbySeats();
+          });
+          enterOnlineLobby();
+          Online.renderOnlineLobby();
+        } else {
+          document.getElementById('join-status').textContent = reason || 'Join request denied.';
+          document.getElementById('join-status').className = 'online-status error';
+          document.getElementById('btn-join-room').disabled = false;
+        }
+      });
+
+      Online.joinGame(code, username, pc).then(function () {
+        document.getElementById('join-status').textContent = 'Waiting for host to accept...';
+      }).catch(function (err) {
+        document.getElementById('join-status').textContent = err.message || 'Could not connect.';
+        document.getElementById('join-status').className = 'online-status error';
+        document.getElementById('btn-join-room').disabled = false;
+      });
+    });
+
+    // Online Deal button (host only)
+    document.getElementById('btn-online-deal').addEventListener('click', function () {
+      if (!Online.isHost()) return;
+      Online.startOnlineGame();
+    });
+
+    // Leave Room button
+    document.getElementById('btn-leave-room').addEventListener('click', function () {
+      var title = document.getElementById('leave-room-title');
+      var sub = document.getElementById('leave-room-sub');
+      if (Online.isHost()) {
+        title.textContent = 'Leave Room?';
+        sub.textContent = 'This will disband the room for all players.';
+      } else {
+        title.textContent = 'Leave Room?';
+        sub.textContent = 'You will be removed from this game.';
+      }
+      document.getElementById('confirm-leave-room').style.display = 'flex';
+    });
+    document.getElementById('btn-confirm-leave-yes').addEventListener('click', function () {
+      document.getElementById('confirm-leave-room').style.display = 'none';
+      Online.leaveRoom();
+      gamePhase = 'none';
+      Renderer.stopLoop();
+      showScreen('screen-title');
+    });
+    document.getElementById('btn-confirm-leave-no').addEventListener('click', function () {
+      document.getElementById('confirm-leave-room').style.display = 'none';
+    });
+
+    // Back button on online screen
+    document.getElementById('btn-online-back').addEventListener('click', function () {
+      showScreen('screen-title');
+    });
+
+    // Disband OK button
+    document.getElementById('btn-disband-ok').addEventListener('click', function () {
+      document.getElementById('disband-overlay').style.display = 'none';
+      showScreen('screen-title');
+    });
+  }
+
+  // ================================================================
+  //  ONLINE LOBBY (renders on game screen with canvas table)
+  // ================================================================
+
+  function enterOnlineLobby() {
+    gamePhase = 'online-lobby';
+    showScreen('screen-game');
+
+    // Show lobby header, hide setup/game elements
+    document.getElementById('online-lobby-header').style.display = '';
+    document.getElementById('setup-header').style.display = 'none';
+    document.getElementById('player-count-control').style.display = 'none';
+    document.getElementById('btn-deal').style.display = 'none';
+    document.getElementById('game-hud').style.display = 'none';
+    document.getElementById('game-actions').style.display = 'none';
+    document.getElementById('deck-info').style.display = 'none';
+
+    // Show appropriate bottom element
+    if (Online.isHost()) {
+      document.getElementById('btn-online-deal').style.display = '';
+      document.getElementById('lobby-waiting').style.display = 'none';
+    } else {
+      document.getElementById('btn-online-deal').style.display = 'none';
+      document.getElementById('lobby-waiting').style.display = '';
+    }
+
+    // Init canvas
+    var canvasEl = document.getElementById('game-canvas');
+    var ready;
+    if (!canvasReady) {
+      ready = Renderer.init(canvasEl).then(function () {
+        canvasReady = true;
+      });
+    } else {
+      Renderer.resize();
+      ready = Promise.resolve();
+    }
+
+    ready.then(function () {
+      var felt = document.querySelector('#screen-game .table-felt');
+      if (felt) felt.style.display = 'none';
+
+      Renderer.startLoop(function () {
+        Renderer.hideDeckCount();
+      });
+
+      installViewportHandlers();
+
+      renderOnlineLobbySeats();
+    });
+  }
+
+  function renderOnlineLobbySeats() {
+    var ring = document.getElementById('seats-ring');
+    ring.innerHTML = '';
+
+    var positions;
+    if (canvasReady) {
+      positions = Renderer.getSeatOverlayPositions(NUM_TABLE_SEATS);
+    } else {
+      return; // wait for canvas
+    }
+
+    var lobbyState = Online.getLobbyState();
+    var myDeviceId = Online.getMyDeviceId();
+    var isHost = Online.isHost();
+    // Every seat reserves the same top-row height above the avatar — matches
+    // the local setup layout so the avatar center lands exactly at pos.y
+    // (tangent to the table's outer wood edge). Empty seats get an invisible
+    // placeholder row so their total height matches filled seats.
+    // 3vmin row + 0.3vmin margin-bottom = 3.3vmin total vertical space.
+    var lobbyTopRowOffset = 3.3 * getVmin();
+
+    for (var i = 0; i < NUM_TABLE_SEATS; i++) {
+      var seat = lobbyState.seats[i];
+      var pos = positions[i];
+
+      var el = document.createElement('div');
+      el.className = 'seat' + (seat.occupied ? '' : ' seat-empty');
+      el.style.position = 'absolute';
+      el.style.left = pos.x + 'px';
+      el.style.top = (pos.y - lobbyTopRowOffset - getSetupAvatarSize() / 2) + 'px';
+      el.dataset.seat = i;
+
+      // Top row — always present (for consistent vertical layout). Filled
+      // seats fill it with a username/AI badge + optional remove button;
+      // empty seats leave it blank so they reserve the same height.
+      var topRow = document.createElement('div');
+      topRow.className = 'seat-top-row';
+
+      if (seat.occupied) {
+        var badge = document.createElement('div');
+        badge.className = 'seat-type-badge';
+        if (seat.isAI) {
+          badge.classList.add('ai');
+          badge.textContent = 'AI';
+        } else if (seat.deviceId === myDeviceId) {
+          badge.classList.add('human');
+          badge.textContent = 'You';
+        } else if (seat.deviceId) {
+          var dev = lobbyState.devices[seat.deviceId];
+          badge.classList.add('human');
+          badge.textContent = dev ? dev.username : '?';
+        }
+        topRow.appendChild(badge);
+
+        if (isHost && seat.isAI) {
+          var removeCircle = document.createElement('div');
+          removeCircle.className = 'seat-remove-circle';
+          removeCircle.textContent = '\u00d7';
+          removeCircle.title = 'Remove AI';
+          removeCircle.addEventListener('click', (function (idx) {
+            return function (e) {
+              e.stopPropagation();
+              Online.removeFromSeat(idx);
+            };
+          })(i));
+          topRow.appendChild(removeCircle);
+        }
+      }
+
+      el.appendChild(topRow);
+
+      // Avatar
+      var avatar = document.createElement('div');
+      avatar.className = 'seat-avatar';
+
+      if (seat.occupied) {
+        if (seat.animal) {
+          avatar.appendChild(SpriteEngine.createSpriteImg(seat.animal));
+          avatar.querySelector('img').style.width = '100%';
+          avatar.querySelector('img').style.height = '100%';
+        }
+        // Click avatar to change animal (own players only)
+        if (seat.deviceId === myDeviceId) {
+          avatar.style.cursor = 'pointer';
+          avatar.addEventListener('click', (function (seatIdx) {
+            return function () { openOnlineAnimalPicker(seatIdx); };
+          })(i));
+        }
+      } else if (isHost) {
+        // Empty seat — host can click it to add an AI
+        el.style.cursor = 'pointer';
+        el.addEventListener('click', (function (idx) {
+          return function () { Online.addAI(idx); };
+        })(i));
+      }
+      el.appendChild(avatar);
+
+      // Editable name (filled seats only)
+      if (seat.occupied) {
+        var nameEl = document.createElement('div');
+        nameEl.className = 'seat-name';
+        nameEl.textContent = seat.name;
+        nameEl.dataset.seat = i;
+        if (seat.deviceId === myDeviceId) {
+          nameEl.addEventListener('click', (function (idx) {
+            return function (e) {
+              e.stopPropagation();
+              startOnlineLobbyNameEdit(idx);
+            };
+          })(i));
+        }
+        el.appendChild(nameEl);
+      }
+
+      ring.appendChild(el);
+    }
+  }
+
+  function openOnlineAnimalPicker(seatIdx) {
+    var picker = document.getElementById('online-animal-picker');
+    if (!picker) return;
+    var grid = picker.querySelector('.picker-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    var lobbyState = Online.getLobbyState();
+    var animals = SpriteEngine.getAnimalList();
+    var usedAnimals = [];
+    for (var i = 0; i < NUM_TABLE_SEATS; i++) {
+      if (lobbyState.seats[i].occupied && i !== seatIdx && lobbyState.seats[i].animal) {
+        usedAnimals.push(lobbyState.seats[i].animal);
+      }
+    }
+
+    for (var j = 0; j < animals.length; j++) {
+      var animalId = animals[j];
+      var taken = usedAnimals.indexOf(animalId) !== -1;
+
+      var wrapper = document.createElement('div');
+      wrapper.style.textAlign = 'center';
+
+      var btn = document.createElement('div');
+      btn.className = 'picker-animal' + (taken ? ' taken' : '');
+      btn.appendChild(SpriteEngine.createSpriteImg(animalId));
+
+      if (!taken) {
+        btn.addEventListener('click', (function (animal, seat) {
+          return function () {
+            Online.sendChangeAnimal(seat, animal);
+            picker.style.display = 'none';
+          };
+        })(animalId, seatIdx));
+      }
+
+      wrapper.appendChild(btn);
+
+      var label = document.createElement('div');
+      label.className = 'picker-animal-name';
+      label.textContent = SpriteEngine.getAnimalName(animalId);
+      wrapper.appendChild(label);
+
+      grid.appendChild(wrapper);
+    }
+
+    picker.style.display = 'flex';
+    picker.querySelector('.btn-picker-cancel-online').onclick = function () {
+      picker.style.display = 'none';
+    };
+  }
+
+  function startOnlineLobbyNameEdit(seatIdx) {
+    var nameEl = document.querySelector('.seat-name[data-seat="' + seatIdx + '"]');
+    if (!nameEl) return;
+
+    var lobbyState = Online.getLobbyState();
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'seat-name-input';
+    input.value = lobbyState.seats[seatIdx].name;
+    input.maxLength = 12;
+
+    var parent = nameEl.parentElement;
+    parent.replaceChild(input, nameEl);
+    input.focus();
+    input.select();
+
+    function finishEdit() {
+      var newName = input.value.trim() || lobbyState.seats[seatIdx].name;
+      Online.sendChangeName(seatIdx, newName);
+    }
+
+    input.addEventListener('blur', finishEdit);
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+      if (e.key === 'Escape') { input.value = lobbyState.seats[seatIdx].name; input.blur(); }
+    });
+  }
+
+  // ================================================================
+  //  ONLINE GAME FLOW
+  // ================================================================
+
+  function onlineBeginGame(players) {
+    // Canvas is already initialized from lobby phase
+    // Hide lobby elements, show game elements
+    gamePhase = 'playing';
+    document.getElementById('online-lobby-header').style.display = 'none';
+    document.getElementById('btn-online-deal').style.display = 'none';
+    document.getElementById('lobby-waiting').style.display = 'none';
+
+    beginNewRound();
+  }
+
+  // Host: handle action from a remote guest
+  function onlineHandleRemoteAction(data) {
+    var playerId = data.playerId;
+    var action = data.action;
+    var player = Game.getCurrentPlayer();
+    if (!player || player.id !== playerId) return;
+    showActionBar(false);
+    gameFlowLocked = true;
+    executeAction(playerId, action);
+  }
+
+  // Guest: handle game action broadcast from host
+  function onlineHandleGameAction(data) {
+    if (data.type === 'play_again') {
+      Online.setGamePhase('playing');
+      playAgain();
+    }
+  }
+
+  // Guest: handle full state sync from host
+  function onlineHandleStateSync(data) {
+    if (data.gameState) {
+      Game.deserialize(data.gameState);
+    }
+    // Refresh display
+    var gs = Game.getState();
+
+    // Rebuild hand display from deserialized state
+    for (var i = 0; i < gs.players.length; i++) {
+      var pid = gs.players[i].id;
+      var hand = Game.getHand(pid);
+      // Only rebuild if the card count has changed
+      if (!handDisplay[pid] || handDisplay[pid].length !== hand.cards.length) {
+        handDisplay[pid] = [];
+        for (var c = 0; c < hand.cards.length; c++) {
+          handDisplay[pid].push({ card: hand.cards[c], faceUp: true });
+        }
+      }
+      updatePlayerTotal(pid);
+      if (hand.busted) updatePlayerStatus(pid, 'busted');
+      else if (hand.stayed) updatePlayerStatus(pid, 'stayed');
+    }
+    updateHUD();
+    updateDeckCount();
+
+    if (gs.roundPhase === 'finished') {
+      var winnerResult = Game.determineWinner();
+      var results = Game.getResults();
+      Animations.delay(Animations.TIMING.RESULTS_DELAY).then(function () {
+        showResults(winnerResult, results);
+      });
+    } else if (gs.roundPhase === 'playing') {
+      gameFlowLocked = false;
+      nextTurn();
+    }
+  }
+
+  // Host: send full game state to all guests
+  function syncGameStateToGuests() {
+    if (!Online.isActive() || !Online.isHost()) return;
+    Online.broadcastGameStateSync({
+      gameState: Game.serialize()
+    });
+  }
+
+  // ================================================================
+  //  SETUP PHASE (runs on the game screen with canvas background)
+  // ================================================================
+
+  function enterSetup() {
+    gamePhase = 'setup';
+    showScreen('screen-game');
+
+    // Show setup elements, hide game/online elements
+    document.getElementById('setup-header').style.display = '';
+    document.getElementById('player-count-control').style.display = '';
+    document.getElementById('btn-deal').style.display = '';
+    document.getElementById('game-hud').style.display = 'none';
+    document.getElementById('game-actions').style.display = 'none';
+    document.getElementById('deck-info').style.display = 'none';
+    document.getElementById('online-lobby-header').style.display = 'none';
+    document.getElementById('btn-online-deal').style.display = 'none';
+    document.getElementById('lobby-waiting').style.display = 'none';
+
+    // Init canvas if needed
+    var canvasEl = document.getElementById('game-canvas');
+    var ready;
+    if (!canvasReady) {
+      ready = Renderer.init(canvasEl).then(function () {
+        canvasReady = true;
+      });
+    } else {
+      Renderer.resize();
+      ready = Promise.resolve();
+    }
+
+    ready.then(function () {
+      // Hide the CSS table-felt since canvas renders the table
+      var felt = document.querySelector('#screen-game .table-felt');
+      if (felt) felt.style.display = 'none';
+
+      // Start render loop with callback that hides deck count during setup
+      Renderer.startLoop(function () {
+        Renderer.hideDeckCount();
+      });
+
+      installViewportHandlers();
+
+      prepareSetupScreen();
+    });
+  }
+
+  function prepareSetupScreen() {
+    initSetupSeats();
+    var title = document.getElementById('setup-title');
+    title.textContent = 'Game Setup';
+
+    playerCount = 2;
+    autoFillSeats();
+    renderSetupSeats();
+    updateDealButton();
+    updatePlayerCountButtons();
+  }
+
+  function getRandomAnimal() {
+    var animals = SpriteEngine.getAnimalList();
+    var usedAnimals = setupSeats.filter(function (s) { return s.occupied; }).map(function (s) { return s.animal; });
+    var available = animals.filter(function (a) { return usedAnimals.indexOf(a) === -1; });
+    if (available.length === 0) available = animals;
+    return available[Math.floor(Math.random() * available.length)];
+  }
+
+  function getAnimalName(animalId) {
+    var names = ANIMAL_NICKNAMES[animalId];
+    if (names) {
+      return names[Math.floor(Math.random() * names.length)];
+    }
+    return SpriteEngine.getAnimalName(animalId);
+  }
+
+  // Pick a random occupied seat to be the dealer (current dealer is included
+  // in the shuffle so it may or may not change).
+  function randomizeDealer() {
+    var occupied = [];
+    for (var i = 0; i < setupSeats.length; i++) {
+      if (setupSeats[i].occupied) occupied.push(i);
+    }
+    if (occupied.length === 0) return;
+    for (var j = 0; j < setupSeats.length; j++) setupSeats[j].isDealer = false;
+    var pick = occupied[Math.floor(Math.random() * occupied.length)];
+    setupSeats[pick].isDealer = true;
+  }
+
+  function autoFillSeats() {
+    initSetupSeats();
+    addOrder = [];
+    dealerManuallySet = false;
+
+    // Use fixed seat fill order
+    var finalSeats = SEAT_FILL_ORDER.slice(0, playerCount);
+
+    // Slot 0 (bottom) is always the human; all other slots are AI.
+    // Each player gets a random animal.
+    for (var k = 0; k < finalSeats.length; k++) {
+      var idx = finalSeats[k];
+      var animal = getRandomAnimal();
+      setupSeats[idx].occupied = true;
+      setupSeats[idx].animal = animal;
+      setupSeats[idx].isHuman = (idx === 0);
+      setupSeats[idx].name = getAnimalName(animal);
+      setupSeats[idx].isDealer = false; // no dealer pre-assigned
+      addOrder.push(idx);
+    }
+
+    // No dealer is auto-selected in setup. All occupied seats show a hollow
+    // dashed "D" slot; the player can click one to pre-pick. When they click
+    // Deal, a random dealer is chosen if none was manually set.
+    document.getElementById('player-count-display').textContent = playerCount;
+  }
+
+  function renderSetupSeats() {
+    var ring = document.getElementById('seats-ring');
+    ring.innerHTML = '';
+
+    // Use Renderer overlay positions when canvas is ready for consistent positioning
+    var positions;
+    if (canvasReady) {
+      positions = Renderer.getSeatOverlayPositions(NUM_TABLE_SEATS);
+    } else {
+      var table = ring.parentElement;
+      var w = table.offsetWidth;
+      var h = table.offsetHeight;
+      positions = Animations.getSeatPositions(w, h, NUM_TABLE_SEATS);
+    }
+
+    for (var i = 0; i < NUM_TABLE_SEATS; i++) {
+      var seat = setupSeats[i];
+      var pos = positions[i];
+
+      var el = document.createElement('div');
+      el.className = 'seat' + (seat.occupied ? '' : ' seat-empty');
+      el.style.left = pos.x + 'px';
+      // Seat's visible top is the top-row (badges sit above the avatar).
+      // The row is rendered in-flow so account for its reserved height.
+      // .seat-top-row is 3vmin fixed + 0.3vmin margin-bottom. Using 3.3
+      // instead of just 3 puts the avatar center EXACTLY on the tangent
+      // orbit; 3 alone leaves a 0.3vmin visible gap on bottom seats.
+      var setupTopRowOffset = 3.3 * getVmin();
+      el.style.top = (pos.y - setupTopRowOffset - getSetupAvatarSize() / 2) + 'px';
+      el.dataset.seat = i;
+
+      // Top row: [dealer / dealer-slot] [AI/Human badge] [remove X]
+      // Occupied seats get all three. Empty seats get only the badge.
+      var topRow = document.createElement('div');
+      topRow.className = 'seat-top-row';
+
+      if (seat.occupied) {
+        // Dealer chip (solid if dealer, hollow/dashed if not — click to set)
+        var dealerBadge = document.createElement('div');
+        dealerBadge.className = seat.isDealer ? 'seat-dealer-chip' : 'seat-dealer-slot';
+        dealerBadge.textContent = 'D';
+        if (!seat.isDealer) {
+          dealerBadge.title = 'Make dealer';
+          dealerBadge.addEventListener('click', (function (idx) {
+            return function (e) {
+              e.stopPropagation();
+              setDealer(idx);
+            };
+          })(i));
+        }
+        topRow.appendChild(dealerBadge);
+
+        // AI/Human badge (toggle)
+        var badge = document.createElement('div');
+        badge.className = 'seat-type-badge ' + (seat.isHuman ? 'human' : 'ai');
+        badge.textContent = seat.isHuman ? 'Human' : 'AI';
+        badge.dataset.seat = i;
+        badge.addEventListener('click', (function (idx) {
+          return function (e) {
+            e.stopPropagation();
+            toggleHumanAI(idx);
+          };
+        })(i));
+        topRow.appendChild(badge);
+
+        // Remove X (dashed red circle)
+        var removeCircle = document.createElement('div');
+        removeCircle.className = 'seat-remove-circle';
+        removeCircle.textContent = '\u00d7';
+        removeCircle.title = 'Remove player';
+        removeCircle.addEventListener('click', (function (idx) {
+          return function (e) {
+            e.stopPropagation();
+            removeSeat(idx);
+          };
+        })(i));
+        topRow.appendChild(removeCircle);
+      } else {
+        // Empty slot — just the AI/Human toggle badge
+        var emptyBadge = document.createElement('div');
+        var pt = seatPendingType[i] || 'ai';
+        emptyBadge.className = 'seat-type-badge ' + (pt === 'human' ? 'human' : 'ai');
+        emptyBadge.textContent = pt === 'human' ? 'Human' : 'AI';
+        emptyBadge.dataset.seat = i;
+        emptyBadge.addEventListener('click', (function (idx) {
+          return function (e) {
+            e.stopPropagation();
+            seatPendingType[idx] = seatPendingType[idx] === 'human' ? 'ai' : 'human';
+            renderSetupSeats();
+          };
+        })(i));
+        topRow.appendChild(emptyBadge);
+      }
+
+      el.appendChild(topRow);
+
+      // Avatar
+      var avatar = document.createElement('div');
+      avatar.className = 'seat-avatar';
+      if (seat.occupied && seat.animal) {
+        avatar.appendChild(SpriteEngine.createSpriteImg(seat.animal));
+        avatar.querySelector('img').style.width = '100%';
+        avatar.querySelector('img').style.height = '100%';
+      }
+      el.appendChild(avatar);
+
+      if (seat.occupied) {
+        // Editable name
+        var nameEl = document.createElement('div');
+        nameEl.className = 'seat-name';
+        nameEl.textContent = seat.name;
+        nameEl.dataset.seat = i;
+        nameEl.addEventListener('click', (function (idx) {
+          return function (e) {
+            e.stopPropagation();
+            startNameEdit(idx);
+          };
+        })(i));
+        el.appendChild(nameEl);
+      }
+
+      // Click to select character or add player
+      avatar.addEventListener('click', (function (idx) {
+        return function () { onSeatClick(idx); };
+      })(i));
+
+      // Right-click to set dealer
+      el.addEventListener('contextmenu', (function (idx) {
+        return function (e) {
+          e.preventDefault();
+          if (setupSeats[idx].occupied) setDealer(idx);
+        };
+      })(i));
+
+      ring.appendChild(el);
+    }
+  }
+
+  // ---- Inline Name Editing ----
+  function startNameEdit(seatIdx) {
+    var nameEl = document.querySelector('.seat-name[data-seat="' + seatIdx + '"]');
+    if (!nameEl) return;
+
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'seat-name-input';
+    input.value = setupSeats[seatIdx].name;
+    input.maxLength = 12;
+
+    var parent = nameEl.parentElement;
+    parent.replaceChild(input, nameEl);
+    input.focus();
+    input.select();
+
+    function finishEdit() {
+      var newName = input.value.trim() || setupSeats[seatIdx].name;
+      setupSeats[seatIdx].name = newName;
+      setupSeats[seatIdx].nameEdited = true;
+      renderSetupSeats();
+    }
+
+    input.addEventListener('blur', finishEdit);
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        input.blur();
+      }
+      if (e.key === 'Escape') {
+        input.value = setupSeats[seatIdx].name;
+        input.blur();
+      }
+    });
+  }
+
+  function onSeatClick(seatIdx) {
+    // Click empty to add, click occupied to change character
+    if (setupSeats[seatIdx].occupied) {
+      pickerIsNewSeat = false;
+      openPicker(seatIdx);
+    } else {
+      addSeat(seatIdx);
+    }
+  }
+
+  function addSeat(seatIdx, forceType) {
+    var occupiedCount = setupSeats.filter(function (s) { return s.occupied; }).length;
+    if (occupiedCount >= 8) return;
+
+    var type = forceType || seatPendingType[seatIdx] || 'ai';
+
+    // If human type, open picker to let user choose animal
+    if (type === 'human') {
+      pickerIsNewSeat = true;
+      openPicker(seatIdx);
+      return;
+    }
+
+    var animal = getRandomAnimal();
+
+    setupSeats[seatIdx].occupied = true;
+    setupSeats[seatIdx].animal = animal;
+    setupSeats[seatIdx].name = getAnimalName(animal);
+    // Slot 0 (bottom) is always the human if no human exists yet
+    var hasHuman = setupSeats.some(function (s) { return s.occupied && s.isHuman; });
+    setupSeats[seatIdx].isHuman = (seatIdx === 0 && !hasHuman);
+    setupSeats[seatIdx].nameEdited = false;
+    setupSeats[seatIdx].isDealer = false;
+    // No auto-assign. Dealer is chosen either by clicking a hollow "D" slot
+    // during setup, or randomly at deal-time if none was picked.
+
+    addOrder.push(seatIdx);
+    playerCount = setupSeats.filter(function (s) { return s.occupied; }).length;
+    document.getElementById('player-count-display').textContent = playerCount;
+
+    renderSetupSeats();
+    updateDealButton();
+    updatePlayerCountButtons();
+  }
+
+  function removeSeat(seatIdx) {
+    var occupiedCount = setupSeats.filter(function (s) { return s.occupied; }).length;
+    if (occupiedCount <= 2) return; // Minimum 2 players
+
+    var wasDealer = setupSeats[seatIdx].isDealer;
+    setupSeats[seatIdx] = {
+      occupied: false, animal: null, name: '', isHuman: false, isDealer: false, nameEdited: false
+    };
+
+    // Remove from addOrder tracking
+    var orderIdx = addOrder.indexOf(seatIdx);
+    if (orderIdx !== -1) addOrder.splice(orderIdx, 1);
+
+    // If the manually-chosen dealer was removed, clear the manual flag so
+    // the game picks a random dealer at deal time.
+    if (wasDealer) {
+      dealerManuallySet = false;
+    }
+
+    playerCount = setupSeats.filter(function (s) { return s.occupied; }).length;
+    document.getElementById('player-count-display').textContent = playerCount;
+
+    renderSetupSeats();
+    updateDealButton();
+    updatePlayerCountButtons();
+  }
+
+  function toggleHumanAI(seatIdx) {
+    setupSeats[seatIdx].isHuman = !setupSeats[seatIdx].isHuman;
+    renderSetupSeats();
+    updateDealButton();
+  }
+
+  function setDealer(seatIdx) {
+    for (var i = 0; i < setupSeats.length; i++) {
+      setupSeats[i].isDealer = false;
+    }
+    setupSeats[seatIdx].isDealer = true;
+    dealerManuallySet = true; // user picked — stop the random reshuffle
+    renderSetupSeats();
+  }
+
+  function updateDealButton() {
+    var btn = document.getElementById('btn-deal');
+    var occupied = setupSeats.filter(function (s) { return s.occupied; });
+    var hasHuman = occupied.some(function (s) { return s.isHuman; });
+    // No dealer requirement — one is picked at random on Deal if none chosen
+    btn.disabled = occupied.length < 2 || !hasHuman;
+  }
+
+  // ---- Character Picker ----
+  function openPicker(seatIdx) {
+    pickerTargetSeat = seatIdx;
+    var picker = document.getElementById('character-picker');
+    var grid = document.getElementById('picker-grid');
+    grid.innerHTML = '';
+
+    var animals = SpriteEngine.getAnimalList();
+    var usedAnimals = [];
+    for (var i = 0; i < setupSeats.length; i++) {
+      if (setupSeats[i].occupied && i !== seatIdx && setupSeats[i].animal) {
+        usedAnimals.push(setupSeats[i].animal);
+      }
+    }
+
+    for (var j = 0; j < animals.length; j++) {
+      var animalId = animals[j];
+      var taken = usedAnimals.indexOf(animalId) !== -1;
+
+      var wrapper = document.createElement('div');
+      wrapper.style.textAlign = 'center';
+
+      var btn = document.createElement('div');
+      btn.className = 'picker-animal' + (taken ? ' taken' : '');
+      btn.appendChild(SpriteEngine.createSpriteImg(animalId));
+
+      if (!taken) {
+        btn.addEventListener('click', (function (aid) {
+          return function () { selectAnimal(aid); };
+        })(animalId));
+      }
+
+      wrapper.appendChild(btn);
+
+      var label = document.createElement('div');
+      label.className = 'picker-animal-name';
+      label.textContent = SpriteEngine.getAnimalName(animalId);
+      wrapper.appendChild(label);
+
+      grid.appendChild(wrapper);
+    }
+
+    picker.style.display = 'flex';
+  }
+
+  function selectAnimal(animalId) {
+    if (pickerTargetSeat < 0) return;
+
+    if (pickerIsNewSeat) {
+      // Adding a new human player via picker
+      setupSeats[pickerTargetSeat].occupied = true;
+      setupSeats[pickerTargetSeat].animal = animalId;
+      setupSeats[pickerTargetSeat].name = getAnimalName(animalId);
+      setupSeats[pickerTargetSeat].isHuman = true;
+      setupSeats[pickerTargetSeat].nameEdited = false;
+      setupSeats[pickerTargetSeat].isDealer = false;
+      // No auto-assign; dealer chosen by click or at deal-time.
+
+      addOrder.push(pickerTargetSeat);
+      playerCount = setupSeats.filter(function (s) { return s.occupied; }).length;
+      document.getElementById('player-count-display').textContent = playerCount;
+      updatePlayerCountButtons();
+      updateDealButton();
+    } else {
+      // Changing animal on existing seat — preserve edited names
+      setupSeats[pickerTargetSeat].animal = animalId;
+      if (!setupSeats[pickerTargetSeat].nameEdited) {
+        setupSeats[pickerTargetSeat].name = getAnimalName(animalId);
+      }
+    }
+
+    closePicker();
+    renderSetupSeats();
+  }
+
+  function closePicker() {
+    document.getElementById('character-picker').style.display = 'none';
+    pickerTargetSeat = -1;
+    pickerIsNewSeat = false;
+  }
+
+  // ================================================================
+  //  GAME FLOW
+  // ================================================================
+
+  function startGame() {
+    // If no dealer was chosen during setup, pick a random one now.
+    var hasDealer = setupSeats.some(function (s) { return s.occupied && s.isDealer; });
+    if (!hasDealer) {
+      randomizeDealer();
+    }
+
+    // Build players from setup
+    var players = [];
+    var dealerIdx = 0;
+    var id = 0;
+
+    for (var i = 0; i < NUM_TABLE_SEATS; i++) {
+      if (setupSeats[i].occupied) {
+        var p = Game.createPlayer(
+          id, i,
+          setupSeats[i].animal,
+          setupSeats[i].name,
+          setupSeats[i].isHuman,
+          setupSeats[i].isDealer
+        );
+        if (setupSeats[i].isDealer) dealerIdx = id;
+        players.push(p);
+        id++;
+      }
+    }
+
+    Game.setupGame(players, dealerIdx);
+    beginNewRound();
+  }
+
+  function beginNewRound() {
+    var roundData = Game.newRound();
+
+    // Switch to playing phase (stays on game screen)
+    gamePhase = 'playing';
+    showScreen('screen-game');
+    document.getElementById('setup-header').style.display = 'none';
+    document.getElementById('player-count-control').style.display = 'none';
+    document.getElementById('btn-deal').style.display = 'none';
+    document.getElementById('online-lobby-header').style.display = 'none';
+    document.getElementById('btn-online-deal').style.display = 'none';
+    document.getElementById('lobby-waiting').style.display = 'none';
+    document.getElementById('game-hud').style.display = '';
+    document.getElementById('deck-info').style.display = '';
+    showActionBar(false);
+
+    // Update menu button text for online mode
+    var menuBtn = document.getElementById('btn-menu');
+    menuBtn.textContent = Online.isActive() ? 'Leave Room' : 'Main Menu';
+
+    renderGameTable().then(function () {
+      updateHUD();
+
+      // Animate dealing
+      gameFlowLocked = true;
+      setMessage('Dealing...');
+
+      return Animations.delay(500);
+    }).then(function () {
+      return animateDealSequence(roundData.dealOrder);
+    }).then(function () {
+      // Flip all cards face up on canvas
+      return animateFlipAllCards();
+    }).then(function () {
+      return Animations.delay(300);
+    }).then(function () {
+      // Show totals for all players after dealing
+      var players = Game.getState().players;
+      for (var i = 0; i < players.length; i++) {
+        updatePlayerTotal(players[i].id);
+      }
+
+      // Auto-stay any players dealt a natural 30 (can't improve)
+      if (Game.checkNatural30()) {
+        var allPlayers = Game.getState().players;
+        for (var n = 0; n < allPlayers.length; n++) {
+          var nid = allPlayers[n].id;
+          if (CardSystem.handTotal(Game.getHand(nid).cards) === 30) {
+            Game.stay(nid);
+            updatePlayerStatus(nid, 'stayed');
+          }
+        }
+      }
+
+      setMessage('');
+      Game.startPlaying();
+      // Host syncs initial game state after dealing
+      if (Online.isActive() && Online.isHost()) syncGameStateToGuests();
+      gameFlowLocked = false;
+      nextTurn();
+    });
+  }
+
+  // ---- Canvas Deal Animation ----
+  function animateDealSequence(dealOrder) {
+    var promise = Promise.resolve();
+
+    for (var i = 0; i < dealOrder.length; i++) {
+      (function (playerId) {
+        promise = promise.then(function () {
+          var card = Game.dealCardTo(playerId);
+          if (!card) return;
+
+          var player = Game.getPlayerById(playerId);
+          return animateCanvasDeal(card, playerId, player.seatIndex).then(function () {
+            updateDeckCount();
+          });
+        });
+      })(dealOrder[i]);
+    }
+
+    return promise;
+  }
+
+  // Viewport-proportional card scale (matches drawGameFrame)
+  function getCardScale() {
+    var W = window.innerWidth;
+    var H = window.innerHeight;
+    return 1.1 * (Math.min(W, H) / 1080);
+  }
+
+  function animateCanvasDeal(card, playerId, seatIndex) {
+    return new Promise(function (resolve) {
+      var tableCenter = Renderer.getTableCenter();
+      var seatPositions = Renderer.getSeatPositions(NUM_TABLE_SEATS);
+      var seatPos = seatPositions[seatIndex];
+      var handPos = Renderer.getHandPosition(seatPos, tableCenter);
+
+      var fc = Renderer.addFlyingCard({
+        card: card,
+        faceUp: false,
+        x: tableCenter.x,
+        y: tableCenter.y,
+        scale: getCardScale()
+      });
+
+      Renderer.animate(350, function (t) {
+        var e = Renderer.easeOutCubic(t);
+        fc.x = tableCenter.x + (handPos.x - tableCenter.x) * e;
+        fc.y = tableCenter.y + (handPos.y - tableCenter.y) * e;
+      }, function () {
+        Renderer.removeFlyingCard(fc);
+        if (!handDisplay[playerId]) handDisplay[playerId] = [];
+        handDisplay[playerId].push({ card: card, faceUp: false });
+        resolve();
+      });
+    });
+  }
+
+  // ---- Canvas Draw Animation (during play) ----
+  function animateCanvasDraw(card, playerId, seatIndex) {
+    return new Promise(function (resolve) {
+      var tableCenter = Renderer.getTableCenter();
+      var seatPositions = Renderer.getSeatPositions(NUM_TABLE_SEATS);
+      var seatPos = seatPositions[seatIndex];
+      var handPos = Renderer.getHandPosition(seatPos, tableCenter);
+
+      var fc = Renderer.addFlyingCard({
+        card: card,
+        faceUp: false,
+        flipProgress: 0,
+        x: tableCenter.x,
+        y: tableCenter.y,
+        scale: getCardScale()
+      });
+
+      Renderer.animate(500, function (t) {
+        var e = Renderer.easeOutCubic(t);
+        fc.x = tableCenter.x + (handPos.x - tableCenter.x) * e;
+        fc.y = tableCenter.y + (handPos.y - tableCenter.y) * e;
+        // Flip halfway through flight
+        fc.flipProgress = Math.min(t * 2, 1);
+      }, function () {
+        Renderer.removeFlyingCard(fc);
+        if (!handDisplay[playerId]) handDisplay[playerId] = [];
+        handDisplay[playerId].push({ card: card, faceUp: true });
+        resolve();
+      });
+    });
+  }
+
+  // ---- Canvas Flip All Cards ----
+  function animateFlipAllCards() {
+    var allCardRefs = [];
+    var gs = Game.getState();
+
+    for (var i = 0; i < gs.players.length; i++) {
+      var pid = gs.players[i].id;
+      var display = handDisplay[pid];
+      if (!display) continue;
+      for (var j = 0; j < display.length; j++) {
+        allCardRefs.push(display[j]);
+      }
+    }
+
+    var promises = [];
+    var stagger = 40;
+    var flipDuration = 400;
+
+    for (var k = 0; k < allCardRefs.length; k++) {
+      (function (cd, delayMs) {
+        promises.push(new Promise(function (resolve) {
+          setTimeout(function () {
+            cd.flipProgress = 0;
+            Renderer.animate(flipDuration, function (t) {
+              cd.flipProgress = t;
+            }, function () {
+              cd.faceUp = true;
+              cd.flipProgress = undefined;
+              resolve();
+            });
+          }, delayMs);
+        }));
+      })(allCardRefs[k], k * stagger);
+    }
+
+    return Promise.all(promises);
+  }
+
+  function nextTurn() {
+    var player = Game.getCurrentPlayer();
+    if (!player) {
+      // Round is over
+      endRound();
+      return;
+    }
+
+    highlightActivePlayer(player.id);
+    updateHUD();
+
+    // Auto-end: last active player with the best score — drawing can only hurt
+    if (Game.shouldAutoEnd(player.id)) {
+      gameFlowLocked = true;
+      setMessage(player.name + '\'s turn!');
+      showActionBar(false);
+      // Pause so humans can see the situation, then auto-stay and end
+      Animations.delay(1500).then(function () {
+        Game.stay(player.id);
+        var stayTotal = CardSystem.handTotal(Game.getHand(player.id).cards);
+        setMessage(player.name + ' stays with ' + stayTotal + '.');
+        updatePlayerStatus(player.id, 'stayed');
+        if (Online.isActive() && Online.isHost()) syncGameStateToGuests();
+        return Animations.delay(Animations.TIMING.MESSAGE_DURATION);
+      }).then(function () {
+        endRound();
+      });
+      return;
+    }
+
+    if (player.isHuman) {
+      // Online mode: only show buttons if this player belongs to this device
+      if (Online.isActive() && !Online.isMyPlayer(player.id)) {
+        // Remote human. If we're the host AND that player's device is
+        // currently paused (screen off, network dropped, etc.), WE play
+        // an AI move so the game doesn't stall. When they wake back up,
+        // the device sees isDevicePaused flip off and normal control
+        // resumes on their next turn.
+        if (Online.isHost() && Online.shouldHostAutoPlay(player.id)) {
+          setMessage(player.name + ' (paused — AI playing)');
+          showActionBar(false);
+          gameFlowLocked = true;
+          Animations.delay(Animations.TIMING.AI_THINK).then(function () {
+            // Re-check in case they resumed during the think delay
+            if (!Online.shouldHostAutoPlay(player.id)) {
+              gameFlowLocked = false;
+              nextTurn();
+              return;
+            }
+            var decision = Game.aiDecision(player.id);
+            return executeAction(player.id, decision);
+          }).catch(function (err) {
+            console.error('[UI] Host-AI turn error:', err);
+            gameFlowLocked = false;
+            advanceToNext();
+          });
+        } else {
+          setMessage(player.name + '\'s turn!');
+          showActionBar(false);
+          // Remote player — wait for their action via network
+        }
+      } else {
+        setMessage(player.name + '\'s turn!');
+        showActionBar(true, false);
+      }
+    } else {
+      showActionBar(false);
+      // AI: only the host processes AI decisions
+      if (Online.isActive() && !Online.isHost()) {
+        setMessage(player.name + ' is thinking...');
+        // Guest waits — host will process AI and sync
+      } else {
+        setMessage(player.name + ' is thinking...');
+        gameFlowLocked = true;
+
+        Animations.delay(Animations.TIMING.AI_THINK).then(function () {
+          var decision = Game.aiDecision(player.id);
+          return executeAction(player.id, decision);
+        }).catch(function (err) {
+          console.error('[UI] AI turn error:', err);
+          // Recover from error — advance to next player
+          gameFlowLocked = false;
+          advanceToNext();
+        });
+      }
+    }
+  }
+
+  function humanAction(action) {
+    var player = Game.getCurrentPlayer();
+    if (!player || !player.isHuman) return;
+    showActionBar(false);
+    gameFlowLocked = true;
+
+    // Online guest: send action to host instead of processing locally
+    if (Online.isActive() && !Online.isHost()) {
+      Online.sendAction(player.id, action);
+      // Host will process and sync state back
+      return;
+    }
+
+    executeAction(player.id, action);
+  }
+
+  function executeAction(playerId, action) {
+    try {
+    var player = Game.getPlayerById(playerId);
+
+    if (action === 'draw') {
+      var result = Game.drawCard(playerId);
+
+      setMessage(player.name + ' draws!');
+
+      if (result.action === 'forced_stay') {
+        // Deck empty, force stay
+        setMessage('Deck empty! ' + player.name + ' must stay.');
+        Game.stay(playerId);
+        return Animations.delay(Animations.TIMING.MESSAGE_DURATION).then(function () {
+          updatePlayerStatus(playerId, 'stayed');
+          advanceToNext();
+        });
+      }
+
+      return animateCanvasDraw(result.card, playerId, player.seatIndex).then(function () {
+        updateDeckCount();
+        updatePlayerTotal(playerId);
+
+        if (result.busted) {
+          setMessage(player.name + ' busts with ' + result.total + '!');
+          var seatEl = document.querySelector('.game-seat[data-player="' + playerId + '"]');
+          Animations.animateBust(seatEl);
+          updatePlayerStatus(playerId, 'busted');
+          return Animations.delay(Animations.TIMING.MESSAGE_DURATION).then(function () {
+            advanceToNext();
+          });
+        } else if (result.total === 30) {
+          // Hit 30 on draw — auto-stay (can't improve), but don't end round
+          // since another player could tie and win on tiebreaker
+          Game.stay(playerId);
+          setMessage(player.name + ' hits 30!');
+          updatePlayerStatus(playerId, 'stayed');
+          return Animations.delay(Animations.TIMING.MESSAGE_DURATION).then(function () {
+            advanceToNext();
+          });
+        } else {
+          return Animations.delay(400).then(function () {
+            advanceToNext();
+          });
+        }
+      }).catch(function (err) {
+        console.error('[UI] executeAction draw error:', err);
+        gameFlowLocked = false;
+        advanceToNext();
+      });
+    } else {
+      // Stay: lock in hand permanently
+      Game.stay(playerId);
+      var stayTotal = CardSystem.handTotal(Game.getHand(playerId).cards);
+      setMessage(player.name + ' stays with ' + stayTotal + '.');
+      updatePlayerStatus(playerId, 'stayed');
+
+      return Animations.delay(Animations.TIMING.MESSAGE_DURATION).then(function () {
+        advanceToNext();
+      });
+    }
+    } catch (err) {
+      console.error('[UI] executeAction exception:', err);
+      gameFlowLocked = false;
+      advanceToNext();
+    }
+  }
+
+  function advanceToNext() {
+    var next = Game.advanceTurn();
+    // Sync state after advancing (host broadcasts to guests)
+    if (Online.isActive() && Online.isHost()) syncGameStateToGuests();
+    if (!next) {
+      endRound();
+    } else {
+      gameFlowLocked = false;
+      nextTurn();
+    }
+  }
+
+  function endRound() {
+    gameFlowLocked = true;
+    showActionBar(false);
+    var winnerResult = Game.determineWinner();
+    var results = Game.getResults();
+
+    Animations.delay(Animations.TIMING.RESULTS_DELAY).then(function () {
+      showResults(winnerResult, results);
+    });
+  }
+
+  function playAgain() {
+    beginNewRound();
+  }
+
+  // ================================================================
+  //  GAME RENDERING (Canvas + HTML overlays)
+  // ================================================================
+
+  function renderGameTable() {
+    var canvasEl = document.getElementById('game-canvas');
+
+    // Initialize or resize canvas renderer (async for PixiJS)
+    var ready;
+    if (!canvasReady) {
+      ready = Renderer.init(canvasEl).then(function () {
+        canvasReady = true;
+      });
+    } else {
+      Renderer.resize();
+      ready = Promise.resolve();
+    }
+
+    return ready.then(function () {
+      // Hide CSS table-felt (canvas renders the table)
+      var felt = document.querySelector('#screen-game .table-felt');
+      if (felt) felt.style.display = 'none';
+
+      installViewportHandlers();
+
+      // Reset hand display
+      handDisplay = {};
+      Renderer.clearFlyingCards();
+
+      // Create HTML overlays for player info (using unified seats-ring)
+      var ring = document.getElementById('seats-ring');
+      ring.innerHTML = '';
+
+      var players = Game.getState().players;
+      var overlayPositions = Renderer.getSeatOverlayPositions(NUM_TABLE_SEATS);
+
+      for (var i = 0; i < players.length; i++) {
+        var p = players[i];
+        var pos = overlayPositions[p.seatIndex];
+
+        // Seat container
+        var seat = document.createElement('div');
+        seat.className = 'game-seat';
+        seat.dataset.player = p.id;
+        seat.style.left = pos.x + 'px';
+        // The avatar sits UNDER the .game-seat-top-row (dealer + score + status),
+        // so the seat's top must be shifted up by that row's reserved height
+        // so the avatar itself is centered at pos.y (tangent to the table's
+        // outer edge). Row height is fixed at 2.4vmin + 0.3vmin margin-bottom.
+        var topRowOffset = 2.7 * getVmin();
+        seat.style.top = (pos.y - topRowOffset - getGameAvatarSize() / 2) + 'px';
+
+        // Top row: [dealer chip] [score] [status pill]
+        // Dealer chip is tangent to the LEFT of the score, status to the RIGHT.
+        // This keeps the widest vertical cross-section at just the avatar
+        // width, making the overall seat footprint narrower.
+        var topRow = document.createElement('div');
+        topRow.className = 'game-seat-top-row';
+
+        if (p.isDealer) {
+          var chip = document.createElement('div');
+          chip.className = 'seat-dealer-chip';
+          chip.textContent = 'D';
+          topRow.appendChild(chip);
+        }
+
+        var totalEl = document.createElement('div');
+        totalEl.className = 'game-seat-total';
+        totalEl.dataset.total = p.id;
+        totalEl.textContent = '\u00a0';
+        totalEl.style.visibility = 'hidden';
+        topRow.appendChild(totalEl);
+
+        var statusEl = document.createElement('div');
+        statusEl.className = 'game-seat-status';
+        statusEl.dataset.status = p.id;
+        statusEl.textContent = '\u00a0';
+        statusEl.style.visibility = 'hidden';
+        topRow.appendChild(statusEl);
+
+        seat.appendChild(topRow);
+
+        // Avatar (the circle) — no more wrap needed now that chips are in top row
+        var avatarEl = document.createElement('div');
+        avatarEl.className = 'game-seat-avatar';
+        avatarEl.appendChild(SpriteEngine.createSpriteImg(p.animal));
+        seat.appendChild(avatarEl);
+
+        // Name — below avatar, centered
+        var nameEl = document.createElement('div');
+        nameEl.className = 'game-seat-name';
+        nameEl.textContent = p.name;
+        seat.appendChild(nameEl);
+
+        ring.appendChild(seat);
+
+        // Initialize hand display
+        handDisplay[p.id] = [];
+      }
+
+      // Start render loop
+      Renderer.startLoop(drawGameFrame);
+    });
+  }
+
+  // ---- Canvas Render Callback ----
+  function drawGameFrame(ctx, W, H) {
+    var gs = Game.getState();
+    if (!gs || !gs.players) return;
+
+    var tableCenter = Renderer.getTableCenter();
+    var seatPositions = Renderer.getSeatPositions(NUM_TABLE_SEATS);
+    // Card dimensions scale proportionally with viewport so they look the same
+    // relative to table on every device (not comically huge on mobile).
+    var vmin = Math.min(W, H);
+    var viewScale = vmin / 1080; // reference: 1080p desktop
+    var cardScale = 1.1 * viewScale;
+    var cardSpacing = 28.6 * viewScale;
+    var CARDS_PER_ROW = 3;
+    var ROW_INSET = 26.4 * viewScale; // how far inward each new row shifts toward center
+
+    // Draw deck pile at table center
+    Renderer.drawDeck(tableCenter.x, tableCenter.y, Game.getDeckCount());
+
+    // Draw each player's hand
+    for (var i = 0; i < gs.players.length; i++) {
+      var p = gs.players[i];
+      var seatPos = seatPositions[p.seatIndex];
+      var handPos = Renderer.getHandPosition(seatPos, tableCenter);
+      var display = handDisplay[p.id];
+      if (!display || display.length === 0) continue;
+
+      var numCards = display.length;
+      // Direction from seat toward center (for row stacking)
+      var towardCenterDx = tableCenter.x - seatPos.x;
+      var towardCenterDy = tableCenter.y - seatPos.y;
+      var dist = Math.sqrt(towardCenterDx * towardCenterDx + towardCenterDy * towardCenterDy);
+      var nDx = dist > 0 ? towardCenterDx / dist : 0;
+      var nDy = dist > 0 ? towardCenterDy / dist : 0;
+
+      // Fan cards perpendicular to the line from center to seat
+      var perpAngle = seatPos.angle + Math.PI / 2;
+      var dx = Math.cos(perpAngle);
+      var dy = Math.sin(perpAngle);
+
+      // Use consistent base row size so overlay cards align with base cards
+      // 4th lands on 1st, 5th on 2nd, 6th on 3rd, 7th on 4th, etc.
+      var baseRowSize = Math.min(CARDS_PER_ROW, numCards);
+
+      for (var j = 0; j < numCards; j++) {
+        var cd = display[j];
+        var row = Math.floor(j / CARDS_PER_ROW);
+        var colInRow = j % CARDS_PER_ROW;
+
+        // Row offset: each row shifts toward the center
+        var rowOffsetX = nDx * row * ROW_INSET;
+        var rowOffsetY = nDy * row * ROW_INSET;
+
+        // Card fan offset within this row (always use baseRowSize for alignment)
+        var offset = (colInRow - (baseRowSize - 1) / 2) * cardSpacing;
+        var cardX = handPos.x + dx * offset + rowOffsetX;
+        var cardY = handPos.y + dy * offset + rowOffsetY;
+
+        // Rotate cards to face each player from their perspective
+        var cardRotation = seatPos.angle - Math.PI / 2;
+
+        // Golden glow behind winning player's cards
+        if (glowingPlayerId === p.id) {
+          var elapsed = (Date.now() - glowStartTime) / 1000;
+          var pulseAlpha = 0.6 + 0.4 * Math.sin(elapsed * 3);
+          Renderer.drawCardGlow(cardX, cardY, cardRotation, cardScale, pulseAlpha);
+        }
+
+        if (cd.flipProgress !== undefined) {
+          Renderer.drawCardFlipping(cardX, cardY, cd.card, cd.flipProgress, cardScale, cardRotation);
+        } else {
+          Renderer.drawCard(cardX, cardY, cd.card, cd.faceUp, cardRotation, cardScale, 0.3);
+        }
+      }
+    }
+  }
+
+  // ---- Reposition HTML overlays on resize ----
+  function positionGameOverlays() {
+    var gs = Game.getState();
+    if (!gs || !gs.players) return;
+    var overlayPositions = Renderer.getSeatOverlayPositions(NUM_TABLE_SEATS);
+    // MUST match the top calc in renderGameTable: the seat contains a
+    // .game-seat-top-row (height 2.4vmin + 0.3vmin margin = 2.7vmin) ABOVE
+    // the avatar, so the seat's style.top is offset by that much so the
+    // avatar center lands at pos.y (tangent to table's outer wood edge).
+    // Omitting this offset pushes every avatar 2.7vmin off the tangent
+    // orbit on resize.
+    var topRowOffset = 2.7 * getVmin();
+
+    for (var i = 0; i < gs.players.length; i++) {
+      var p = gs.players[i];
+      var pos = overlayPositions[p.seatIndex];
+      var seat = document.querySelector('.game-seat[data-player="' + p.id + '"]');
+      if (seat) {
+        seat.style.left = pos.x + 'px';
+        seat.style.top = (pos.y - topRowOffset - getGameAvatarSize() / 2) + 'px';
+      }
+    }
+
+    // Action buttons are now CSS-positioned at center, no JS repositioning needed
+  }
+
+  function highlightActivePlayer(playerId) {
+    var seats = document.querySelectorAll('.game-seat');
+    for (var i = 0; i < seats.length; i++) {
+      seats[i].classList.remove('active');
+      if (seats[i].dataset.player == playerId) {
+        seats[i].classList.add('active');
+      }
+    }
+  }
+
+  function updatePlayerTotal(playerId) {
+    var hand = Game.getHand(playerId);
+    if (!hand) return;
+    var total = CardSystem.handTotal(hand.cards);
+    var el = document.querySelector('[data-total="' + playerId + '"]');
+    if (el) {
+      el.textContent = total;
+      el.style.visibility = 'visible';
+    }
+    // Re-evaluate the leader across all scores after this update
+    updateLeaderGlow();
+  }
+
+  // Add a golden glow to the score of THE SINGLE player currently leading.
+  // Ties are broken using the game's tiebreaker rules: more cards wins, then
+  // most-recent draw wins. Ensures only one seat glows at a time.
+  function updateLeaderGlow() {
+    var state = Game.getState && Game.getState();
+    if (!state || !state.players || !state.hands) return;
+    var candidates = [];
+    for (var i = 0; i < state.players.length; i++) {
+      var p = state.players[i];
+      var hand = state.hands[p.id];
+      if (!hand || hand.busted) continue;
+      var t = CardSystem.handTotal(hand.cards);
+      if (t <= 0) continue;
+      candidates.push({
+        id: p.id,
+        total: t,
+        cards: hand.cards.length,
+        lastDrawOrder: (hand.lastDrawOrder !== undefined ? hand.lastDrawOrder : -1),
+        turnPos: state.turnOrder.indexOf(p.id)
+      });
+    }
+    // Tiebreaker order matching Game.determineWinner:
+    //   1) highest total   2) more cards   3) more recent draw   4) turn position
+    candidates.sort(function (a, b) {
+      if (b.total !== a.total) return b.total - a.total;
+      if (b.cards !== a.cards) return b.cards - a.cards;
+      if (b.lastDrawOrder !== a.lastDrawOrder) return b.lastDrawOrder - a.lastDrawOrder;
+      return a.turnPos - b.turnPos;
+    });
+    var leaderId = candidates.length ? candidates[0].id : null;
+    document.querySelectorAll('.game-seat-total').forEach(function (el) {
+      var pid = el.dataset.total;
+      if (leaderId !== null && pid !== undefined && Number(pid) === leaderId) {
+        el.classList.add('leader');
+      } else {
+        el.classList.remove('leader');
+      }
+    });
+  }
+
+  function updatePlayerStatus(playerId, status) {
+    var el = document.querySelector('[data-status="' + playerId + '"]');
+    if (!el) return;
+
+    el.className = 'game-seat-status';
+    el.style.visibility = 'visible';
+    if (status === 'stayed') {
+      el.classList.add('stayed');
+      el.textContent = 'Stay';
+    } else if (status === 'busted') {
+      el.classList.add('busted');
+      el.textContent = 'Bust';
+    } else if (status === 'winner') {
+      el.classList.add('winner');
+      el.textContent = 'Winner';
+    } else {
+      el.textContent = '\u00a0';
+      el.style.visibility = 'hidden';
+    }
+  }
+
+  function updateDeckCount() {
+    var count = Game.getDeckCount();
+    document.getElementById('hud-deck').textContent = count;
+  }
+
+  function updateHUD() {
+    document.getElementById('hud-round').textContent = Game.getRoundNumber();
+    updateDeckCount();
+  }
+
+  function setMessage(msg) {
+    document.getElementById('hud-message').textContent = msg;
+  }
+
+  function showActionBar(visible, disableStay) {
+    var container = document.getElementById('game-actions');
+    if (!visible) {
+      container.style.display = 'none';
+      return;
+    }
+    container.style.display = 'flex';
+    var stayBtn = document.getElementById('btn-stay');
+    stayBtn.disabled = !!disableStay;
+  }
+
+  // ================================================================
+  //  RESULTS
+  // ================================================================
+
+  // If any player's card row is wider than the space the grid gives it
+  // (typically when someone has drawn many cards and/or names are long),
+  // shrink ALL mini-cards proportionally via a CSS custom property so
+  // every row still aligns to the same column edges.
+  function fitResultCards(handsDiv) {
+    if (!handsDiv) return;
+    handsDiv.style.setProperty('--card-scale', 1);
+    var rows = handsDiv.querySelectorAll('.result-hand-cards');
+    if (!rows.length) return;
+    var worstOverflow = 1;
+    rows.forEach(function (row) {
+      var avail = row.clientWidth;
+      var actual = row.scrollWidth;
+      if (avail > 0 && actual > avail) {
+        worstOverflow = Math.max(worstOverflow, actual / avail);
+      }
+    });
+    if (worstOverflow > 1) {
+      // Shrink a bit beyond what's needed so there's a hair of breathing room
+      handsDiv.style.setProperty('--card-scale', 1 / worstOverflow * 0.95);
+    }
+  }
+
+  function showResults(winnerResult, results) {
+    var winnerDiv = document.getElementById('results-winner');
+    var handsDiv = document.getElementById('results-hands');
+    var scoreDiv = document.getElementById('results-scoreboard');
+
+    // Winner display
+    if (winnerResult) {
+      var winner = Game.getPlayerById(winnerResult.winnerId);
+      winnerDiv.innerHTML =
+        '<div class="winner-avatar"><img src="' + SpriteEngine.getSprite(winner.animal) + '" alt="' + winner.name + '"></div>' +
+        '<div class="winner-name">' + winner.name + ' Wins!</div>' +
+        '<div class="winner-detail">' + winnerResult.total + ' points with ' + winnerResult.cardCount + ' cards' +
+        (winnerResult.tiebreaker ? '<br>' + winnerResult.tiebreaker : '') + '</div>';
+      Animations.launchConfetti();
+    } else {
+      winnerDiv.innerHTML = '<div class="all-busted-msg">Everyone Busted!</div>' +
+        '<div class="winner-detail">No winner this round</div>';
+    }
+
+    // All hands — sorted by ranking, no position labels (just name + cards + total)
+    handsDiv.innerHTML = '';
+
+    for (var i = 0; i < results.length; i++) {
+      var r = results[i];
+      var handDiv = document.createElement('div');
+      handDiv.className = 'result-hand';
+      if (winnerResult && r.player.id === winnerResult.winnerId) handDiv.classList.add('winner-hand');
+      if (r.busted) handDiv.classList.add('busted-hand');
+
+      var nameHtml = '<div class="result-hand-name">' + r.player.name + '</div>';
+
+      var cardsHtml = '<div class="result-hand-cards">';
+      for (var c = 0; c < r.cards.length; c++) {
+        var card = r.cards[c];
+        cardsHtml += '<div class="result-mini-card suit-' + card.color + '">' +
+          '<span>' + card.rank + '</span><span>' +
+          card.symbol + '</span></div>';
+      }
+      cardsHtml += '</div>';
+
+      var totalClass = r.busted ? 'busted' : (winnerResult && r.player.id === winnerResult.winnerId ? 'winner' : '');
+      // "Bust" label goes to the LEFT of the number, both on the same line.
+      var totalInner = r.busted
+        ? '<span class="bust-label">Bust</span><span class="total-value">' + r.total + '</span>'
+        : '<span class="total-value">' + r.total + '</span>';
+      var totalHtml = '<div class="result-hand-total ' + totalClass + '">' + totalInner + '</div>';
+
+      handDiv.innerHTML = nameHtml + cardsHtml + totalHtml;
+      handsDiv.appendChild(handDiv);
+    }
+
+    // After the rows are in the DOM, if any card row overflows its column,
+    // scale all mini-cards down proportionally so they fit and the grid
+    // columns stay aligned.
+    requestAnimationFrame(function () { fitResultCards(handsDiv); });
+
+    // Scoreboard
+    var scores = Game.getScores();
+    var players = Game.getState().players;
+    var lastWinRounds = Game.getLastWinRounds();
+    var scoreRows = players.slice().sort(function (a, b) {
+      var diff = (scores[b.id] || 0) - (scores[a.id] || 0);
+      if (diff !== 0) return diff;
+      // Tiebreaker: most recent round won
+      return (lastWinRounds[b.id] || 0) - (lastWinRounds[a.id] || 0);
+    });
+
+    var maxScore = 0;
+    for (var s = 0; s < scoreRows.length; s++) {
+      if ((scores[scoreRows[s].id] || 0) > maxScore) maxScore = scores[scoreRows[s].id] || 0;
+    }
+
+    var tableHtml = '<div class="scoreboard-title">Scoreboard</div>' +
+      '<table class="scoreboard-table"><thead><tr><th>Player</th><th>Wins</th></tr></thead><tbody>';
+    for (var t = 0; t < scoreRows.length; t++) {
+      var sc = scores[scoreRows[t].id] || 0;
+      var leading = sc === maxScore && sc > 0 ? ' class="leading"' : '';
+      tableHtml += '<tr' + leading + '><td>' + scoreRows[t].name + '</td><td>' + sc + '</td></tr>';
+    }
+    tableHtml += '</tbody></table>';
+    scoreDiv.innerHTML = tableHtml;
+
+    // Online mode: only host can play again; change "Main Menu" to "Leave Room"
+    if (Online.isActive()) {
+      Online.setGamePhase('results');
+      document.getElementById('btn-play-again').style.display = Online.isHost() ? '' : 'none';
+      document.getElementById('btn-new-game').textContent = 'Leave Room';
+    } else {
+      document.getElementById('btn-play-again').style.display = '';
+      document.getElementById('btn-new-game').textContent = 'Main Menu';
+    }
+
+    showScreen('screen-results');
+  }
+
+  // ================================================================
+  //  SAVE/LOAD
+  // ================================================================
+
+  function loadSavedGame() {
+    var data = SaveSystem.loadGame();
+    if (!data) return;
+
+    Game.deserialize(data.gameState);
+    var gs = Game.getState();
+
+    // Switch to game screen in playing phase
+    gamePhase = 'playing';
+    showScreen('screen-game');
+    document.getElementById('setup-header').style.display = 'none';
+    document.getElementById('player-count-control').style.display = 'none';
+    document.getElementById('btn-deal').style.display = 'none';
+    document.getElementById('game-hud').style.display = '';
+    document.getElementById('deck-info').style.display = '';
+    showActionBar(false);
+
+    renderGameTable().then(function () {
+      updateHUD();
+
+      // Populate hand display from game state (all face up for in-progress game)
+      for (var i = 0; i < gs.players.length; i++) {
+        var pid = gs.players[i].id;
+        var hand = Game.getHand(pid);
+        handDisplay[pid] = [];
+        for (var c = 0; c < hand.cards.length; c++) {
+          handDisplay[pid].push({ card: hand.cards[c], faceUp: true });
+        }
+        // Restore totals and statuses
+        updatePlayerTotal(pid);
+        if (hand.busted) updatePlayerStatus(pid, 'busted');
+        else if (hand.stayed) updatePlayerStatus(pid, 'stayed');
+      }
+
+      if (gs.roundPhase === 'finished') {
+        var winnerResult = Game.determineWinner();
+        var results = Game.getResults();
+        showResults(winnerResult, results);
+      } else if (gs.roundPhase === 'playing') {
+        gameFlowLocked = false;
+        nextTurn();
+      }
+    });
+  }
+
+  // ---- Start on DOM ready ----
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  return {
+    showScreen: showScreen,
+    init: init
+  };
+})();

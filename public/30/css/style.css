@@ -1,0 +1,2282 @@
+/* ============================================================
+   30 - A Card Game | Master Stylesheet
+   ============================================================ */
+
+/* ---------- CSS Reset & Variables ---------- */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  /* Table & Felt */
+  --felt-dark: #0a4420;
+  --felt-mid: #147a3a;
+  --felt-light: #1e9e50;
+  --felt-highlight: rgba(40, 180, 90, 0.15);
+
+  /* Wood */
+  --wood-dark: #2a1206;
+  --wood-mid: #5c2e10;
+  --wood-light: #8b5a2b;
+  --wood-highlight: #a0713a;
+
+  /* Gold accents */
+  --gold: #d4a017;
+  --gold-light: #f0d060;
+  --gold-dim: #a07a10;
+  --gold-glow: rgba(212, 160, 23, 0.5);
+
+  /* Cards */
+  --card-white: #f5f5f0;
+  --card-shadow: rgba(0, 0, 0, 0.35);
+  --card-back-1: #1a2a5c;
+  --card-back-2: #0d1a3d;
+
+  /* Suits */
+  --suit-red: #c41e1e;
+  --suit-black: #1a1a1a;
+
+  /* Status */
+  --bust-red: #d32f2f;
+  --pass-blue: #5c7cba;
+  --stay-amber: #c49000;
+  --win-gold: #ffd700;
+
+  /* UI */
+  --bg-dark: #0d1117;
+  --bg-panel: rgba(15, 25, 20, 0.92);
+  --text-light: #e8e0d4;
+  --text-dim: #8a8070;
+  --text-gold: var(--gold-light);
+
+  /* Card dimensions */
+  --card-w: 4.17vmin;
+  --card-h: 5.83vmin;
+  --card-radius: 0.42vmin;
+
+  /* Fonts */
+  --font-display: 'Cinzel', Georgia, 'Times New Roman', serif;
+  --font-body: 'Crimson Text', Georgia, serif;
+  --font-mono: 'Courier New', monospace;
+
+  /* Timing */
+  --transition-fast: 0.2s;
+  --transition-med: 0.4s;
+  --transition-slow: 0.6s;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  /* Better iOS/iPad support during orientation change / URL bar transitions.
+     dvh = dynamic viewport height (tracks the currently-visible area). */
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  font-family: var(--font-body);
+  color: var(--text-light);
+  background: var(--bg-dark);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ---------- Screen System ---------- */
+.screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
+  z-index: 1;
+}
+
+.screen.active {
+  opacity: 1;
+  visibility: visible;
+  z-index: 10;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  font-family: var(--font-display);
+  font-size: 1.1vmin;
+  padding: 0.6em 1.8em;
+  border: 0.14vmin solid var(--gold-dim);
+  border-radius: 0.56vmin;
+  background: transparent;
+  color: var(--text-light);
+  cursor: pointer;
+  transition: all var(--transition-fast) ease;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  border-color: var(--gold);
+  color: var(--gold-light);
+  box-shadow: 0 0 15px var(--gold-glow);
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+.btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-gold {
+  background: linear-gradient(135deg, var(--gold), var(--gold-dim));
+  color: #1a1000;
+  border-color: var(--gold);
+  font-weight: 700;
+}
+
+.btn-gold:hover {
+  background: linear-gradient(135deg, var(--gold-light), var(--gold));
+  color: #1a1000;
+  box-shadow: 0 0 25px var(--gold-glow);
+}
+
+.btn-gold:disabled {
+  background: linear-gradient(135deg, #666, #444);
+  border-color: #555;
+  color: #888;
+  box-shadow: none;
+}
+
+.btn-outline {
+  background: transparent;
+  border-color: var(--text-dim);
+  color: var(--text-dim);
+}
+
+.btn-outline:hover {
+  border-color: var(--text-light);
+  color: var(--text-light);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+.btn-large {
+  font-size: 1.3vmin;
+  padding: 0.8em 2.5em;
+}
+
+.btn-sm {
+  font-size: 0.9vmin;
+  padding: 0.3em 0.8em;
+}
+
+/* ---------- Title Screen ---------- */
+#screen-title {
+  background: radial-gradient(ellipse at center, #0f2a18 0%, #0a1510 50%, #050a08 100%);
+}
+
+.title-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.title-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+}
+
+/* Title screen uses rem sizing + media-query tiers (not vmin) so the title
+   feels consistently sized on each device class — matches SoloTerra. */
+.game-title {
+  position: relative;
+  z-index: 2;
+  font-family: var(--font-display);
+  font-size: 5rem;
+  font-weight: 900;
+  color: transparent;
+  background: linear-gradient(180deg, var(--gold-light) 0%, var(--gold) 40%, var(--gold-dim) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  text-shadow: none;
+  filter: drop-shadow(0 4px 20px var(--gold-glow)) drop-shadow(0 0 60px rgba(212, 160, 23, 0.3));
+  line-height: 1;
+  /* Generous bottom margin so the title-card-fan (which extends below the h1)
+     doesn't overlap the Local Play button. */
+  margin-bottom: 1.1em;
+}
+
+.title-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8em;
+}
+
+/* Title buttons: all same width, centered text */
+.title-buttons .btn {
+  width: 280px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Play button ~1.5x the size of others */
+.btn-play {
+  font-size: 1.5rem;
+  padding: 0.7em 2.5em;
+  font-weight: 700;
+}
+
+/* How to Play / Continue buttons — standard size */
+.btn-menu-size {
+  font-size: 1rem;
+  padding: 0.6em 1.8em;
+}
+
+/* Title card fan — centered on h1 text, behind it.
+   `top` is the card fan's CENTER position relative to .title-content top.
+   Set to half of the h1 font-size so the "30" text and card fan share the
+   same vertical center. */
+.title-card-fan {
+  position: absolute;
+  top: 2.5rem; /* h1 is 5rem tall, center at 2.5rem */
+  left: 50%;
+  z-index: 1;
+  opacity: 0.8;
+}
+
+.title-card {
+  position: absolute;
+  width: 120px;
+  height: 168px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--card-back-1), var(--card-back-2));
+  border: 4px solid rgba(255, 255, 255, 0.2);
+  transform-origin: 50% 85%;
+}
+
+.tc-1 { transform: translate(-50%, -50%) rotate(-20deg); }
+.tc-2 { transform: translate(-50%, -50%) rotate(0deg); }
+.tc-3 { transform: translate(-50%, -50%) rotate(20deg); }
+
+/* Floating suit symbols */
+.floating-suits {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.float-suit {
+  position: absolute;
+  font-size: 1.2rem;
+  opacity: 0;
+  color: var(--gold-dim);
+  animation: floatUp 8s linear infinite;
+}
+
+@keyframes floatUp {
+  0% { opacity: 0; transform: translateY(100vh) rotate(0deg); }
+  10% { opacity: 0.15; }
+  90% { opacity: 0.15; }
+  100% { opacity: 0; transform: translateY(-10vh) rotate(360deg); }
+}
+
+/* ---------- Rules Screen ---------- */
+#screen-rules {
+  background: rgba(10, 15, 12, 0.97);
+}
+
+.rules-panel {
+  max-width: 90%;
+  width: fit-content;
+  background: var(--bg-panel);
+  border: 1px solid rgba(212, 160, 23, 0.2);
+  border-radius: 10px;
+  padding: 2em 3em;
+  text-align: center;
+}
+
+.rules-panel h2 {
+  font-family: var(--font-display);
+  color: var(--gold-light);
+  font-size: 1.5rem;
+  margin-bottom: 0.8em;
+}
+
+.rules-content {
+  display: inline-block;
+  text-align: left;
+  margin-bottom: 1.2em;
+}
+
+.rules-back-row {
+  text-align: center;
+}
+
+.rules-back-row .btn {
+  font-size: 1rem;
+  padding: 0.5em 1.5em;
+}
+
+.rule-section {
+  margin-bottom: 0.8em;
+}
+
+.rule-section h3 {
+  font-family: var(--font-display);
+  color: var(--gold);
+  font-size: 1rem;
+  margin-bottom: 0.2em;
+}
+
+.rule-section p {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-light);
+}
+
+/* ---------- Game Screen (also handles setup) ---------- */
+#screen-game {
+  background: radial-gradient(ellipse at center, #0f2a18 0%, #0a1510 50%, #050a08 100%);
+}
+.setup-header {
+  position: absolute;
+  /* Table felt 32vmin -> orbit 38.4vmin -> top seat top-row top at
+     cy - 44.7vmin = H/2 - 43.2vmin (with 1.5vmin table shift). HUD sits
+     above that with the new bigger ~6vmin HUD height.
+     On narrow aspect (vmin=H): H/2=50vmin, offset 43.7 leaves 6.3vmin for
+     HUD height + top margin. */
+  bottom: calc(50% + 43.7vmin);
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4vmin 1.4vmin;
+  z-index: 30;
+  pointer-events: none;
+  max-width: 60vmin;
+  margin: 0 auto;
+}
+
+.setup-header > * {
+  pointer-events: auto;
+}
+
+.setup-header h2 {
+  font-family: var(--font-display);
+  color: var(--gold-light);
+  font-size: 2.3vmin;
+  margin: 0;
+}
+
+.setup-header .btn {
+  font-size: 1.6vmin;
+  padding: 0.6vmin 1.4vmin;
+}
+
+.player-count-control {
+  position: absolute;
+  left: 50%;
+  /* Follows the 1.5vmin table-center shift so PLAYERS/DEAL stay centered
+     as a pair on the table center (not the viewport center). */
+  top: calc(50% - 12.5vmin);
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3vmin;
+  font-family: var(--font-display);
+  color: var(--text-light);
+}
+
+.pcc-label {
+  font-size: 1.3vmin;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.pcc-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.pcc-row .btn {
+  font-size: 4vmin;
+  min-width: 0;
+  padding: 0.6vmin 2vmin;
+  line-height: 1;
+}
+
+#player-count-display {
+  font-size: 4vmin;
+  color: var(--gold-light);
+  min-width: 4.8vmin;
+  text-align: center;
+  line-height: 1;
+}
+
+.setup-deal-btn {
+  position: absolute;
+  left: 50%;
+  /* Follows the 1.5vmin table-center shift. */
+  top: calc(50% + 6.5vmin);
+  transform: translateX(-50%);
+  z-index: 30;
+  font-size: 2vmin;
+  padding: 1.6vmin 5vmin;
+}
+
+.setup-deal-btn:hover {
+  transform: translateX(-50%) translateY(-1px);
+}
+
+.setup-deal-btn:active {
+  transform: translateX(-50%) translateY(1px);
+}
+
+.setup-deal-btn:disabled {
+  transform: translateX(-50%);
+}
+
+/* setup-footer removed — Main Menu moved to setup-header */
+
+/* ---------- Card Table ---------- */
+.table-container {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-table {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.table-felt {
+  position: absolute;
+  inset: 4.2vmin;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 35% 35%, var(--felt-light) 0%, transparent 50%),
+    radial-gradient(ellipse at center, var(--felt-mid) 0%, var(--felt-dark) 100%);
+  border: 0.83vmin solid var(--wood-mid);
+  box-shadow:
+    inset 0 0 4.2vmin rgba(0, 0, 0, 0.4),
+    inset 0 0 1.4vmin rgba(0, 0, 0, 0.2),
+    0 0 0 0.28vmin var(--wood-dark),
+    0 0 0 0.97vmin var(--wood-mid),
+    0 0 0 1.1vmin var(--wood-dark),
+    0 0.56vmin 2.2vmin rgba(0, 0, 0, 0.6),
+    0 0 5.6vmin rgba(10, 68, 32, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.table-felt::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='4' height='4' fill='%23ffffff' fill-opacity='0.03'/%3E%3Crect x='0' y='0' width='1' height='1' fill='%23000000' fill-opacity='0.05'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%23000000' fill-opacity='0.05'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+.table-logo {
+  font-family: var(--font-display);
+  font-size: 3.3vmin;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.06);
+  letter-spacing: 0.1em;
+  pointer-events: none;
+}
+
+/* ---------- Canvas Game Renderer ---------- */
+#game-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  border-radius: 0.56vmin;
+}
+
+
+.game-table .table-felt {
+  display: none;
+}
+
+.game-table .seats-ring {
+  z-index: 2;
+}
+
+/* ---------- Seats ---------- */
+.seats-ring {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.seat {
+  position: absolute;
+  width: 7.8vmin; /* avatar width — labels center on avatar */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  z-index: 5;
+}
+
+/* Top row: [dealer / dealer-slot] [AI/Human badge] [remove X].
+   Uses minmax(0, 1fr) on the side tracks so wide dealer/X chips can't
+   grow their track and push the badge off-center.
+   FIXED height (not min-height) so the avatar's vertical position is
+   deterministic — otherwise a slightly taller badge on some seats
+   shifts those avatars off the tangent orbit. Paired with the
+   topRowOffset = 3.3vmin in JS (3vmin row + 0.3vmin margin). */
+.seat-top-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  width: 100%;
+  margin-bottom: 0.3vmin;
+  white-space: nowrap;
+  height: 3vmin;
+}
+.seat-top-row > .seat-dealer-chip,
+.seat-top-row > .seat-dealer-slot { justify-self: end; margin-right: 0.25vmin; }
+.seat-top-row > .seat-type-badge { grid-column: 2; justify-self: center; }
+.seat-top-row > .seat-remove-circle { justify-self: start; margin-left: 0.25vmin; }
+
+.seat-avatar {
+  width: 7.8vmin;
+  height: 7.8vmin;
+  border-radius: 50%;
+  border: 0.21vmin solid var(--wood-mid);
+  background: rgba(20, 30, 25, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: all var(--transition-fast) ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.seat-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.seat-avatar:hover {
+  border-color: var(--gold);
+  box-shadow: 0 0 15px var(--gold-glow);
+}
+
+.seat-empty .seat-avatar {
+  border-style: dashed;
+  border-color: var(--text-dim);
+}
+
+.seat-empty .seat-avatar::after {
+  content: '+';
+  font-size: 3.3vmin;
+  color: var(--text-dim);
+}
+
+.seat-name {
+  font-family: var(--font-display);
+  font-size: 1.4vmin;
+  color: var(--text-light);
+  margin-top: 0.21vmin;
+  text-align: center;
+  /* No max-width / no ellipsis: show the full name (up to 12 chars) even
+     if it's wider than the 7.8vmin seat box. The seat's own width stays
+     avatar-sized (via translateX(-50%) it centers on the avatar), the name
+     just overflows symmetrically on both sides. */
+  white-space: nowrap;
+  overflow: visible;
+  cursor: pointer;
+}
+
+.seat-name:hover {
+  color: var(--gold-light);
+}
+
+/* Inline name editing */
+.seat-name-input {
+  font-family: var(--font-display);
+  font-size: 1.4vmin;
+  color: var(--gold-light);
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--gold-dim);
+  border-radius: 0.28vmin;
+  padding: 0.07vmin 0.28vmin;
+  margin-top: 0.21vmin;
+  text-align: center;
+  max-width: 12.5vmin;
+  width: 11.1vmin;
+  outline: none;
+}
+
+.seat-type-badge {
+  position: static;
+  font-size: 2.4vmin;
+  padding: 0.2vmin 1.2vmin;
+  border-radius: 1.2vmin;
+  background: rgba(0, 0, 0, 0.4);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  z-index: 10;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1.1;
+}
+
+.seat-type-badge:hover {
+  color: var(--text-light);
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.seat-type-badge.human {
+  color: #6ec6ff;
+}
+
+.seat-type-badge.ai {
+  color: #ffa066;
+}
+
+/* Dealer chip — solid gold token in the setup/game seat top row. */
+.seat-dealer-chip {
+  position: static;
+  width: 2.8vmin;
+  height: 2.8vmin;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold-light), var(--gold-dim));
+  color: #1a1000;
+  font-size: 1.1vmin;
+  font-weight: 700;
+  font-family: var(--font-display);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0.14vmin solid var(--wood-dark);
+  box-shadow: 0 0.14vmin 0.42vmin rgba(0, 0, 0, 0.4);
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+/* Remove button — dashed red circle, now a flex item in .seat-top-row. */
+.seat-remove-circle {
+  position: static;
+  width: 2.8vmin;
+  height: 2.8vmin;
+  border-radius: 50%;
+  border: 0.14vmin dashed var(--bust-red);
+  background: rgba(211, 47, 47, 0.1);
+  color: var(--bust-red);
+  font-size: 1.6vmin;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  line-height: 1;
+  transition: all var(--transition-fast) ease;
+  flex-shrink: 0;
+}
+
+.seat-remove-circle:hover {
+  background: rgba(211, 47, 47, 0.3);
+  border-color: #ef5350;
+  color: #ef5350;
+  transform: scale(1.1);
+}
+
+/* Hollow dealer slot — click to promote this seat to dealer. */
+.seat-dealer-slot {
+  position: static;
+  width: 2.8vmin;
+  height: 2.8vmin;
+  border-radius: 50%;
+  border: 0.14vmin dashed var(--gold);
+  background: rgba(212, 160, 23, 0.08);
+  color: var(--gold);
+  font-size: 1.3vmin;
+  font-weight: 700;
+  font-family: var(--font-display);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  line-height: 1;
+  transition: all var(--transition-fast) ease;
+  flex-shrink: 0;
+}
+
+.seat-dealer-slot:hover {
+  background: rgba(212, 160, 23, 0.25);
+  border-color: var(--gold-light);
+  color: var(--gold-light);
+  transform: scale(1.1);
+}
+
+/* ---------- Game Screen Seats ---------- */
+/* Size matched to setup seats (7.8vmin avatar / 1.4vmin name). The seat
+   element's own width equals the avatar; the top-row flex container centers
+   on the seat and is free to overflow if the score+chips exceed that width. */
+.game-seat {
+  position: absolute;
+  width: 7.8vmin;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translateX(-50%);
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* Top row: [dealer chip] [score] [status pill] — grid so the SCORE is
+   always exactly at the seat's horizontal center, with dealer and status
+   flanking it symmetrically.
+   CRITICAL: `minmax(0, 1fr)` instead of plain `1fr` — plain 1fr grows
+   to fit its content if the content is wider than the fractional share,
+   which would push the score off-center when a wide STAY/BUST pill
+   appears. minmax(0, 1fr) caps the track so the content overflows
+   instead, keeping the center column (score) anchored at seat center. */
+.game-seat-top-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  width: 100%;
+  margin-bottom: 0.3vmin;
+  white-space: nowrap;
+  /* Fixed height so avatars don't drift between rounds as the dealer chip
+     (2.4vmin tall) rotates to different seats or as the .leader glow
+     appears/disappears. The avatar's visual position depends on this row's
+     height; keeping it constant keeps the avatars pinned to the table edge. */
+  height: 2.4vmin;
+}
+.game-seat-top-row > .seat-dealer-chip { justify-self: end; margin-right: 0.2vmin; }
+.game-seat-top-row > .game-seat-total { grid-column: 2; justify-self: center; }
+.game-seat-top-row > .game-seat-status { justify-self: start; margin-left: 0.2vmin; }
+
+.game-seat-avatar {
+  width: 7.8vmin;
+  height: 7.8vmin;
+  border-radius: 50%;
+  border: 0.21vmin solid var(--wood-mid);
+  background: rgba(20, 30, 25, 0.9);
+  overflow: hidden;
+  position: relative;
+  transition: all var(--transition-fast);
+}
+
+.game-seat-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.game-seat-name {
+  font-family: var(--font-display);
+  font-size: 1.4vmin;
+  color: var(--text-light);
+  margin-top: 0.3vmin;
+  text-align: center;
+}
+
+/* Total score — middle of the top row. */
+.game-seat-total {
+  font-family: var(--font-display);
+  font-size: 2.0vmin;
+  font-weight: 700;
+  color: var(--gold-light);
+  line-height: 1;
+  text-align: center;
+  min-width: 2.4vmin;
+  white-space: nowrap;
+}
+
+/* Status (STAY / BUST / WINNER) — right of the score in the top row. */
+.game-seat-status {
+  font-size: 1.1vmin;
+  font-weight: 600;
+  padding: 0.1vmin 0.6vmin;
+  border-radius: 0.8vmin;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  line-height: 1.5;
+  text-align: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.game-seat-status.passed {
+  background: rgba(92, 124, 186, 0.3);
+  color: var(--pass-blue);
+}
+
+.game-seat-status.stayed {
+  background: rgba(196, 144, 0, 0.3);
+  color: var(--stay-amber);
+}
+
+.game-seat-status.busted {
+  background: rgba(211, 47, 47, 0.3);
+  color: var(--bust-red);
+}
+
+.game-seat-status.winner {
+  background: rgba(255, 215, 0, 0.3);
+  color: var(--win-gold);
+}
+
+/* Dealer chip inside the game-seat top row — flex item, tangent to score. */
+.game-seat .seat-dealer-chip {
+  position: static;
+  width: 2.4vmin;
+  height: 2.4vmin;
+  font-size: 1vmin;
+  flex-shrink: 0;
+}
+
+/* ---------- Cards in Hand ---------- */
+.hand-area {
+  position: absolute;
+  display: flex;
+  gap: 0.14vmin;
+  transform-origin: center;
+  z-index: 3;
+}
+
+.card {
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: var(--card-radius);
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.5s ease;
+  flex-shrink: 0;
+}
+
+.card-face, .card-back-side {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--card-radius);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.card-face {
+  background: linear-gradient(145deg, #ffffff 0%, var(--card-white) 50%, #e8e4dc 100%);
+  border: 1px solid #ccc;
+  box-shadow: 0 2px 8px var(--card-shadow);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.21vmin;
+  transform: rotateY(180deg);
+}
+
+.card-back-side {
+  background:
+    repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.03) 4px, rgba(255,255,255,0.03) 8px),
+    linear-gradient(135deg, var(--card-back-1), var(--card-back-2));
+  border: 1px solid rgba(100, 130, 200, 0.3);
+  box-shadow: 0 2px 8px var(--card-shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-back-side::after {
+  content: '30';
+  font-family: var(--font-display);
+  font-size: 0.9vmin;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.12);
+}
+
+.card.flipped {
+  transform: rotateY(180deg);
+}
+
+/* Card face layout */
+.card-corner {
+  position: absolute;
+  font-size: 0.6vmin;
+  line-height: 1;
+  text-align: center;
+  font-weight: 700;
+}
+
+.card-corner-tl {
+  top: 0.21vmin;
+  left: 0.28vmin;
+}
+
+.card-corner-br {
+  bottom: 0.21vmin;
+  right: 0.28vmin;
+  transform: rotate(180deg);
+}
+
+.card-rank {
+  font-family: var(--font-display);
+  font-size: 0.7vmin;
+  display: block;
+}
+
+.card-suit-small {
+  font-size: 0.6vmin;
+  display: block;
+}
+
+.card-center-suit {
+  font-size: 1.8vmin;
+  opacity: 0.25;
+}
+
+.card-value-badge {
+  position: absolute;
+  bottom: 0.21vmin;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-display);
+  font-size: 0.5vmin;
+  background: rgba(0,0,0,0.08);
+  padding: 0 0.28vmin;
+  border-radius: 0.28vmin;
+  color: inherit;
+  opacity: 0.6;
+}
+
+.card.suit-red .card-face {
+  color: var(--suit-red);
+}
+
+.card.suit-black .card-face {
+  color: var(--suit-black);
+}
+
+/* ---------- Deck Pile ---------- */
+.deck-pile {
+  position: relative;
+  width: var(--card-w);
+  height: var(--card-h);
+  z-index: 2;
+}
+
+.deck-card {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--card-radius);
+  background:
+    repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.03) 4px, rgba(255,255,255,0.03) 8px),
+    linear-gradient(135deg, var(--card-back-1), var(--card-back-2));
+  border: 1px solid rgba(100, 130, 200, 0.3);
+  box-shadow:
+    2px 2px 0 rgba(0,0,0,0.2),
+    4px 4px 0 rgba(26, 42, 92, 0.6),
+    6px 6px 0 rgba(0,0,0,0.2),
+    0 4px 16px rgba(0,0,0,0.4);
+}
+
+.deck-count {
+  position: absolute;
+  bottom: -1.3vmin;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-display);
+  font-size: 0.7vmin;
+  color: var(--text-dim);
+}
+
+/* ---------- Game Actions (Draw/Stay below center deck) ---------- */
+/* CSS Grid with two equal columns keeps the gap mathematically centered
+   regardless of each button's rendered width. The container's overall
+   translate(-50%) puts the gap-center exactly on the deck's x-axis.
+   Top offset accounts for the 1.5vmin table shift AND the deck stack
+   fanning down-right (~0.73vmin at 10 cards): deck bottom at
+   cy + 5.55vmin + 0.73vmin = H/2 + 7.78vmin. Buttons sit ~1vmin below. */
+.game-actions {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 8.8vmin);
+  transform: translate(-50%, 0);
+  z-index: 30;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 0.8vmin;
+  width: 20vmin;
+  pointer-events: none;
+}
+
+.btn-action-menu {
+  justify-self: end;
+}
+
+.btn-draw, .btn-stay {
+  width: 100%;  /* fill the grid column */
+  text-align: center;
+}
+
+.btn-draw {
+  pointer-events: auto;
+  background: linear-gradient(135deg, var(--gold), var(--gold-dim));
+  color: #1a1000;
+  border-color: var(--gold);
+  font-size: 1.2vmin;
+  padding: 0.8vmin 2.4vmin;
+  font-weight: 700;
+  font-family: var(--font-display);
+}
+
+.btn-draw:hover {
+  background: linear-gradient(135deg, var(--gold-light), var(--gold));
+  color: #1a1000;
+  box-shadow: 0 0 25px var(--gold-glow);
+  transform: translateY(-1px);
+}
+
+.btn-draw:active {
+  transform: translateY(1px);
+}
+
+.btn-stay {
+  pointer-events: auto;
+  background: transparent;
+  color: white;
+  border-color: var(--gold);
+  font-size: 1.2vmin;
+  padding: 0.8vmin 2.4vmin;
+  font-weight: 700;
+  font-family: var(--font-display);
+}
+
+.btn-stay:hover:not(:disabled) {
+  background: rgba(212, 160, 23, 0.15);
+  box-shadow: 0 0 20px var(--gold-glow);
+  color: white;
+  border-color: var(--gold-light);
+  transform: translateY(-1px);
+}
+
+.btn-stay:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn-stay:disabled {
+  opacity: 0.3;
+  pointer-events: auto;
+  cursor: not-allowed;
+  border-color: #666;
+  color: #888;
+}
+
+
+/* ---------- Deck Info (Cards Remaining above deck) ---------- */
+/* Positioned so the label's BOTTOM sits ~1vmin above the top of the deck —
+   mirroring the gap between the deck's bottom and the DRAW/STAY buttons. */
+/* Single inline-block with text-align:center ensures perfect centering —
+   flex + gap can cause sub-pixel drift that shows up visually. The vertical
+   offset accounts for the 1.5vmin table-center shift: deck top is at
+   cy - 5.55vmin = H/2 - 4.05vmin, so CARDS REMAINING sits just above that. */
+.deck-info {
+  position: absolute;
+  left: 50%;
+  bottom: calc(50% + 5vmin);
+  transform: translate(-50%, 0);
+  z-index: 25;
+  font-family: var(--font-display);
+  pointer-events: none;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.deck-info-label {
+  font-size: 1.4vmin;
+  color: var(--gold);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.deck-info-value {
+  font-size: 1.4vmin;
+  color: var(--gold-light);
+  margin-left: 0.4vmin;
+  font-weight: 700;
+}
+
+/* ---------- Game HUD (floating, no background bar) ---------- */
+.game-hud {
+  position: absolute;
+  /* Matches setup-header. */
+  bottom: calc(50% + 43.7vmin);
+  left: 0;
+  right: 0;
+  padding: 0.8vmin 1.6vmin;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.5vmin;
+  z-index: 20;
+  pointer-events: none;
+  max-width: 60vmin;
+  margin: 0 auto;
+}
+
+.game-hud > * {
+  pointer-events: auto;
+}
+
+.game-hud .btn {
+  font-size: 1.6vmin;
+  padding: 0.6vmin 1.4vmin;
+}
+
+.hud-round {
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: 0.4vmin;
+}
+
+.hud-left {
+  justify-self: center;
+  font-family: var(--font-display);
+  font-size: 2.3vmin;
+  color: var(--text-light);
+  min-height: 1.2em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.hud-label {
+  font-size: 2.3vmin;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-right: 0.3vmin;
+}
+
+.hud-value {
+  font-family: var(--font-display);
+  font-size: 2.3vmin;
+  color: var(--gold-light);
+}
+
+/* ---------- Confirm Exit Overlay ---------- */
+.confirm-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Confirm popup — rem-based so it's readable on all devices */
+.confirm-panel {
+  background: var(--bg-panel);
+  border: 1px solid rgba(212, 160, 23, 0.3);
+  border-radius: 0.8rem;
+  padding: 1.5em 1.8em;
+  text-align: center;
+  max-width: min(90vw, 22rem);
+}
+
+.confirm-title {
+  font-family: var(--font-display);
+  color: var(--gold-light);
+  font-size: 1.25rem;
+  margin-bottom: 0.4em;
+}
+
+.confirm-sub {
+  font-size: 0.95rem;
+  color: var(--text-dim);
+  margin-bottom: 1.2em;
+}
+
+.confirm-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6em;
+}
+
+.confirm-buttons .btn {
+  width: 14rem;
+  font-size: 1rem;
+  padding: 0.5em 1.3em;
+}
+
+@media (max-width: 480px) {
+  .confirm-panel { padding: 1.2em 1.4em; }
+  .confirm-title { font-size: 1.1rem; }
+  .confirm-sub { font-size: 0.85rem; }
+  .confirm-buttons .btn { width: 12rem; font-size: 0.9rem; }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .confirm-panel { padding: 0.8em 1.1em; }
+  .confirm-title { font-size: 0.95rem; margin-bottom: 0.25em; }
+  .confirm-sub { font-size: 0.75rem; margin-bottom: 0.7em; }
+  .confirm-buttons { gap: 0.4em; }
+  .confirm-buttons .btn { width: 10rem; font-size: 0.8rem; padding: 0.35em 1em; }
+}
+
+/* ---------- Results Screen ---------- */
+#screen-results {
+  background: radial-gradient(ellipse at center, #0f2a18 0%, #0a1510 50%, #050a08 100%);
+  overflow-y: auto;
+}
+
+/* Results screen: rem-based with media-query tiers (SoloTerra pattern),
+   so elements stay readable on phones/tablets where vmin-based sizing
+   would make everything too small. Landscape-phone tier fits the
+   limited vertical space. */
+.results-content {
+  text-align: center;
+  padding: 1.5em;
+  max-width: 520px;
+  width: 92%;
+}
+
+.results-winner {
+  margin-bottom: 1em;
+}
+
+.winner-avatar {
+  width: 5rem;
+  height: 5rem;
+  border-radius: 50%;
+  border: 3px solid var(--gold);
+  margin: 0 auto 0.5em;
+  overflow: hidden;
+  box-shadow: 0 0 1.5rem var(--gold-glow);
+}
+
+.winner-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.winner-name {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  color: var(--gold-light);
+}
+
+.winner-detail {
+  font-size: 1rem;
+  color: var(--text-dim);
+  margin-top: 0.3em;
+}
+
+.all-busted-msg {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  color: var(--bust-red);
+  margin-bottom: 0.5em;
+}
+
+/* Results hands — ranked list.
+   Parent defines the column track (name | cards | total). Each row uses
+   `grid-template-columns: subgrid` so all rows share identical column
+   edges — names can vary in length, cards always start at the same x,
+   totals always end at the same x.
+   Mini-card sizes use the --card-scale custom property so JS can shrink
+   them proportionally when a long card row would overflow its column. */
+.results-hands {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  row-gap: 0.5em;
+  margin-bottom: 1em;
+  --card-scale: 1;
+}
+
+.result-hand {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: center;
+  column-gap: 0.6em;
+  padding: 0.5em 0.75em;
+  background: var(--bg-panel);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 0.5em;
+  text-align: left;
+}
+
+.result-hand.winner-hand {
+  border-color: var(--gold);
+  box-shadow: 0 0 0.6rem var(--gold-glow);
+}
+
+.result-hand.busted-hand {
+  opacity: 1;
+}
+
+.result-hand-name {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  color: var(--text-light);
+  white-space: nowrap;
+}
+
+.result-hand-cards {
+  display: flex;
+  gap: 0.1em;
+  min-width: 0; /* allow the cell to shrink */
+}
+
+/* Result mini cards — 2x symbol size, scalable via --card-scale */
+.result-mini-card {
+  width: calc(1.25rem * var(--card-scale, 1));
+  height: calc(1.8rem * var(--card-scale, 1));
+  border-radius: 0.15rem;
+  background: var(--card-white);
+  border: 1px solid #ccc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(0.75rem * var(--card-scale, 1));
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.result-mini-card.suit-red {
+  color: var(--suit-red);
+}
+
+.result-mini-card.suit-black {
+  color: var(--suit-black);
+}
+
+.result-hand-total {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  text-align: right;
+  /* Bust label + number on ONE line, never wrapping */
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 0.3em;
+  white-space: nowrap;
+}
+
+.result-hand-total.busted {
+  color: var(--bust-red);
+}
+
+.result-hand-total.winner {
+  color: var(--gold-light);
+}
+
+.bust-label {
+  /* Same red, just a word to the left of the number */
+  font-family: var(--font-display);
+  font-size: 1em;
+}
+
+/* Scoreboard */
+.results-scoreboard {
+  margin-bottom: 1em;
+}
+
+.scoreboard-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  color: var(--gold);
+  margin-bottom: 0.4em;
+}
+
+.scoreboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.scoreboard-table th {
+  font-family: var(--font-display);
+  color: var(--text-dim);
+  padding: 0.3em 0.5em;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  font-weight: 400;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+}
+
+.scoreboard-table td {
+  padding: 0.3em 0.5em;
+  color: var(--text-light);
+}
+
+.scoreboard-table tr.leading td {
+  color: var(--gold-light);
+}
+
+.results-buttons {
+  display: flex;
+  gap: 0.8em;
+  justify-content: center;
+}
+
+.results-buttons .btn {
+  font-size: 1rem;
+  padding: 0.5em 1.3em;
+}
+
+/* ---------- Character Picker ---------- */
+.character-picker {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.picker-panel {
+  background: var(--bg-panel);
+  border: 1px solid rgba(212, 160, 23, 0.3);
+  border-radius: 1.1vmin;
+  padding: 1.5vmin;
+  text-align: center;
+  max-width: 42vmin;
+}
+
+.picker-panel h3 {
+  font-family: var(--font-display);
+  color: var(--gold-light);
+  font-size: 1.2vmin;
+  margin-bottom: 1vmin;
+}
+
+.picker-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.8vmin;
+  margin-bottom: 1vmin;
+}
+
+.picker-animal {
+  width: 4.9vmin;
+  height: 4.9vmin;
+  border-radius: 50%;
+  border: 0.2vmin solid var(--wood-mid);
+  background: rgba(20, 30, 25, 0.8);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.picker-animal img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.picker-animal:hover {
+  border-color: var(--gold);
+  box-shadow: 0 0 15px var(--gold-glow);
+  transform: scale(1.1);
+}
+
+.picker-animal.taken {
+  opacity: 0.3;
+  cursor: default;
+  transform: none;
+  border-color: var(--text-dim);
+}
+
+.picker-animal.taken:hover {
+  box-shadow: none;
+  transform: none;
+}
+
+.picker-animal-name {
+  font-family: var(--font-display);
+  font-size: 0.6vmin;
+  color: var(--text-dim);
+  margin-top: 0.2vmin;
+  text-align: center;
+}
+
+/* ---------- Confetti ---------- */
+.confetti-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 200;
+  overflow: hidden;
+}
+
+.confetti-piece {
+  position: absolute;
+  width: 0.56vmin;
+  height: 0.56vmin;
+  top: -0.7vmin;
+  animation: confettiFall 3s linear forwards;
+}
+
+@keyframes confettiFall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+/* ---------- Card Animation Helpers ---------- */
+.card-flying {
+  position: fixed;
+  z-index: 100;
+  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  pointer-events: none;
+}
+
+/* Bust shake */
+@keyframes bustShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+.bust-shake {
+  animation: bustShake 0.4s ease;
+}
+
+/* Pulse glow for active player — tight & intense */
+/* Silver halo pulse for the active player (whose turn it is). */
+@keyframes pulseGlowSilver {
+  0%, 100% { box-shadow: 0 0 12px rgba(220, 225, 235, 1), 0 0 30px rgba(200, 210, 225, 0.95), 0 0 60px rgba(180, 195, 215, 0.75), 0 0 90px rgba(160, 175, 200, 0.45); }
+  50%     { box-shadow: 0 0 18px rgba(230, 235, 245, 1), 0 0 45px rgba(210, 220, 235, 1),    0 0 90px rgba(190, 205, 225, 0.9),  0 0 135px rgba(170, 185, 210, 0.6);  }
+}
+
+.game-seat.active .game-seat-avatar {
+  border-color: #d8dde6; /* silver */
+  box-shadow: 0 0 15px rgba(220, 225, 235, 1), 0 0 40px rgba(200, 210, 225, 0.95), 0 0 80px rgba(180, 195, 215, 0.8), 0 0 120px rgba(160, 175, 200, 0.5);
+  animation: pulseGlowSilver 2s ease-in-out infinite;
+}
+
+/* Gold halo glow on the current leader's score — mirrors the silver
+   halo on the active-player avatar (same design, gold palette).
+   Two layers:
+     (a) A text-shadow on the digits themselves for tight inner glow
+     (b) A CIRCULAR ::before pseudo-element behind the digits, filled
+         with a gold radial gradient AND ringed by box-shadow layers so
+         the aura extends well beyond the element.
+
+   `isolation: isolate` on the parent creates a new stacking context so
+   the ::before's z-index: -1 stays BEHIND the text but above the
+   canvas — without this trick the pseudo-element falls behind the
+   table canvas and the inside of the halo renders as a dark hole. */
+.game-seat-total.leader {
+  position: relative;
+  isolation: isolate;
+  color: #fff5d0;
+  font-weight: 900;
+  text-shadow:
+    0 0 4px  rgba(255, 240, 170, 1),
+    0 0 8px  rgba(255, 230, 130, 0.95),
+    0 0 16px rgba(255, 220, 100, 0.7);
+}
+
+.game-seat-total.leader::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2.5vmin;
+  height: 2.5vmin;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  /* Gold fill so the inside of the halo IS gold (not the dark canvas
+     behind). Dense at the centre, fading toward the edges so the disc
+     blends seamlessly into the box-shadow aura around it. */
+  background: radial-gradient(circle,
+    rgba(255, 225, 115, 0.9) 0%,
+    rgba(255, 218, 100, 0.75) 45%,
+    rgba(255, 212, 85, 0.5) 80%,
+    rgba(255, 210, 80, 0.2) 100%);
+  pointer-events: none;
+  z-index: -1;
+  box-shadow:
+    0 0 18px rgba(255, 220, 100, 1),
+    0 0 45px rgba(255, 210, 80,  0.95),
+    0 0 90px rgba(255, 200, 60,  0.8),
+    0 0 135px rgba(255, 195, 50, 0.5);
+  animation: leaderHaloPulse 2s ease-in-out infinite;
+}
+
+@keyframes leaderHaloPulse {
+  0%, 100% {
+    box-shadow:
+      0 0 18px rgba(255, 220, 100, 1),
+      0 0 45px rgba(255, 210, 80,  0.95),
+      0 0 90px rgba(255, 200, 60,  0.8),
+      0 0 135px rgba(255, 195, 50, 0.5);
+  }
+  50% {
+    box-shadow:
+      0 0 25px rgba(255, 230, 120, 1),
+      0 0 60px rgba(255, 220, 95,  1),
+      0 0 115px rgba(255, 210, 75, 0.9),
+      0 0 170px rgba(255, 205, 65, 0.65);
+  }
+}
+
+/* ---------- Responsive ---------- */
+/* Game-table elements use vmin (continuously proportional).
+   Title/rules screens use rem + media-query tiers so fonts stay readable
+   without shrinking on small devices (SoloTerra pattern). */
+
+@media (max-width: 1024px) {
+  .game-title { font-size: 3.5rem; margin-bottom: 1.5em; }
+  .title-card-fan { top: 1.75rem; } /* half of 3.5rem */
+  .title-card { width: 95px; height: 133px; border-radius: 8px; border-width: 3px; }
+  .title-buttons .btn { width: 240px; }
+  .btn-play { font-size: 1.3rem; }
+  .rules-panel { padding: 1.5em 2em; }
+  .rules-panel h2 { font-size: 1.3rem; }
+  .rule-section h3 { font-size: 0.95rem; }
+  .rule-section p { font-size: 0.85rem; }
+  /* Online host/join screen */
+  .online-title { font-size: 3.2rem; }
+  .online-panel h2 { font-size: 1.3rem; }
+  .online-tab { font-size: 0.9rem; padding: 0.5em 1.2em; }
+  .online-field label { font-size: 0.75rem; }
+  .online-field input { font-size: 1rem; padding: 0.65em 0.8em; }
+  .online-pcc { font-size: 1.35rem; }
+  .online-pcc-btn { font-size: 0.9rem !important; }
+  .online-panel .btn { font-size: 0.95rem; }
+  .online-panel .btn-large { font-size: 1rem; }
+  .online-status { font-size: 0.8rem; }
+}
+
+@media (max-width: 768px) {
+  .game-title { font-size: 2.8rem; margin-bottom: 1.8em; }
+  .title-card-fan { top: 1.4rem; } /* half of 2.8rem */
+  .title-card { width: 80px; height: 112px; border-radius: 7px; border-width: 3px; }
+  .title-buttons .btn { width: 200px; }
+  .title-buttons { gap: 0.6em; }
+  .btn-play { font-size: 1.15rem; padding: 0.6em 2em; }
+  .btn-menu-size { font-size: 0.85rem; padding: 0.5em 1.5em; }
+  .rules-panel { padding: 1em 1.2em; }
+  .rules-panel h2 { font-size: 1.15rem; }
+  .rule-section h3 { font-size: 0.9rem; }
+  .rule-section p { font-size: 0.8rem; }
+  .rules-back-row .btn { font-size: 0.85rem; }
+  /* Online host/join screen — tablet */
+  .online-title { font-size: 2.6rem; }
+  .online-panel { gap: 0.8em; padding: 1em; }
+  .online-panel h2 { font-size: 1.15rem; }
+  .online-tab { font-size: 0.85rem; padding: 0.45em 1.1em; }
+  .online-form { gap: 0.75em; max-width: 300px; }
+  .online-field label { font-size: 0.72rem; }
+  .online-field input { font-size: 0.95rem; padding: 0.6em 0.75em; }
+  .online-pcc { font-size: 1.2rem; }
+  .online-pcc-btn { font-size: 0.85rem !important; padding: 0.3em 0.7em !important; }
+  .online-panel .btn { font-size: 0.88rem; padding: 0.5em 1.4em; }
+  .online-panel .btn-large { font-size: 0.95rem; padding: 0.6em 1.7em; }
+  .online-status { font-size: 0.75rem; max-width: 300px; }
+}
+
+@media (max-width: 480px) {
+  .game-title { font-size: 2.2rem; margin-bottom: 2em; }
+  .title-card { width: 65px; height: 91px; }
+  .title-card-fan { top: 1.1rem; } /* half of 2.2rem */
+  .title-buttons .btn { width: 180px; }
+  .btn-play { font-size: 1rem; padding: 0.55em 1.8em; }
+  .btn-menu-size { font-size: 0.8rem; padding: 0.45em 1.3em; }
+  /* Online host/join screen — phone. Everything trimmed so the form fits
+     in portrait without scrolling, but still tap-target-sized (~44px). */
+  .online-title { font-size: 2.1rem; margin-bottom: 0; }
+  .online-panel { gap: 0.6em; padding: 0.8em 0.8em; }
+  .online-panel h2 { font-size: 1rem; margin-bottom: 0.3em; }
+  .online-tabs { gap: 0.4em; }
+  .online-tab { font-size: 0.8rem; padding: 0.4em 0.9em; }
+  .online-form { gap: 0.6em; max-width: 280px; }
+  .online-field label { font-size: 0.7rem; }
+  .online-field input { font-size: 0.95rem; padding: 0.55em 0.7em; }
+  .online-pcc { font-size: 1.1rem; gap: 0.7em; }
+  .online-pcc-btn {
+    font-size: 0.8rem !important;
+    padding: 0.3em 0.65em !important;
+    min-width: 1.9em;
+    min-height: 1.9em;
+  }
+  .online-panel .btn { font-size: 0.85rem; padding: 0.5em 1.3em; }
+  .online-panel .btn-large { font-size: 0.9rem; padding: 0.55em 1.5em; }
+  .online-status { font-size: 0.72rem; max-width: 280px; }
+  /* Results screen: compact for narrow phones — must fit 8 hands + scoreboard
+     + buttons in one screen with margin at top for notch/camera. */
+  #screen-results {
+    padding-top: max(env(safe-area-inset-top, 0.5rem), 0.5rem);
+    padding-bottom: env(safe-area-inset-bottom, 0.5rem);
+  }
+  .results-content { padding: 0.6em 0.5em; width: 96%; }
+  .results-winner { margin-bottom: 0.5em; }
+  .winner-avatar {
+    width: 2.8rem; height: 2.8rem;
+    border-width: 2px;
+    margin: 0 auto 0.3em;
+    box-shadow: 0 0 0.6rem var(--gold-glow);
+  }
+  .winner-name { font-size: 1.2rem; }
+  .winner-detail { font-size: 0.75rem; margin-top: 0.2em; }
+  .all-busted-msg { font-size: 1.05rem; margin-bottom: 0.3em; }
+  .results-hands { row-gap: 0.25em; margin-bottom: 0.5em; }
+  .result-hand { padding: 0.3em 0.5em; column-gap: 0.4em; border-radius: 0.4em; }
+  .result-hand-name { font-size: 0.7rem; }
+  .result-hand-cards { gap: 0.08em; }
+  .result-mini-card {
+    width: calc(0.85rem * var(--card-scale, 1));
+    height: calc(1.2rem * var(--card-scale, 1));
+    font-size: calc(0.55rem * var(--card-scale, 1));
+    border-radius: 0.12rem;
+  }
+  .result-hand-total { font-size: 0.9rem; }
+  .results-scoreboard { margin-bottom: 0.5em; }
+  .scoreboard-title { font-size: 0.85rem; margin-bottom: 0.25em; }
+  .scoreboard-table { font-size: 0.7rem; }
+  .scoreboard-table th { font-size: 0.6rem; padding: 0.15em 0.3em; }
+  .scoreboard-table td { padding: 0.2em 0.4em; }
+  .results-buttons { gap: 0.6em; }
+  .results-buttons .btn { font-size: 0.75rem; padding: 0.35em 1em; }
+}
+
+/* Landscape phone: tight vertical space — shrink everything so the results
+   screen fits without scrolling/cutoff. */
+@media (orientation: landscape) and (max-height: 500px) {
+  /* Anchor content to top instead of centering, so tall content doesn't
+     get clipped above the viewport. overflow-y: auto on #screen-results
+     provides scrolling if needed. */
+  #screen-results {
+    justify-content: flex-start;
+    padding-top: 0.4em;
+  }
+  .results-content { padding: 0.6em 0.8em; max-width: 94%; }
+  .results-winner { margin-bottom: 0.4em; }
+  .winner-avatar {
+    width: 2.8rem; height: 2.8rem;
+    border-width: 2px;
+    box-shadow: 0 0 0.6rem var(--gold-glow);
+    margin-bottom: 0.25em;
+  }
+  .winner-name { font-size: 1.15rem; }
+  .winner-detail { font-size: 0.7rem; margin-top: 0.15em; }
+  .all-busted-msg { font-size: 1rem; margin-bottom: 0.25em; }
+  .results-hands { row-gap: 0.2em; margin-bottom: 0.4em; }
+  .result-hand { padding: 0.2em 0.5em; column-gap: 0.4em; border-radius: 0.4em; }
+  .result-hand-name { font-size: 0.7rem; }
+  .result-hand-cards { gap: 0.08em; }
+  .result-mini-card {
+    width: calc(0.9rem * var(--card-scale, 1));
+    height: calc(1.28rem * var(--card-scale, 1));
+    font-size: calc(0.55rem * var(--card-scale, 1));
+    border-radius: 0.1rem;
+  }
+  .result-hand-total { font-size: 0.85rem; }
+  .results-scoreboard { margin-bottom: 0.4em; }
+  .scoreboard-title { font-size: 0.85rem; margin-bottom: 0.2em; }
+  .scoreboard-table { font-size: 0.7rem; }
+  .scoreboard-table th { font-size: 0.6rem; padding: 0.12em 0.3em; }
+  .scoreboard-table td { padding: 0.15em 0.3em; }
+  .results-buttons { gap: 0.5em; }
+  .results-buttons .btn { font-size: 0.75rem; padding: 0.3em 1em; }
+}
+
+/* ============================================================
+   ONLINE MULTIPLAYER STYLES
+   ============================================================ */
+
+/* ---------- Online Panel (Host/Join Screen) ----------
+   Uses the same rem + media-query tier pattern as the title screen so
+   fonts stay readable at phone sizes (vmin-based UI got tiny on
+   <=480px phones). Base values below are for desktop / >=1024px; the
+   media queries at the bottom of this file override for smaller tiers. */
+.online-title {
+  font-size: 4rem;
+  margin-bottom: -0.1em;
+}
+
+.online-panel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1em;
+  padding: 1.5em;
+  background: var(--bg-dark);
+  color: var(--text-light);
+  font-family: var(--font-body);
+  overflow-y: auto;
+}
+
+.online-panel h2 {
+  font-family: var(--font-display);
+  color: var(--gold-light);
+  font-size: 1.5rem;
+  margin-bottom: 0.4em;
+}
+
+.online-tabs {
+  display: flex;
+  gap: 0.5em;
+}
+
+.online-tab {
+  padding: 0.5em 1.4em;
+  font-size: 0.95rem;
+}
+
+.online-tab.active {
+  background: var(--gold);
+  color: #000;
+  border-color: var(--gold);
+}
+
+.online-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9em;
+  width: 100%;
+  max-width: 340px;
+}
+
+.online-field {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+
+.online-field label {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: center;
+}
+
+.online-field input {
+  padding: 0.7em 0.9em;
+  border: 1px solid var(--gold-dim);
+  border-radius: 0.3em;
+  background: rgba(255,255,255,0.08);
+  color: var(--text-light);
+  font-family: var(--font-body);
+  font-size: 1.1rem;
+}
+
+.online-field input:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0.4em var(--gold-glow);
+}
+
+.online-pcc {
+  justify-content: center;
+  gap: 0.9em;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--gold-light);
+}
+
+.online-pcc-btn {
+  font-size: 1rem !important;
+  padding: 0.35em 0.8em !important;
+  min-width: 2em;
+  min-height: 2em;
+  line-height: 1;
+}
+
+.online-status {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  min-height: 1.2em;
+  text-align: center;
+  max-width: 340px;
+  padding: 0 0.5em;
+  line-height: 1.4;
+}
+
+.online-status.error {
+  color: var(--bust-red);
+}
+
+.online-panel .btn {
+  font-size: 1rem;
+  padding: 0.55em 1.6em;
+}
+
+.online-panel .btn-large {
+  font-size: 1.1rem;
+  padding: 0.7em 2em;
+}
+
+/* ---------- Online Lobby ----------
+   Waiting message — anchored to the viewport center and shifted UP so it
+   sits ~10vmin above the deck card (which renders at table center =
+   50% + 1.5vmin). Font doubled from 1.2vmin to 2.4vmin and upgraded to
+   gold so it stands out against the dark felt. */
+.lobby-waiting {
+  position: absolute;
+  top: calc(50% - 10vmin);
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-display);
+  font-size: 2.4vmin;
+  color: var(--gold-light);
+  text-align: center;
+  z-index: 30;
+  letter-spacing: 0.05em;
+  text-shadow:
+    0 0 0.6vmin rgba(255, 220, 110, 0.55),
+    0 0 1.4vmin rgba(255, 205, 70, 0.3);
+  white-space: nowrap;
+}
+
+.lobby-info {
+  display: flex;
+  align-items: center;
+  gap: 0.6vmin;
+}
+
+.lobby-label {
+  font-family: var(--font-display);
+  font-size: 0.9vmin;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.lobby-code {
+  font-family: var(--font-display);
+  font-size: 1.7vmin;
+  font-weight: 900;
+  color: var(--gold-light);
+  letter-spacing: 0.15em;
+  background: rgba(212, 160, 23, 0.12);
+  padding: 0.08vmin 0.67vmin;
+  border-radius: 0.4vmin;
+  border: 0.14vmin solid var(--gold-dim);
+  user-select: all;
+}
+
+.lobby-player-count {
+  font-family: var(--font-display);
+  font-size: 0.9vmin;
+  color: var(--text-dim);
+  margin-left: 0.6vmin;
+}
+
+/* ---------- Lobby Waiting ---------- */
+@keyframes pulse-text {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.lobby-waiting {
+  animation: pulse-text 2s ease-in-out infinite;
+}
+
+/* ---------- Join Requests Overlay ---------- */
+.join-requests-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.join-requests-panel {
+  background: var(--bg-panel);
+  border: 0.14vmin solid var(--gold-dim);
+  border-radius: 0.83vmin;
+  padding: 1.7vmin;
+  max-width: 28vmin;
+  width: 90%;
+}
+
+.join-requests-panel h3 {
+  font-family: var(--font-display);
+  color: var(--gold-light);
+  margin-bottom: 1.1vmin;
+  text-align: center;
+  font-size: 1.2vmin;
+}
+
+.join-request-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6vmin;
+  padding: 0.9vmin;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 0.56vmin;
+  margin-bottom: 0.6vmin;
+}
+
+.join-request-info {
+  font-size: 1.1vmin;
+  color: var(--text-light);
+}
+
+.join-request-warning {
+  font-size: 0.9vmin;
+  color: var(--bust-red);
+}
+
+.join-request-buttons {
+  display: flex;
+  gap: 0.6vmin;
+  justify-content: flex-end;
+}
+
+.join-request-buttons .btn {
+  font-size: 0.9vmin;
+  padding: 0.4vmin 1vmin;
+}
+
+/* ---------- Device Leave Overlay (host decides AI/Human per player) ---------- */
+.device-leave-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 110;
+}
+
+.device-leave-panel {
+  background: var(--bg-panel);
+  border: 0.2vmin solid var(--gold-dim);
+  border-radius: 1vmin;
+  padding: 2vmin 2.2vmin;
+  max-width: 46vmin;
+  width: 92%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 0 3vmin rgba(255, 200, 60, 0.15);
+}
+
+.device-leave-panel h3 {
+  font-family: var(--font-display);
+  color: var(--gold-light);
+  margin: 0 0 0.5vmin 0;
+  text-align: center;
+  font-size: 2vmin;
+}
+
+.device-leave-subtitle {
+  font-size: 1.25vmin;
+  color: var(--text-dim);
+  text-align: center;
+  margin: 0 0 1.4vmin 0;
+  line-height: 1.4;
+}
+
+.device-leave-players {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8vmin;
+  margin-bottom: 1.4vmin;
+}
+
+.device-leave-player {
+  display: flex;
+  align-items: center;
+  gap: 1vmin;
+  padding: 0.8vmin 1vmin;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 0.6vmin;
+}
+
+.device-leave-player-avatar {
+  width: 4.5vmin;
+  height: 4.5vmin;
+  border-radius: 50%;
+  background: rgba(20,30,25,0.9);
+  border: 0.2vmin solid var(--wood-mid);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.device-leave-player-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.device-leave-player-name {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 1.5vmin;
+  color: var(--text-light);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.device-leave-toggle {
+  display: flex;
+  gap: 0.4vmin;
+  flex-shrink: 0;
+}
+
+.device-leave-toggle button {
+  font-family: var(--font-display);
+  font-size: 1.1vmin;
+  padding: 0.4vmin 1vmin;
+  border-radius: 0.4vmin;
+  background: transparent;
+  border: 1px solid var(--gold-dim);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.device-leave-toggle button:hover {
+  border-color: var(--gold);
+  color: var(--gold-light);
+}
+
+.device-leave-toggle button.selected {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #1a1a1a;
+  font-weight: 700;
+}
+
+.device-leave-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.8vmin;
+}
+
+.device-leave-actions .btn {
+  font-size: 1.3vmin;
+  padding: 0.6vmin 2vmin;
+}
+
+/* ---------- Game Toast (short notification for all players) ---------- */
+.game-toast {
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(20, 28, 22, 0.92);
+  border: 0.2vmin solid var(--gold-dim);
+  border-radius: 0.8vmin;
+  padding: 1vmin 2.2vmin;
+  font-family: var(--font-display);
+  font-size: 1.6vmin;
+  color: var(--gold-light);
+  letter-spacing: 0.03em;
+  text-align: center;
+  z-index: 120;
+  box-shadow: 0 0.4vmin 1.6vmin rgba(0, 0, 0, 0.5);
+  animation: gameToastIn 0.3s ease-out;
+  max-width: 60vmin;
+}
+
+@keyframes gameToastIn {
+  from { opacity: 0; transform: translate(-50%, -1vmin); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* ---------- Disband Overlay ---------- */
+.disband-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.disband-panel {
+  background: var(--bg-panel);
+  border: 0.14vmin solid var(--bust-red);
+  border-radius: 0.83vmin;
+  padding: 2.2vmin;
+  max-width: 28vmin;
+  width: 90%;
+  text-align: center;
+}
+
+.disband-message {
+  font-family: var(--font-body);
+  font-size: 1.2vmin;
+  color: var(--text-light);
+  margin-bottom: 1.7vmin;
+  line-height: 1.5;
+}
+
+.disband-panel .btn {
+  font-size: 1.1vmin;
+  padding: 0.5vmin 1.5vmin;
+}
+
+/* All online elements use vmin — no breakpoints needed */

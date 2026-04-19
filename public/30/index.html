@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>30 - A Card Game</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=88">
+</head>
+<body>
+
+  <!-- ========== TITLE SCREEN ========== -->
+  <div id="screen-title" class="screen active">
+    <div class="title-bg">
+      <div class="floating-suits"></div>
+    </div>
+    <div class="title-content">
+      <div class="title-card-fan">
+        <div class="title-card tc-1"></div>
+        <div class="title-card tc-2"></div>
+        <div class="title-card tc-3"></div>
+      </div>
+      <h1 class="game-title">30</h1>
+      <div class="title-buttons">
+        <button class="btn btn-gold btn-play" id="btn-play">Local Play</button>
+        <button class="btn btn-gold btn-play" id="btn-online">Online Play</button>
+        <button class="btn btn-outline btn-menu-size" id="btn-how-to-play">How to Play</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== HOW TO PLAY SCREEN ========== -->
+  <div id="screen-rules" class="screen">
+    <div class="rules-panel">
+      <h2>How to Play</h2>
+      <div class="rules-content">
+        <div class="rule-section">
+          <h3>Goal</h3>
+          <p>Get as close to <strong>30</strong> as possible without going over.</p>
+        </div>
+        <div class="rule-section">
+          <h3>Setup</h3>
+          <p>Each player is dealt <strong>3 cards</strong> from a standard deck.</p>
+          <p>Action moves clockwise with the dealer's turn last.</p>
+        </div>
+        <div class="rule-section">
+          <h3>Card Values</h3>
+          <p>Aces are worth <strong>1</strong>.</p>
+          <p>Numbered cards are worth their face value.</p>
+          <p>Jacks, Queens, and Kings are worth <strong>10</strong>.</p>
+        </div>
+        <div class="rule-section">
+          <h3>Gameplay</h3>
+          <p>On your turn, choose one of two actions:</p>
+          <p><strong>Draw</strong> &mdash; Take a card. Action moves to the next player.</p>
+          <p><strong>Stay</strong> &mdash; Lock in your hand for the round.</p>
+        </div>
+        <div class="rule-section">
+          <h3>Winning</h3>
+          <p>The player closest to 30 wins.</p>
+          <p>If tied, the player with <strong>more cards</strong> wins.</p>
+          <p>Still tied? The player who <strong>last drew a card</strong> wins.</p>
+        </div>
+      </div>
+      <div class="rules-back-row">
+        <button class="btn btn-gold" id="btn-rules-back">Back</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== ONLINE SCREEN (Host or Join) ========== -->
+  <div id="screen-online" class="screen">
+    <div class="online-panel">
+      <h1 class="game-title online-title">30</h1>
+      <h2>Online Play</h2>
+
+      <!-- Tab buttons -->
+      <div class="online-tabs">
+        <button class="btn btn-gold online-tab active" id="tab-host">Host a Game</button>
+        <button class="btn btn-outline online-tab" id="tab-join">Join a Game</button>
+      </div>
+
+      <!-- Host form -->
+      <div class="online-form" id="form-host">
+        <div class="online-field">
+          <label>Your Username</label>
+          <input type="text" id="host-username" maxlength="16" placeholder="Enter your name">
+        </div>
+        <div class="online-field">
+          <label>Players on This Device</label>
+          <div class="pcc-row online-pcc">
+            <button class="btn btn-gold btn-sm online-pcc-btn" id="host-fewer">&minus;</button>
+            <span id="host-player-count">1</span>
+            <button class="btn btn-gold btn-sm online-pcc-btn" id="host-more">+</button>
+          </div>
+        </div>
+        <button class="btn btn-gold btn-large" id="btn-create-room">Create Room</button>
+        <div class="online-status" id="host-status"></div>
+      </div>
+
+      <!-- Join form -->
+      <div class="online-form" id="form-join" style="display:none">
+        <div class="online-field">
+          <label>Room Code</label>
+          <input type="text" id="join-room-code" maxlength="4" placeholder="ABCD" style="text-transform:uppercase; letter-spacing:0.3em; text-align:center;">
+        </div>
+        <div class="online-field">
+          <label>Your Username</label>
+          <input type="text" id="join-username" maxlength="16" placeholder="Enter your name">
+        </div>
+        <div class="online-field">
+          <label>Players on This Device</label>
+          <div class="pcc-row online-pcc">
+            <button class="btn btn-gold btn-sm online-pcc-btn" id="join-fewer">&minus;</button>
+            <span id="join-player-count">1</span>
+            <button class="btn btn-gold btn-sm online-pcc-btn" id="join-more">+</button>
+          </div>
+        </div>
+        <button class="btn btn-gold btn-large" id="btn-join-room">Join Room</button>
+        <div class="online-status" id="join-status"></div>
+      </div>
+
+      <button class="btn btn-outline" id="btn-online-back">Back</button>
+    </div>
+  </div>
+
+  <!-- ========== ONLINE LOBBY SCREEN (uses game screen canvas) ========== -->
+  <div id="screen-online-lobby" class="screen">
+    <!-- Reuse same screen structure as game screen for table rendering -->
+  </div>
+
+  <!-- ========== GAME SCREEN (setup + gameplay combined) ========== -->
+  <div id="screen-game" class="screen">
+    <!-- Game HUD (floating elements, no background bar) -->
+    <div class="game-hud" id="game-hud" style="display:none">
+      <div class="hud-round">
+        <span class="hud-label">Round:</span>
+        <span class="hud-value" id="hud-round">1</span>
+      </div>
+      <div class="hud-left">
+        <span id="hud-message"></span>
+      </div>
+      <button class="btn btn-outline btn-action-menu" id="btn-menu">Main Menu</button>
+    </div>
+
+    <!-- Setup bar (title + menu, no background, visible during setup) -->
+    <div class="setup-header" id="setup-header">
+      <h2 id="setup-title">Game Setup</h2>
+      <button class="btn btn-outline btn-action-menu" id="btn-setup-back">Main Menu</button>
+    </div>
+
+    <!-- Player count control (above table center) -->
+    <div class="player-count-control" id="player-count-control" style="display:none">
+      <label class="pcc-label">Players:</label>
+      <div class="pcc-row">
+        <button class="btn btn-gold btn-large" id="btn-fewer">&minus;</button>
+        <span id="player-count-display">2</span>
+        <button class="btn btn-gold btn-large" id="btn-more">+</button>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <div class="card-table game-table">
+        <canvas id="game-canvas"></canvas>
+        <div class="table-felt">
+          <div class="table-logo">30</div>
+        </div>
+        <div class="seats-ring" id="seats-ring">
+          <!-- Seats generated by JS (setup or game phase) -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Deal button (floating over table center, visible during setup) -->
+    <button class="btn btn-gold btn-large setup-deal-btn" id="btn-deal" disabled>Deal!</button>
+
+    <!-- Draw/Stay buttons (positioned at human player's sides) -->
+    <div class="game-actions" id="game-actions" style="display:none">
+      <button class="btn btn-draw" id="btn-draw">Draw</button>
+      <button class="btn btn-stay" id="btn-stay">Stay</button>
+    </div>
+
+    <!-- Cards Remaining (below deck, visible during gameplay) -->
+    <div class="deck-info" id="deck-info" style="display:none">
+      <span class="deck-info-label">Cards Remaining:</span>
+      <span class="deck-info-value" id="hud-deck">52</span>
+    </div>
+
+    <!-- Online lobby header (visible during online lobby phase) -->
+    <div class="setup-header" id="online-lobby-header" style="display:none">
+      <div class="lobby-info">
+        <span class="lobby-label">Room:</span>
+        <span class="lobby-code" id="online-room-code">----</span>
+        <span class="lobby-player-count" id="online-player-count">0/8 Players</span>
+      </div>
+      <button class="btn btn-outline btn-action-menu" id="btn-leave-room">Leave Room</button>
+    </div>
+
+    <!-- Online Deal button (host only, floating over table center) -->
+    <button class="btn btn-gold btn-large setup-deal-btn" id="btn-online-deal" style="display:none" disabled>Deal!</button>
+
+    <!-- Waiting message (guest, floating over table center) -->
+    <div class="lobby-waiting" id="lobby-waiting" style="display:none">
+      Waiting for host to start the game...
+    </div>
+
+    <!-- Join request popup (host only) -->
+    <div class="join-requests-overlay" id="join-requests" style="display:none">
+      <div class="join-requests-panel">
+        <h3>Join Requests</h3>
+        <div class="join-request-list"></div>
+      </div>
+    </div>
+
+    <!-- Device-leave popup (host only). Shown when another device leaves
+         (explicit Leave Room or 5-min grace period expiring). Host picks
+         AI-auto-play or Human (host-controlled) per departed player. -->
+    <div class="device-leave-overlay" id="device-leave-overlay" style="display:none">
+      <div class="device-leave-panel">
+        <h3 id="device-leave-title">A player has left</h3>
+        <p class="device-leave-subtitle">Choose how to handle each of their players:</p>
+        <div class="device-leave-players" id="device-leave-players"></div>
+        <div class="device-leave-actions">
+          <button class="btn btn-gold" id="btn-device-leave-confirm">Apply</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Global toast banner — short notification shown to all players
+         when something room-level happens (e.g. a device leaving).
+         Auto-dismisses after a few seconds. -->
+    <div class="game-toast" id="game-toast" style="display:none"></div>
+
+    <!-- Online animal picker overlay -->
+    <div class="character-picker" id="online-animal-picker" style="display:none">
+      <div class="picker-panel">
+        <h3>Choose Your Character</h3>
+        <div class="picker-grid"></div>
+        <button class="btn btn-outline btn-sm btn-picker-cancel-online">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Leave room confirm -->
+    <div class="confirm-overlay" id="confirm-leave-room" style="display:none">
+      <div class="confirm-panel">
+        <p class="confirm-title" id="leave-room-title">Leave Room?</p>
+        <p class="confirm-sub" id="leave-room-sub">This will disband the room for all players.</p>
+        <div class="confirm-buttons">
+          <button class="btn btn-gold" id="btn-confirm-leave-yes">Yes, Leave</button>
+          <button class="btn btn-outline" id="btn-confirm-leave-no">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Character picker overlay -->
+    <div class="character-picker" id="character-picker" style="display:none">
+      <div class="picker-panel">
+        <h3>Choose Your Character</h3>
+        <div class="picker-grid" id="picker-grid"></div>
+        <button class="btn btn-outline btn-sm" id="btn-picker-cancel">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Confirm exit overlay -->
+    <div class="confirm-overlay" id="confirm-exit" style="display:none">
+      <div class="confirm-panel">
+        <p class="confirm-title" id="exit-title">Return to Main Menu?</p>
+        <p class="confirm-sub" id="exit-sub">Your current game will be lost.</p>
+        <div class="confirm-buttons">
+          <button class="btn btn-gold" id="btn-confirm-yes">Yes, Exit</button>
+          <button class="btn btn-outline" id="btn-confirm-no">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== RESULTS SCREEN ========== -->
+  <div id="screen-results" class="screen">
+    <div class="results-content">
+      <div class="results-winner" id="results-winner"></div>
+      <div class="results-hands" id="results-hands"></div>
+      <div class="results-scoreboard" id="results-scoreboard"></div>
+      <div class="results-buttons">
+        <button class="btn btn-gold btn-large" id="btn-play-again">Play Again</button>
+        <button class="btn btn-outline btn-large" id="btn-new-game">Main Menu</button>
+      </div>
+    </div>
+    <div class="confetti-container" id="confetti-container"></div>
+    <!-- Confirm exit overlay (results) -->
+    <div class="confirm-overlay" id="confirm-exit-results" style="display:none">
+      <div class="confirm-panel">
+        <p class="confirm-title" id="exit-results-title">Return to Main Menu?</p>
+        <p class="confirm-sub" id="exit-results-sub">Your current game will be lost.</p>
+        <div class="confirm-buttons">
+          <button class="btn btn-gold" id="btn-confirm-results-yes">Yes, Exit</button>
+          <button class="btn btn-outline" id="btn-confirm-results-no">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== DISBAND OVERLAY (global) ========== -->
+  <div class="disband-overlay" id="disband-overlay" style="display:none">
+    <div class="disband-panel">
+      <p class="disband-message">Room has been disbanded.</p>
+      <button class="btn btn-gold" id="btn-disband-ok">OK</button>
+    </div>
+  </div>
+
+  <!-- Scripts in dependency order. PeerJS removed in v88 — online play
+       now uses a plain WebSocket client (js/network.js) talking to the
+       central Ladybug Gamez relay server. -->
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js@8/dist/pixi.min.js"></script>
+  <script src="js/sprites.js?v=88"></script>
+  <script src="js/cards.js?v=88"></script>
+  <script src="js/game.js?v=88"></script>
+  <script src="js/animations.js?v=88"></script>
+  <script src="js/textures.js?v=88"></script>
+  <script src="js/renderer.js?v=88"></script>
+  <script src="js/save.js?v=88"></script>
+  <script src="js/network.js?v=88"></script>
+  <script src="js/online.js?v=88"></script>
+  <script src="js/ui.js?v=88"></script>
+
+</body>
+</html>
