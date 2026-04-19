@@ -314,8 +314,8 @@ var UI = (function () {
         var sub = document.getElementById('exit-sub');
         title.textContent = 'Leave Room?';
         sub.textContent = Online.isHost()
-          ? 'This will disband the room for all players.'
-          : 'This will disband the room for all players.';
+          ? 'You\u2019re the host \u2014 leaving will end the game for everyone.'
+          : 'Your players will leave. The game keeps going for everyone else.';
       } else {
         var title2 = document.getElementById('exit-title');
         var sub2 = document.getElementById('exit-sub');
@@ -355,8 +355,8 @@ var UI = (function () {
         var sub = document.getElementById('exit-results-sub');
         title.textContent = 'Leave Room?';
         sub.textContent = Online.isHost()
-          ? 'This will disband the room for all players.'
-          : 'This will disband the room for all players.';
+          ? 'You\u2019re the host \u2014 leaving will end the game for everyone.'
+          : 'Your players will leave. The game keeps going for everyone else.';
       }
       document.getElementById('confirm-exit-results').style.display = 'flex';
     });
@@ -960,12 +960,28 @@ var UI = (function () {
     // Refresh display
     var gs = Game.getState();
 
-    // Rebuild hand display from deserialized state
+    // Rebuild hand display from deserialized state. We used to bail out
+    // when lengths matched, but that was wrong: the guest's own
+    // Game.newRound() at deal time produces a RANDOM local hand (guest's
+    // deck shuffle ≠ host's deck shuffle), so the lengths still match
+    // while the actual card ranks/suits differ. We now compare card by
+    // card and rebuild when ANY position doesn't match.
     for (var i = 0; i < gs.players.length; i++) {
       var pid = gs.players[i].id;
       var hand = Game.getHand(pid);
-      // Only rebuild if the card count has changed
-      if (!handDisplay[pid] || handDisplay[pid].length !== hand.cards.length) {
+      var existing = handDisplay[pid];
+      var needsRebuild = !existing || existing.length !== hand.cards.length;
+      if (!needsRebuild) {
+        for (var k = 0; k < hand.cards.length; k++) {
+          var ex = existing[k] && existing[k].card;
+          var want = hand.cards[k];
+          if (!ex || !want || ex.rank !== want.rank || ex.suit !== want.suit) {
+            needsRebuild = true;
+            break;
+          }
+        }
+      }
+      if (needsRebuild) {
         handDisplay[pid] = [];
         for (var c = 0; c < hand.cards.length; c++) {
           handDisplay[pid].push({ card: hand.cards[c], faceUp: true });
@@ -1500,6 +1516,18 @@ var UI = (function () {
 
   function beginNewRound() {
     var roundData = Game.newRound();
+
+    // Online host: push the authoritative post-deal state to guests
+    // immediately. Guests will ALSO have run Game.newRound() locally
+    // (against their own RNG-shuffled decks) so their hands currently
+    // differ — the state sync arriving before their deal animation
+    // finishes lets onlineHandleStateSync replace their random cards
+    // with the host's actual cards (via the new card-by-card compare
+    // in handleStateSync). Without this, the guest would show wrong
+    // cards for the entire round.
+    if (Online.isActive() && Online.isHost()) {
+      syncGameStateToGuests();
+    }
 
     // Switch to playing phase (stays on game screen)
     gamePhase = 'playing';
