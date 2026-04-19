@@ -1640,13 +1640,16 @@ html, body {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 3.6vmin;
-  height: 3.6vmin;
+  /* Diameter 4.3vmin = 20% bigger than the previous 3.6vmin, giving
+     the digits clear breathing room inside the ring. Border scales
+     proportionally. */
+  width: 4.3vmin;
+  height: 4.3vmin;
   transform: translate(-50%, -50%);
   border-radius: 50%;
   background: transparent;                /* center stays transparent;
                                              digits underneath show through */
-  border: 0.28vmin solid rgba(255, 215, 85, 0.92);
+  border: 0.33vmin solid rgba(255, 215, 85, 0.92);
   pointer-events: none;
   box-shadow:
     0 0 12px  rgba(255, 225, 110, 0.95),

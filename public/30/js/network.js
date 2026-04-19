@@ -44,6 +44,12 @@ var Network = (function () {
   var myPeerId = '';
   var roomCode = '';
   var connectedToRoom = false;
+  var userInitiatedClose = false; // true after disconnect() / kicked / disband
+
+  // Reconnect state for socket-level drops (screen lock, Wi-Fi blip etc.)
+  var reconnectTimer = null;
+  var reconnectAttempt = 0;
+  var reconnectInFlight = false;
 
   // Pending promises for createRoom / joinRoom
   var createResolve = null, createReject = null;
@@ -105,6 +111,8 @@ var Network = (function () {
   // ---- Public: Create Room (host) ----
   function createRoom(username) {
     _isHost = true;
+    userInitiatedClose = false;
+    cancelReconnect();
     return new Promise(function (resolve, reject) {
       createResolve = resolve;
       createReject = reject;
@@ -122,6 +130,8 @@ var Network = (function () {
   // ---- Public: Join Room (guest) ----
   function joinRoom(code, username, playerCount) {
     _isHost = false;
+    userInitiatedClose = false;
+    cancelReconnect();
     pendingJoinCode = (code || '').toUpperCase();
     pendingUsername = username || '';
     pendingPlayerCount = playerCount || 1;
@@ -165,6 +175,8 @@ var Network = (function () {
 
   // ---- Public: Leave / Kick ----
   function disconnect() {
+    userInitiatedClose = true;
+    cancelReconnect();
     connectedToRoom = false;
     if (ws) {
       try { wsSend({ type: 'leave_room' }); } catch (e) {}
@@ -252,6 +264,28 @@ var Network = (function () {
         break;
 
       case 'kicked':
+        userInitiatedClose = true;
+        if (disconnectHandler) disconnectHandler('host');
+        connectedToRoom = false;
+        break;
+
+      case 'reclaimed':
+        // Server confirmed we retook our old peerId after a reconnect.
+        // From the app's perspective we just resumed — no new join flow.
+        myPeerId = data.peerId || myPeerId;
+        roomCode = data.roomCode || roomCode;
+        connectedToRoom = true;
+        reconnectAttempt = 0;
+        console.log('[Network] Reclaimed peerId', myPeerId, 'in room', roomCode);
+        // Let the app layer know we're back so it can re-announce state.
+        if (reconnectHandler) reconnectHandler('self');
+        break;
+
+      case 'reclaim_failed':
+        // Our old peerId is no longer valid (grace expired or room gone).
+        // Surface as a disconnect so the app can show the disband dialog.
+        console.warn('[Network] Reclaim failed:', data && data.reason);
+        userInitiatedClose = true;
         if (disconnectHandler) disconnectHandler('host');
         connectedToRoom = false;
         break;
@@ -274,25 +308,91 @@ var Network = (function () {
     if (joinReject && !connectedToRoom) {
       joinReject(new Error('Lost connection to the game server.'));
       joinReject = null; joinResolve = null;
+      return;
     }
-    // If we were connected to a room, surface as a disconnect. The app
-    // layer will treat this as a host-level drop (for guests) and can
-    // decide whether to show a "reconnecting..." UI.
-    if (connectedToRoom) {
+    // If the close was INTENTIONAL (disconnect() called, kicked, or
+    // reclaim_failed) — don't reconnect, just tear down.
+    if (userInitiatedClose) {
+      userInitiatedClose = false;
+      if (connectedToRoom) {
+        connectedToRoom = false;
+        if (disconnectHandler) disconnectHandler('host');
+      }
+      return;
+    }
+    // Otherwise the socket dropped unexpectedly (screen lock, Wi-Fi
+    // blip, server restart, etc.). Try to reconnect and reclaim our
+    // old peerId within the 5-minute server grace window so the room
+    // doesn't disband. If we weren't in a room, don't bother.
+    if (myPeerId && roomCode) {
+      scheduleReconnect();
+    } else {
       connectedToRoom = false;
-      if (disconnectHandler) disconnectHandler('host');
     }
   }
 
-  // ---- Page-visibility handling (mobile wake-up) ----
+  function scheduleReconnect() {
+    if (reconnectInFlight) return;
+    // Exponential backoff: 1s, 2s, 4s, 8s, then every 15s up to ~5 min
+    // (roughly matching the server's grace window).
+    var backoff = Math.min(1000 * Math.pow(2, reconnectAttempt), 15000);
+    reconnectAttempt++;
+    console.log('[Network] Reconnect attempt #' + reconnectAttempt + ' in ' + backoff + 'ms');
+    reconnectInFlight = true;
+    reconnectTimer = setTimeout(function () {
+      reconnectInFlight = false;
+      doReconnect();
+    }, backoff);
+  }
+
+  function cancelReconnect() {
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+    reconnectInFlight = false;
+    reconnectAttempt = 0;
+  }
+
+  function doReconnect() {
+    var savedPeerId = myPeerId;
+    var savedRoom = roomCode;
+    if (!savedPeerId || !savedRoom) return;
+    console.log('[Network] Attempting reconnect; reclaiming peerId', savedPeerId);
+    openSocket(function () {
+      // Socket is open — send reclaim as first message.
+      wsSend({ type: 'reclaim', data: { peerId: savedPeerId, roomCode: savedRoom } });
+      // If the server responds with reclaim_failed, handleServerMessage
+      // will fire disconnectHandler. If it responds with `reclaimed`,
+      // we're back in business.
+    }, function () {
+      // Socket open failed — try again.
+      if (reconnectAttempt < 20) scheduleReconnect();
+      else {
+        console.warn('[Network] Gave up reconnecting after', reconnectAttempt, 'attempts');
+        reconnectAttempt = 0;
+        if (connectedToRoom) {
+          connectedToRoom = false;
+          if (disconnectHandler) disconnectHandler('host');
+        }
+      }
+    });
+  }
+
+  // When the page regains visibility (phone wakes, tab becomes active),
+  // a dead socket may not fire `close` for a while. Force a quick check
+  // and trigger a reconnect if we're holding a dead connection.
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState !== 'visible') return;
-    // If the socket died while we were backgrounded, the app-layer's
-    // reconnect logic (online.js) will tear down and the user can manually
-    // rejoin. We don't auto-reconnect here in v1 because host-side state
-    // may have already moved on.
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      console.log('[Network] Page visible — socket is closed.');
+    if (userInitiatedClose) return;
+    // If we think we're connected but the socket is dead or closing,
+    // kick a reconnect now instead of waiting for the server heartbeat
+    // to notice 20+ seconds from now.
+    if (myPeerId && roomCode && (!ws || ws.readyState >= WebSocket.CLOSING)) {
+      console.log('[Network] Page visible — socket is dead, reconnecting now');
+      cancelReconnect();
+      doReconnect();
+    } else if (ws && ws.readyState === WebSocket.OPEN) {
+      // Socket thinks it's open — send an immediate ping so if it's
+      // actually half-closed we find out quickly.
+      wsSend({ type: '_ping' });
     }
   });
 

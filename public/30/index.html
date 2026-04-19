@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=90">
+  <link rel="stylesheet" href="css/style.css?v=91">
 </head>
 <body>
 
@@ -106,7 +106,7 @@
       <div class="online-form" id="form-join" style="display:none">
         <div class="online-field">
           <label>Room Code</label>
-          <input type="text" id="join-room-code" maxlength="4" placeholder="ABCD" style="text-transform:uppercase; letter-spacing:0.3em; text-align:center;">
+          <input type="text" id="join-room-code" maxlength="3" placeholder="ABC" style="text-transform:uppercase; letter-spacing:0.3em; text-align:center;">
         </div>
         <div class="online-field">
           <label>Your Username</label>
@@ -248,7 +248,7 @@
     <div class="confirm-overlay" id="confirm-leave-room" style="display:none">
       <div class="confirm-panel">
         <p class="confirm-title" id="leave-room-title">Leave Room?</p>
-        <p class="confirm-sub" id="leave-room-sub">This will disband the room for all players.</p>
+        <p class="confirm-sub" id="leave-room-sub">Your players will leave. The game keeps going for everyone else.</p>
         <div class="confirm-buttons">
           <button class="btn btn-gold" id="btn-confirm-leave-yes">Yes, Leave</button>
           <button class="btn btn-outline" id="btn-confirm-leave-no">Cancel</button>
@@ -315,16 +315,16 @@
        now uses a plain WebSocket client (js/network.js) talking to the
        central Ladybug Gamez relay server. -->
   <script src="https://cdn.jsdelivr.net/npm/pixi.js@8/dist/pixi.min.js"></script>
-  <script src="js/sprites.js?v=90"></script>
-  <script src="js/cards.js?v=90"></script>
-  <script src="js/game.js?v=90"></script>
-  <script src="js/animations.js?v=90"></script>
-  <script src="js/textures.js?v=90"></script>
-  <script src="js/renderer.js?v=90"></script>
-  <script src="js/save.js?v=90"></script>
-  <script src="js/network.js?v=90"></script>
-  <script src="js/online.js?v=90"></script>
-  <script src="js/ui.js?v=90"></script>
+  <script src="js/sprites.js?v=91"></script>
+  <script src="js/cards.js?v=91"></script>
+  <script src="js/game.js?v=91"></script>
+  <script src="js/animations.js?v=91"></script>
+  <script src="js/textures.js?v=91"></script>
+  <script src="js/renderer.js?v=91"></script>
+  <script src="js/save.js?v=91"></script>
+  <script src="js/network.js?v=91"></script>
+  <script src="js/online.js?v=91"></script>
+  <script src="js/ui.js?v=91"></script>
 
 </body>
 </html>

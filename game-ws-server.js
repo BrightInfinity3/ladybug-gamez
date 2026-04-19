@@ -42,7 +42,7 @@ const crypto = require('crypto');
 function genRoomCode() {
   const alpha = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
-  for (let i = 0; i < 4; i++) code += alpha[Math.floor(Math.random() * alpha.length)];
+  for (let i = 0; i < 3; i++) code += alpha[Math.floor(Math.random() * alpha.length)];
   return code;
 }
 
@@ -179,6 +179,48 @@ function attachGameWebSocketServer(httpServer, options) {
     removePeer(room, peerId, 'left');
   }
 
+  // Reclaim an existing peerId after the client's socket was dropped
+  // and reopened (e.g. mobile screen lock / Wi-Fi blip). The client
+  // sends its previously-assigned peerId + roomCode; if that peer is
+  // still within the reconnect-grace window, we swap its socket to
+  // the new connection and broadcast peer_resumed. Guests and hosts
+  // can both reclaim — this is how the host survives a screen-lock
+  // without tearing the room down.
+  function onReclaim(ws, tempPeerId, data) {
+    const claimedId = data && data.peerId;
+    const claimedRoom = data && data.roomCode;
+    if (!claimedId) {
+      safeSend(ws, { type: 'reclaim_failed', data: { reason: 'missing peerId' } });
+      return;
+    }
+    const stillIndexed = peerRoom.get(claimedId);
+    if (!stillIndexed || (claimedRoom && stillIndexed !== claimedRoom)) {
+      safeSend(ws, { type: 'reclaim_failed', data: { reason: 'not found' } });
+      return;
+    }
+    const room = rooms.get(stillIndexed);
+    if (!room || !room.peers[claimedId]) {
+      safeSend(ws, { type: 'reclaim_failed', data: { reason: 'not found' } });
+      return;
+    }
+    const entry = room.peers[claimedId];
+    // Cancel any grace / final-drop timer — they're back.
+    if (entry.graceTimer) { clearTimeout(entry.graceTimer); entry.graceTimer = null; }
+    // Close the old socket if it's somehow still open (shouldn't be).
+    if (entry.socket && entry.socket !== ws && entry.socket.readyState === WebSocket.OPEN) {
+      try { entry.socket.close(1000, 'replaced by reclaim'); } catch (e) {}
+    }
+    // Swap the socket. Note tempPeerId was never in peerRoom (we only
+    // add on create/join/reclaim), so no cleanup there.
+    entry.socket = ws;
+    ws._peerId = claimedId;
+    ws._roomCode = stillIndexed;
+    entry.lastSeen = Date.now();
+    safeSend(ws, { type: 'reclaimed', data: { peerId: claimedId, roomCode: stillIndexed, isHost: claimedId === room.hostPeerId } });
+    broadcastToRoom(room, { type: 'peer_resumed', data: { peerId: claimedId } }, claimedId);
+    log(`peer ${claimedId} reclaimed in ${stillIndexed} (was temp ${tempPeerId})`);
+  }
+
   function onKick(room, fromPeerId, data) {
     if (fromPeerId !== room.hostPeerId) return;
     const target = data && data.peerId;
@@ -222,14 +264,13 @@ function attachGameWebSocketServer(httpServer, options) {
     broadcastToRoom(room, { type: 'peer_paused', data: { peerId } }, peerId);
     log(`peer ${peerId} paused in ${code}`);
 
-    // If the HOST's socket closed, disband immediately — there's no path
-    // for them to resume on a new socket in v1. (We could add host
-    // reconnect later by letting the re-opened socket reclaim the peerId.)
-    if (peerId === room.hostPeerId) {
-      disbandRoom(code, 'Host disconnected.');
-      return;
-    }
-
+    // For BOTH host and guest: wait out the grace window instead of
+    // kicking immediately. A `reclaim` message on a new socket within
+    // the window reclaims this peer's slot (and any game state they
+    // held as host). If nobody reclaims within RECONNECT_GRACE_MS,
+    // removePeer fires — and if the departed peer was the host, that
+    // triggers the full room disband. This is what saves a mobile
+    // device briefly losing the socket when the screen locks.
     p.graceTimer = setTimeout(() => {
       removePeer(room, peerId, 'timed_out');
     }, RECONNECT_GRACE_MS);
@@ -265,6 +306,10 @@ function attachGameWebSocketServer(httpServer, options) {
           case 'join_room':
             if (room) { safeSend(ws, { type: 'error', data: { message: 'already in a room' } }); return; }
             onJoinRoom(ws, peerId, data);
+            break;
+          case 'reclaim':
+            if (room) { safeSend(ws, { type: 'error', data: { message: 'already in a room' } }); return; }
+            onReclaim(ws, peerId, data);
             break;
           case 'leave_room':
             if (room) onLeaveRoom(room, peerId);

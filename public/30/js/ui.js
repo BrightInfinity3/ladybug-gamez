@@ -529,8 +529,8 @@ var UI = (function () {
     document.getElementById('btn-join-room').addEventListener('click', function () {
       var code = document.getElementById('join-room-code').value.trim().toUpperCase();
       var username = document.getElementById('join-username').value.trim();
-      if (!code || code.length !== 4) {
-        document.getElementById('join-status').textContent = 'Please enter a 4-character room code.';
+      if (!code || code.length !== 3) {
+        document.getElementById('join-status').textContent = 'Please enter a 3-character room code.';
         document.getElementById('join-status').className = 'online-status error';
         return;
       }
@@ -583,16 +583,20 @@ var UI = (function () {
       Online.startOnlineGame();
     });
 
-    // Leave Room button
+    // Leave Room button — warn honestly about what happens when you
+    // leave. Guests just leave; the game keeps going for everyone else.
+    // Hosts CAN'T currently hand off the room, so their leave does end
+    // the game for everyone (the server tears the room down the moment
+    // the host's socket closes).
     document.getElementById('btn-leave-room').addEventListener('click', function () {
       var title = document.getElementById('leave-room-title');
       var sub = document.getElementById('leave-room-sub');
       if (Online.isHost()) {
         title.textContent = 'Leave Room?';
-        sub.textContent = 'This will disband the room for all players.';
+        sub.textContent = 'You\u2019re the host \u2014 leaving will end the game for everyone.';
       } else {
         title.textContent = 'Leave Room?';
-        sub.textContent = 'You will be removed from this game.';
+        sub.textContent = 'Your players will leave. The game keeps going for everyone else.';
       }
       document.getElementById('confirm-leave-room').style.display = 'flex';
     });
