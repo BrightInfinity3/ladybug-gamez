@@ -1172,10 +1172,12 @@ html, body {
   gap: 0.3vmin;
 }
 
-.hud-round > .hud-label,
-.hud-round > .hud-value {
-  /* First row: "Round: X" sits on one line */
-  display: inline;
+/* Round-label row (the original "Round: X" layout — same as before
+   the room-code addition, just wrapped in its own row container). */
+.hud-round-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4vmin;
 }
 
 /* Room-code row — only visible in online mode, sits directly below
@@ -1185,7 +1187,6 @@ html, body {
   display: flex;
   align-items: center;
   gap: 0.4vmin;
-  margin-top: 0.1vmin;
 }
 .hud-room-row .hud-label {
   font-size: 1.4vmin;

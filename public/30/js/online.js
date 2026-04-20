@@ -502,21 +502,17 @@ var Online = (function () {
       renderOnlineLobby();
       renderJoinRequests();
     } else {
-      // v96 during game: DON'T auto-play, DON'T open a modal. The seats
-      // stay in place with deviceId pointing at the now-gone peer —
-      // their badge shows "?" and their turn simply stalls. The host
-      // handles them by clicking the avatar and picking a new
-      // controller from the reassign popup (AI, host, or another
-      // connected joiner).
-      delete lobbyState.devices[peerId];
-      broadcastLobbyState();
-      broadcastPlayerLeftNotice(uname + ' has left — click their avatar to reassign.');
+      // v97 during game: open the BLOCKING reassign modal on the host
+      // immediately. The host must pick a new controller (AI, Host, or
+      // any connected joiner) for each of the departed device's seats
+      // before gameplay continues. Without this, the game effectively
+      // freezes when the departed player's turn comes up.
+      startPendingLeave(peerId, /*definitive=*/true);
     }
 
     // Clean up timers in case any are still live.
     if (autoplayTimers[peerId]) { clearTimeout(autoplayTimers[peerId]); delete autoplayTimers[peerId]; }
     if (pauseModalTimers[peerId]) { clearTimeout(pauseModalTimers[peerId]); delete pauseModalTimers[peerId]; }
-    if (pendingLeaves[peerId]) { delete pendingLeaves[peerId]; renderDeviceLeaveModal(); }
   }
 
   function handleGuestLeave(peerId) {
@@ -560,19 +556,21 @@ var Online = (function () {
     if (typeof onHostAutoPlayCallback === 'function') onHostAutoPlayCallback();
   }
 
-  // Toggle an AI/human choice for one seat inside the pending-leave modal.
+  // Store a choice for one seat inside the pending-leave modal. The
+  // choice is either the string 'ai' or a peerId of a connected device
+  // (host's peerId for host-controlled, or any other joiner).
   function setLeaveDecision(peerId, seatIdx, choice) {
     var p = pendingLeaves[peerId];
     if (!p) return;
-    if (choice !== 'ai' && choice !== 'human') return;
+    if (choice !== 'ai' && !lobbyState.devices[choice]) return;
     p.decisions[seatIdx] = choice;
     renderDeviceLeaveModal();
   }
 
-  // Apply all choices in the pending-leave modal for one peer.
-  // Human choices transfer ownership to the HOST's device (host plays them
-  // manually going forward). AI choices flip isAI on, so the normal AI
-  // turn logic handles them.
+  // Apply all choices in the pending-leave modal for one peer. For each
+  // departed seat, route control to either AI or one of the connected
+  // devices (host OR another joiner). Updates both lobbyState AND the
+  // live Game.players so turn routing switches immediately.
   function applyLeaveDecisions(peerId) {
     var p = pendingLeaves[peerId];
     if (!p) return;
@@ -581,21 +579,17 @@ var Online = (function () {
       var seat = lobbyState.seats[idx];
       if (!seat) continue;
       var choice = p.decisions[idx];
-      if (choice === 'human') {
-        // Host takes over — seat becomes owned by the host device.
-        seat.deviceId = myDeviceId;
-        seat.isHuman = true;
-        seat.isAI = false;
-        // Mirror onto the live Game player record so turn routing updates
-        // immediately (otherwise Online.isMyPlayer still returns false
-        // for the old deviceId until next round).
-        updateLivePlayerForSeat(idx, myDeviceId, /*isAI=*/false);
-      } else {
-        // Auto-play by AI.
+      if (choice === 'ai') {
         seat.isHuman = false;
         seat.isAI = true;
         seat.deviceId = null;
         updateLivePlayerForSeat(idx, null, /*isAI=*/true);
+      } else if (lobbyState.devices[choice]) {
+        // 'choice' is a peerId (host's own or another connected joiner).
+        seat.deviceId = choice;
+        seat.isHuman = true;
+        seat.isAI = false;
+        updateLivePlayerForSeat(idx, choice, /*isAI=*/false);
       }
     }
     // Remove the departed device from the device list — its seats are
@@ -603,6 +597,12 @@ var Online = (function () {
     delete lobbyState.devices[peerId];
     delete pendingLeaves[peerId];
     broadcastLobbyState();
+    // Push the fresh game state so all guests know about the new
+    // controllers (their local Game.players needs updating for turn
+    // routing). Same reason we do this inside assignSeatController.
+    if (gamePhase === 'playing') {
+      broadcastGameStateSync({ gameState: Game.serialize() });
+    }
     renderDeviceLeaveModal();
     // Kick the turn loop in case the current turn is one we just reassigned.
     if (typeof onHostAutoPlayCallback === 'function') onHostAutoPlayCallback();
@@ -625,8 +625,10 @@ var Online = (function () {
     }
   }
 
-  // Render the host-side "device left — choose AI/human" modal. If there
-  // are no pending leaves, the modal is hidden.
+  // Render the host-side "device left — choose controller per seat"
+  // modal. Each seat gets buttons for AI, Host, and every other
+  // connected joiner. Modal is blocking: gameplay can't continue
+  // until Apply is clicked.
   function renderDeviceLeaveModal() {
     var overlay = document.getElementById('device-leave-overlay');
     if (!overlay) return;
@@ -635,13 +637,27 @@ var Online = (function () {
       overlay.style.display = 'none';
       return;
     }
-    // Show the first pending peer (handle one at a time)
     var peerId = peers[0];
     var p = pendingLeaves[peerId];
     var titleEl = document.getElementById('device-leave-title');
     if (titleEl) titleEl.textContent = (p.username || 'A player') + ' has left';
     var list = document.getElementById('device-leave-players');
     list.innerHTML = '';
+
+    // Build once per render — "AI" + each currently-connected device.
+    function buildChoices() {
+      var choices = [{ value: 'ai', label: 'AI', tag: 'AI' }];
+      if (lobbyState.devices[myDeviceId]) {
+        choices.push({ value: myDeviceId, label: (lobbyState.devices[myDeviceId].username || 'Host') + ' (you)', tag: 'Host' });
+      }
+      Object.keys(lobbyState.devices).forEach(function (pid) {
+        if (pid === myDeviceId) return;
+        if (pid === peerId) return; // The departing device itself — can't reassign to them
+        choices.push({ value: pid, label: lobbyState.devices[pid].username || pid, tag: 'Player' });
+      });
+      return choices;
+    }
+
     for (var i = 0; i < p.seats.length; i++) {
       var idx = p.seats[i];
       var seat = lobbyState.seats[idx];
@@ -662,23 +678,21 @@ var Online = (function () {
       name.className = 'device-leave-player-name';
       name.textContent = seat.name;
       row.appendChild(name);
-      // Toggle
+      // Per-seat choice buttons
       var toggle = document.createElement('div');
       toggle.className = 'device-leave-toggle';
-      var aiBtn = document.createElement('button');
-      aiBtn.textContent = 'AI';
-      if (p.decisions[idx] === 'ai') aiBtn.classList.add('selected');
-      aiBtn.addEventListener('click', (function (pid, si) {
-        return function () { setLeaveDecision(pid, si, 'ai'); };
-      })(peerId, idx));
-      toggle.appendChild(aiBtn);
-      var humBtn = document.createElement('button');
-      humBtn.textContent = 'Host';
-      if (p.decisions[idx] === 'human') humBtn.classList.add('selected');
-      humBtn.addEventListener('click', (function (pid, si) {
-        return function () { setLeaveDecision(pid, si, 'human'); };
-      })(peerId, idx));
-      toggle.appendChild(humBtn);
+      var choices = buildChoices();
+      for (var ci = 0; ci < choices.length; ci++) {
+        var c = choices[ci];
+        var btn = document.createElement('button');
+        btn.textContent = c.label;
+        btn.title = c.tag;
+        if (p.decisions[idx] === c.value) btn.classList.add('selected');
+        btn.addEventListener('click', (function (pid, si, val) {
+          return function () { setLeaveDecision(pid, si, val); };
+        })(peerId, idx, c.value));
+        toggle.appendChild(btn);
+      }
       row.appendChild(toggle);
       list.appendChild(row);
     }
@@ -769,6 +783,13 @@ var Online = (function () {
     // immediately (without waiting for a new round).
     updateLivePlayerForSeat(seatIdx, seat.deviceId, seat.isAI);
     broadcastLobbyState();
+    // During game, also push the full game state so each guest's
+    // local Game.players reflects the new deviceId — without this, a
+    // newly-assigned guest device's Online.isMyPlayer() stays false
+    // and their action bar wouldn't appear on their turn.
+    if (gamePhase === 'playing') {
+      broadcastGameStateSync({ gameState: Game.serialize() });
+    }
     renderOnlineLobby();
     if (typeof onHostAutoPlayCallback === 'function') onHostAutoPlayCallback();
   }

@@ -513,15 +513,14 @@ var UI = (function () {
         Online.onRenderLobby(function () {
           renderOnlineLobbySeats();
         });
-        // When a guest's device drops/pauses mid-game, and we're currently
-        // stuck waiting on *their* action, re-enter the turn loop so the
-        // host can take over as AI for them.
+        // v97: whenever the host changes a seat's controller (via the
+        // avatar-click reassign popup OR the leave-modal's Apply), we
+        // kick the turn loop to re-evaluate whose turn it is with the
+        // new assignments. That's how a stalled turn resumes once the
+        // host picks a new controller for the departed player.
         Online.onHostAutoPlay(function () {
           if (gamePhase === 'playing' && !gameFlowLocked) {
-            var cur = Game.getCurrentPlayer();
-            if (cur && Online.shouldHostAutoPlay(cur.id)) {
-              nextTurn();
-            }
+            nextTurn();
           }
         });
         enterOnlineLobby();
@@ -746,9 +745,10 @@ var UI = (function () {
       topRow.className = 'seat-top-row';
 
       if (seat.occupied) {
-        // Controller-label badge. v96: shows the USERNAME of whichever
-        // device controls the seat (or "AI" for AI-controlled). Host
-        // clicks the avatar to reassign.
+        // Controller badge (the "human/AI bubble" above the avatar).
+        // Click handler (host only): opens the reassign popup so the
+        // host can change who controls this seat — AI, themselves,
+        // or any connected joiner.
         var badge = document.createElement('div');
         badge.className = 'seat-type-badge';
         if (seat.isAI) {
@@ -762,9 +762,19 @@ var UI = (function () {
           badge.classList.add('human');
           badge.textContent = '?';
         }
+        if (isHost) {
+          badge.style.cursor = 'pointer';
+          badge.title = 'Click to change who controls this player';
+          badge.addEventListener('click', (function (idx) {
+            return function (e) {
+              e.stopPropagation();
+              openReassignPopup(idx);
+            };
+          })(i));
+        }
         topRow.appendChild(badge);
 
-        // Host gets a × remove circle on every occupied seat, not just AI.
+        // Host gets a × remove circle on every occupied seat.
         if (isHost) {
           var removeCircle = document.createElement('div');
           removeCircle.className = 'seat-remove-circle';
@@ -792,23 +802,19 @@ var UI = (function () {
           avatar.querySelector('img').style.width = '100%';
           avatar.querySelector('img').style.height = '100%';
         }
-        // Click behaviour:
-        //   Host → open the reassign popup (controller: AI / Host /
-        //          any connected joiner).
-        //   Non-host owner → change animal (as before).
-        avatar.style.cursor = 'pointer';
-        avatar.addEventListener('click', (function (seatIdx) {
-          return function () {
-            if (Online.isHost()) {
-              openReassignPopup(seatIdx);
-            } else if (seat.deviceId === myDeviceId) {
-              openOnlineAnimalPicker(seatIdx);
-            }
-          };
-        })(i));
+        // Avatar click — opens the animal picker for whoever controls
+        // this seat (host, or the assigned joiner). Not the reassign
+        // popup (that's on the badge above).
+        var canPickAnimal = (seat.deviceId && seat.deviceId === myDeviceId);
+        if (canPickAnimal) {
+          avatar.style.cursor = 'pointer';
+          avatar.addEventListener('click', (function (seatIdx) {
+            return function () { openOnlineAnimalPicker(seatIdx); };
+          })(i));
+        }
       } else if (isHost) {
         // Empty seat — host clicks to add a new player (defaults to
-        // host-controlled human; host can then reassign via the popup).
+        // host-controlled human; host can then reassign via the badge).
         el.style.cursor = 'pointer';
         el.addEventListener('click', (function (idx) {
           return function () { Online.addPlayer(idx, /*asAI=*/false); };
@@ -2228,6 +2234,20 @@ var UI = (function () {
         var avatarEl = document.createElement('div');
         avatarEl.className = 'game-seat-avatar';
         avatarEl.appendChild(SpriteEngine.createSpriteImg(p.animal));
+        // v97: host clicks ANY avatar mid-game to open the reassign
+        // popup (AI / Host / any connected joiner). Works for all seats
+        // including AI ones, so the host can swap controllers on the
+        // fly as the game progresses.
+        if (Online.isActive() && Online.isHost()) {
+          avatarEl.style.cursor = 'pointer';
+          avatarEl.title = 'Click to change who controls this player';
+          avatarEl.addEventListener('click', (function (seatIdx) {
+            return function (e) {
+              e.stopPropagation();
+              openReassignPopup(seatIdx);
+            };
+          })(p.seatIndex));
+        }
         seat.appendChild(avatarEl);
 
         // Name — below avatar, centered
