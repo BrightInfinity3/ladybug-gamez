@@ -796,6 +796,10 @@ html, body {
   overflow: hidden;
   position: relative;
   transition: all var(--transition-fast);
+  /* Parent .game-seat has pointer-events: none so clicks pass through
+     to the canvas below it. Re-enable pointer events on the avatar
+     itself so the host-only click-to-reassign handler fires. */
+  pointer-events: auto;
 }
 
 .game-seat-avatar img {
@@ -1145,14 +1149,10 @@ html, body {
   left: 0;
   right: 0;
   padding: 0.8vmin 1.6vmin;
-  /* Two-row grid so we can put the room code directly below the
-     Round label without disturbing the top row's original layout
-     (Round | message | Leave Room). */
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  grid-template-rows: auto auto;
   align-items: center;
-  gap: 0.3vmin 0.5vmin;
+  gap: 0.5vmin;
   z-index: 20;
   pointer-events: none;
   max-width: 60vmin;
@@ -1169,24 +1169,29 @@ html, body {
 }
 
 .hud-round {
-  /* Top row of the grid, left column. */
-  grid-row: 1;
-  grid-column: 1;
   justify-self: start;
   display: flex;
   align-items: center;
   gap: 0.4vmin;
 }
 
-/* Room-code row — second row of the grid, left column, directly
-   below the Round label. Online-only (JS toggles display). */
+/* Room-code row — separate absolutely-positioned element. Sits
+   directly below the HUD's top row on the left, so the HUD's own
+   layout and bottom anchor stay exactly where they were before the
+   room code was introduced. Online-only (JS toggles display). The
+   `bottom` value is HUD bottom minus the HUD's content height minus
+   a small gap, which keeps the Room row the same distance below
+   Round regardless of viewport size. */
 .hud-room-row {
-  grid-row: 2;
-  grid-column: 1;
-  justify-self: start;
+  position: absolute;
+  bottom: calc(50% + 40.2vmin); /* ~3.5vmin below the HUD top row */
+  /* Match the HUD's left padding so we align under the Round label */
+  left: calc(50% - 30vmin + 1.6vmin);
   display: flex;
   align-items: center;
   gap: 0.4vmin;
+  z-index: 20;
+  pointer-events: auto;
 }
 .hud-room-row .hud-label {
   font-size: 1.6vmin;
@@ -1644,50 +1649,43 @@ html, body {
    bolder digit color with a soft radial text-shadow halo that
    follows the glyph outlines instead of a ring. Gently pulses. */
 .game-seat-total.leader {
-  color: #fff8d8;
+  /* Legible gold digit color (was #fff8d8 which read as near-white).
+     Gold-light variable is ~#ffe89a which stays legible against the
+     glow and reads as clearly gold, not white. */
+  color: var(--gold-light);
   font-weight: 900;
-  /* Tighter core, stacked shadows at full opacity so the inner
-     gold reads at ~5× the previous luminosity. Max spread ~60px
-     (smaller than before) but each layer maxes at alpha 1.0 and
-     the stack is repeated to cumulatively brighten the pixels
-     right around the glyphs. */
+  /* Inner-glow reverted to pre-v98 luminosity — digits are legible
+     and obviously gold, not washed out. OUTER spread enlarged and
+     made brighter so the pulsing halo radiates further and is
+     easier to see from across the table. */
   text-shadow:
-    0 0 3px  rgba(255, 250, 210, 1),
-    0 0 3px  rgba(255, 250, 210, 1),
-    0 0 6px  rgba(255, 245, 180, 1),
-    0 0 6px  rgba(255, 245, 180, 1),
-    0 0 12px rgba(255, 235, 140, 1),
-    0 0 12px rgba(255, 235, 140, 1),
-    0 0 22px rgba(255, 225, 100, 1),
-    0 0 36px rgba(255, 215, 85,  0.95),
-    0 0 58px rgba(255, 210, 75,  0.7);
+    0 0 4px   rgba(255, 235, 160, 0.95),
+    0 0 10px  rgba(255, 225, 120, 0.85),
+    0 0 22px  rgba(255, 218, 95,  0.85),
+    0 0 48px  rgba(255, 210, 80,  0.8),
+    0 0 90px  rgba(255, 205, 70,  0.65),
+    0 0 150px rgba(255, 200, 60,  0.45);
   animation: leaderGlowPulse 2s ease-in-out infinite;
 }
 
 @keyframes leaderGlowPulse {
   0%, 100% {
     text-shadow:
-      0 0 3px  rgba(255, 250, 210, 1),
-      0 0 3px  rgba(255, 250, 210, 1),
-      0 0 6px  rgba(255, 245, 180, 1),
-      0 0 6px  rgba(255, 245, 180, 1),
-      0 0 12px rgba(255, 235, 140, 1),
-      0 0 12px rgba(255, 235, 140, 1),
-      0 0 22px rgba(255, 225, 100, 1),
-      0 0 36px rgba(255, 215, 85,  0.95),
-      0 0 58px rgba(255, 210, 75,  0.7);
+      0 0 4px   rgba(255, 235, 160, 0.95),
+      0 0 10px  rgba(255, 225, 120, 0.85),
+      0 0 22px  rgba(255, 218, 95,  0.85),
+      0 0 48px  rgba(255, 210, 80,  0.8),
+      0 0 90px  rgba(255, 205, 70,  0.65),
+      0 0 150px rgba(255, 200, 60,  0.45);
   }
   50% {
     text-shadow:
-      0 0 4px  rgba(255, 253, 225, 1),
-      0 0 4px  rgba(255, 253, 225, 1),
-      0 0 8px  rgba(255, 250, 195, 1),
-      0 0 8px  rgba(255, 250, 195, 1),
-      0 0 16px rgba(255, 240, 155, 1),
-      0 0 16px rgba(255, 240, 155, 1),
-      0 0 28px rgba(255, 230, 115, 1),
-      0 0 46px rgba(255, 220, 95,  1),
-      0 0 72px rgba(255, 215, 85,  0.85);
+      0 0 5px   rgba(255, 240, 175, 1),
+      0 0 13px  rgba(255, 230, 130, 1),
+      0 0 28px  rgba(255, 223, 100, 1),
+      0 0 60px  rgba(255, 215, 85,  0.95),
+      0 0 110px rgba(255, 210, 75,  0.8),
+      0 0 180px rgba(255, 205, 65,  0.6);
   }
 }
 
@@ -2015,7 +2013,9 @@ html, body {
 
 .lobby-label {
   font-family: var(--font-display);
-  font-size: 0.9vmin;
+  /* 2× the previous 0.9vmin so the "Room:" prefix matches the scale
+     of the room-code chip beside it. */
+  font-size: 1.8vmin;
   color: var(--text-dim);
   text-transform: uppercase;
 }
@@ -2038,7 +2038,8 @@ html, body {
 
 .lobby-player-count {
   font-family: var(--font-display);
-  font-size: 0.9vmin;
+  /* 2× the previous 0.9vmin to match the enlarged "Room:" label. */
+  font-size: 1.8vmin;
   color: var(--text-dim);
   margin-left: 0.6vmin;
 }
