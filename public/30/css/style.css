@@ -1145,10 +1145,14 @@ html, body {
   left: 0;
   right: 0;
   padding: 0.8vmin 1.6vmin;
+  /* Two-row grid so we can put the room code directly below the
+     Round label without disturbing the top row's original layout
+     (Round | message | Leave Room). */
   display: grid;
   grid-template-columns: 1fr auto 1fr;
+  grid-template-rows: auto auto;
   align-items: center;
-  gap: 0.5vmin;
+  gap: 0.3vmin 0.5vmin;
   z-index: 20;
   pointer-events: none;
   max-width: 60vmin;
@@ -1165,31 +1169,30 @@ html, body {
 }
 
 .hud-round {
+  /* Top row of the grid, left column. */
+  grid-row: 1;
+  grid-column: 1;
   justify-self: start;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.3vmin;
-}
-
-/* Round-label row (the original "Round: X" layout — same as before
-   the room-code addition, just wrapped in its own row container). */
-.hud-round-row {
   display: flex;
   align-items: center;
   gap: 0.4vmin;
 }
 
-/* Room-code row — only visible in online mode, sits directly below
-   the Round row. Smaller font so it doesn't dominate; the lobby-code
-   chip inside still draws the eye. */
+/* Room-code row — second row of the grid, left column, directly
+   below the Round label. Online-only (JS toggles display). */
 .hud-room-row {
+  grid-row: 2;
+  grid-column: 1;
+  justify-self: start;
   display: flex;
   align-items: center;
   gap: 0.4vmin;
 }
 .hud-room-row .hud-label {
-  font-size: 1.4vmin;
+  font-size: 1.6vmin;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 .hud-room-row .lobby-code {
   font-size: 1.6vmin;
@@ -1643,35 +1646,48 @@ html, body {
 .game-seat-total.leader {
   color: #fff8d8;
   font-weight: 900;
-  /* Half-diameter (max spread 240px → 120px) but 3× more luminous —
-     alphas tripled (capped at 1.0), so the core glow is intensely
-     bright and only tapers off inside a tighter radius. Reads clearly
-     from across the table without bleeding into other seats' glow. */
+  /* Tighter core, stacked shadows at full opacity so the inner
+     gold reads at ~5× the previous luminosity. Max spread ~60px
+     (smaller than before) but each layer maxes at alpha 1.0 and
+     the stack is repeated to cumulatively brighten the pixels
+     right around the glyphs. */
   text-shadow:
+    0 0 3px  rgba(255, 250, 210, 1),
+    0 0 3px  rgba(255, 250, 210, 1),
     0 0 6px  rgba(255, 245, 180, 1),
-    0 0 15px rgba(255, 230, 125, 1),
-    0 0 33px rgba(255, 220, 95,  1),
-    0 0 66px rgba(255, 215, 85,  0.9),
-    0 0 120px rgba(255, 210, 75, 0.7);
+    0 0 6px  rgba(255, 245, 180, 1),
+    0 0 12px rgba(255, 235, 140, 1),
+    0 0 12px rgba(255, 235, 140, 1),
+    0 0 22px rgba(255, 225, 100, 1),
+    0 0 36px rgba(255, 215, 85,  0.95),
+    0 0 58px rgba(255, 210, 75,  0.7);
   animation: leaderGlowPulse 2s ease-in-out infinite;
 }
 
 @keyframes leaderGlowPulse {
   0%, 100% {
     text-shadow:
+      0 0 3px  rgba(255, 250, 210, 1),
+      0 0 3px  rgba(255, 250, 210, 1),
       0 0 6px  rgba(255, 245, 180, 1),
-      0 0 15px rgba(255, 230, 125, 1),
-      0 0 33px rgba(255, 220, 95,  1),
-      0 0 66px rgba(255, 215, 85,  0.9),
-      0 0 120px rgba(255, 210, 75, 0.7);
+      0 0 6px  rgba(255, 245, 180, 1),
+      0 0 12px rgba(255, 235, 140, 1),
+      0 0 12px rgba(255, 235, 140, 1),
+      0 0 22px rgba(255, 225, 100, 1),
+      0 0 36px rgba(255, 215, 85,  0.95),
+      0 0 58px rgba(255, 210, 75,  0.7);
   }
   50% {
     text-shadow:
-      0 0 8px  rgba(255, 250, 205, 1),
-      0 0 20px rgba(255, 235, 140, 1),
-      0 0 42px rgba(255, 225, 105, 1),
-      0 0 85px rgba(255, 220, 90,  1),
-      0 0 145px rgba(255, 215, 80, 0.9);
+      0 0 4px  rgba(255, 253, 225, 1),
+      0 0 4px  rgba(255, 253, 225, 1),
+      0 0 8px  rgba(255, 250, 195, 1),
+      0 0 8px  rgba(255, 250, 195, 1),
+      0 0 16px rgba(255, 240, 155, 1),
+      0 0 16px rgba(255, 240, 155, 1),
+      0 0 28px rgba(255, 230, 115, 1),
+      0 0 46px rgba(255, 220, 95,  1),
+      0 0 72px rgba(255, 215, 85,  0.85);
   }
 }
 

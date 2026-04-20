@@ -51,6 +51,11 @@ var Network = (function () {
   var reconnectAttempt = 0;
   var reconnectInFlight = false;
 
+  // Messages that were attempted to be sent while the socket was closed
+  // (most commonly: user clicked Draw right after a mobile-wake, before
+  // the reclaim handshake finished). Flushed once `reclaimed` arrives.
+  var pendingSends = [];
+
   // Pending promises for createRoom / joinRoom
   var createResolve = null, createReject = null;
   var joinResolve = null, joinReject = null;
@@ -91,11 +96,34 @@ var Network = (function () {
 
   function wsSend(obj) {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
+      // Queue user-action messages sent during a reconnect window
+      // (socket briefly dead between a drop and a successful reclaim).
+      // Without this the Draw/Stay the user clicked right after a
+      // screen wake is lost, and the game freezes on their turn.
+      var queueable = obj && (obj.type === 'send' || obj.type === 'broadcast');
+      if (queueable && !userInitiatedClose && myPeerId && roomCode) {
+        console.log('[Network] queuing during reconnect:', obj && obj.type, obj && obj.data && obj.data.payload && obj.data.payload.type);
+        pendingSends.push(obj);
+        return true;
+      }
       console.warn('[Network] dropping send on closed socket:', obj && obj.type);
       return false;
     }
     try { ws.send(JSON.stringify(obj)); return true; }
     catch (e) { console.warn('[Network] send failed:', e.message); return false; }
+  }
+
+  function flushPendingSends() {
+    if (!pendingSends.length) return;
+    console.log('[Network] flushing', pendingSends.length, 'queued messages');
+    var toFlush = pendingSends.slice();
+    pendingSends = [];
+    for (var i = 0; i < toFlush.length; i++) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        try { ws.send(JSON.stringify(toFlush[i])); }
+        catch (e) { console.warn('[Network] flush send failed:', e.message); }
+      }
+    }
   }
 
   function startHeartbeat() {
@@ -277,6 +305,9 @@ var Network = (function () {
         connectedToRoom = true;
         reconnectAttempt = 0;
         console.log('[Network] Reclaimed peerId', myPeerId, 'in room', roomCode);
+        // Flush any user actions (Draw/Stay/etc.) that were clicked
+        // DURING the reconnect window — they're now valid to deliver.
+        flushPendingSends();
         // Let the app layer know we're back so it can re-announce state.
         if (reconnectHandler) reconnectHandler('self');
         break;

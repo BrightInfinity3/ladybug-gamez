@@ -278,10 +278,10 @@ function attachGameWebSocketServer(httpServer, options) {
 
   // ---- Top-level connection plumbing -------------------------------------
   wss.on('connection', (ws, req) => {
-    const peerId = genPeerId();
-    ws._peerId = peerId;
+    const tempPeerId = genPeerId();
+    ws._peerId = tempPeerId;
     ws._alive = true;
-    log(`peer ${peerId} connected from ${req && req.socket && req.socket.remoteAddress}`);
+    log(`peer ${tempPeerId} connected from ${req && req.socket && req.socket.remoteAddress}`);
 
     ws.on('pong', () => { ws._alive = true; });
 
@@ -295,6 +295,14 @@ function attachGameWebSocketServer(httpServer, options) {
 
       if (type === '_ping') { safeSend(ws, { type: '_pong' }); return; }
 
+      // CRITICAL: read the CURRENT peerId from the socket, not the
+      // captured closure value. After a reclaim() call the socket's
+      // _peerId is updated to the claimed id, but the closure still
+      // holds the temporary id assigned at connection time. Using
+      // the stale closure id made roomOf() return null for every
+      // message sent on a reclaimed socket, which silently dropped
+      // the guest's Draw/Stay action after a phone-sleep reconnect.
+      const peerId = ws._peerId;
       const room = roomOf(peerId);
 
       try {
@@ -335,11 +343,11 @@ function attachGameWebSocketServer(httpServer, options) {
     });
 
     ws.on('close', () => {
-      log(`peer ${peerId} socket closed`);
+      log(`peer ${ws._peerId} socket closed`);
       onSocketClose(ws);
     });
 
-    ws.on('error', (err) => log(`peer ${peerId} socket error: ${err.message}`));
+    ws.on('error', (err) => log(`peer ${ws._peerId} socket error: ${err.message}`));
   });
 
   const hbInterval = setInterval(() => {
