@@ -563,6 +563,11 @@ var UI = (function () {
           Online.onGameStateSync(function (data) {
             onlineHandleStateSync(data);
           });
+          // Mid-game joiners skip the deal-animation flow and land
+          // directly on the running game screen.
+          Online.onMidGameEntry(function (players) {
+            enterGameInProgress(players);
+          });
           Online.onRenderLobby(function () {
             renderOnlineLobbySeats();
           });
@@ -650,6 +655,11 @@ var UI = (function () {
     document.getElementById('game-hud').style.display = 'none';
     document.getElementById('game-actions').style.display = 'none';
     document.getElementById('deck-info').style.display = 'none';
+    // hud-room-row is part of the in-game HUD — hide it during lobby
+    // so a stale code from a previous game doesn't leak onto the
+    // setup screen.
+    var hudRoomRow = document.getElementById('hud-room-row');
+    if (hudRoomRow) hudRoomRow.style.display = 'none';
 
     // Host gets the central "Players: +/-" counter (same control the
     // local-play setup uses) so they can add/remove seats. Joiners
@@ -745,6 +755,24 @@ var UI = (function () {
       topRow.className = 'seat-top-row';
 
       if (seat.occupied) {
+        // Dealer chip (solid gold "D" if this seat is dealer; hollow
+        // dashed gold slot otherwise, clickable by host to set dealer).
+        // Matches the local setup screen.
+        var isDealer = (lobbyState.dealerIndex === i);
+        var dealerBadge = document.createElement('div');
+        dealerBadge.className = isDealer ? 'seat-dealer-chip' : 'seat-dealer-slot';
+        dealerBadge.textContent = 'D';
+        if (!isDealer && isHost) {
+          dealerBadge.title = 'Make dealer';
+          dealerBadge.addEventListener('click', (function (idx) {
+            return function (e) {
+              e.stopPropagation();
+              Online.setDealer(idx);
+            };
+          })(i));
+        }
+        topRow.appendChild(dealerBadge);
+
         // Controller badge (the "human/AI bubble" above the avatar).
         // Click handler (host only): opens the reassign popup so the
         // host can change who controls this seat — AI, themselves,
@@ -1010,6 +1038,39 @@ var UI = (function () {
     document.getElementById('lobby-waiting').style.display = 'none';
 
     beginNewRound();
+  }
+
+  // Mid-game join: skip beginNewRound (which would try to animate a
+  // deal). Transition straight to the running game screen, render
+  // the seat overlays from the current Game.players, and let the
+  // state-sync that follows populate the card displays. This is the
+  // path for a device that joins a room AFTER the host has already
+  // dealt a round.
+  function enterGameInProgress(players) {
+    gamePhase = 'playing';
+    showScreen('screen-game');
+    document.getElementById('setup-header').style.display = 'none';
+    document.getElementById('player-count-control').style.display = 'none';
+    document.getElementById('btn-deal').style.display = 'none';
+    document.getElementById('online-lobby-header').style.display = 'none';
+    document.getElementById('btn-online-deal').style.display = 'none';
+    document.getElementById('lobby-waiting').style.display = 'none';
+    document.getElementById('game-hud').style.display = '';
+    document.getElementById('deck-info').style.display = '';
+    showActionBar(false);
+
+    var menuBtn = document.getElementById('btn-menu');
+    menuBtn.textContent = 'Leave Room';
+
+    handDisplay = {};
+    renderGameTable().then(function () {
+      updateHUD();
+      updateDeckCount();
+      // The paired game_state_sync that the host sent right after
+      // mid_game_entry will rebuild each seat's handDisplay, refresh
+      // totals/status pills, update leader glow, and call nextTurn
+      // — so we don't need to do more here.
+    });
   }
 
   // Host: handle action from a remote guest
@@ -2391,6 +2452,9 @@ var UI = (function () {
     }
     // Re-evaluate the leader across all scores after this update
     updateLeaderGlow();
+    // Keep mobile bar in sync with live scores; pass undefined so it
+    // doesn't touch the buttons' visibility (showActionBar owns that).
+    if (typeof updateMobileActionBar === 'function') updateMobileActionBar();
   }
 
   // Add a golden glow to the score of THE SINGLE player currently leading.
@@ -2484,12 +2548,150 @@ var UI = (function () {
     var container = document.getElementById('game-actions');
     if (!visible) {
       container.style.display = 'none';
+    } else {
+      container.style.display = 'flex';
+      var stayBtn = document.getElementById('btn-stay');
+      stayBtn.disabled = !!disableStay;
+    }
+    // Mirror visible/disabled state onto the mobile-portrait action
+    // bar buttons. The on-table bar is auto-hidden on mobile portrait
+    // via CSS when body has .mbar-active.
+    updateMobileActionBar(visible, disableStay);
+  }
+
+  // Detect mobile portrait — narrow phones in portrait only.
+  function isMobilePortrait() {
+    return window.matchMedia('(orientation: portrait) and (max-width: 480px)').matches;
+  }
+
+  // Rebuild the mobile bottom action bar (leader | buttons | current).
+  // Called on every showActionBar() and updatePlayerTotal() so it
+  // tracks live game state. `visible`/`disableStay` mirror the
+  // on-table bar's call so the mobile Draw/Stay follow the same rules.
+  function updateMobileActionBar(visible, disableStay) {
+    var bar = document.getElementById('mobile-action-bar');
+    if (!bar) return;
+    // Gate on phase AND viewport.
+    var active = (gamePhase === 'playing') && isMobilePortrait();
+    document.body.classList.toggle('mbar-active', !!active);
+    if (!active) {
+      bar.style.display = 'none';
+      bar.classList.remove('visible');
       return;
     }
-    container.style.display = 'flex';
-    var stayBtn = document.getElementById('btn-stay');
-    stayBtn.disabled = !!disableStay;
+    bar.style.display = 'flex';
+    bar.classList.add('visible');
+
+    var gs = Game.getState && Game.getState();
+    if (!gs || !gs.players || !gs.players.length) return;
+
+    // LEFT: current leader (same tiebreaker chain as updateLeaderGlow).
+    var leader = findCurrentLeader();
+    fillMbarPlayer(document.getElementById('mbar-leader'), leader);
+    // RIGHT: current active player.
+    var current = (typeof Game.getCurrentPlayer === 'function') ? Game.getCurrentPlayer() : null;
+    fillMbarPlayer(document.getElementById('mbar-current'), current);
+
+    // Buttons mirror the on-table state. If we don't have the call
+    // context (e.g. updated from updatePlayerTotal), assume hidden.
+    var btns = document.getElementById('mbar-buttons');
+    var drawBtn = document.getElementById('mbar-btn-draw');
+    var stayBtn = document.getElementById('mbar-btn-stay');
+    if (visible === undefined) {
+      // Preserve previous: only the paired showActionBar toggles explicit.
+      return;
+    }
+    if (!visible) {
+      btns.style.visibility = 'hidden';
+      drawBtn.disabled = true; stayBtn.disabled = true;
+    } else {
+      btns.style.visibility = 'visible';
+      drawBtn.disabled = false; stayBtn.disabled = !!disableStay;
+    }
   }
+
+  function findCurrentLeader() {
+    var state = Game.getState && Game.getState();
+    if (!state || !state.players || !state.hands) return null;
+    var candidates = [];
+    for (var i = 0; i < state.players.length; i++) {
+      var p = state.players[i];
+      var h = state.hands[p.id];
+      if (!h || h.busted) continue;
+      var t = CardSystem.handTotal(h.cards);
+      if (t <= 0) continue;
+      candidates.push({
+        player: p,
+        total: t,
+        cards: h.cards.length,
+        lastDrawOrder: h.lastDrawOrder !== undefined ? h.lastDrawOrder : -1,
+        turnPos: state.turnOrder.indexOf(p.id)
+      });
+    }
+    candidates.sort(function (a, b) {
+      if (b.total !== a.total) return b.total - a.total;
+      if (b.cards !== a.cards) return b.cards - a.cards;
+      if (b.lastDrawOrder !== a.lastDrawOrder) return b.lastDrawOrder - a.lastDrawOrder;
+      return a.turnPos - b.turnPos;
+    });
+    return candidates.length ? candidates[0].player : null;
+  }
+
+  function fillMbarPlayer(container, player) {
+    if (!container) return;
+    var avatarEl = container.querySelector('.mbar-avatar');
+    var badgesEl = container.querySelector('.mbar-badges');
+    var scoreEl  = container.querySelector('.mbar-score');
+    var nameEl   = container.querySelector('.mbar-name');
+    if (!player) {
+      avatarEl.innerHTML = '';
+      badgesEl.innerHTML = '';
+      scoreEl.textContent = '';
+      nameEl.textContent = '';
+      return;
+    }
+    avatarEl.innerHTML = '';
+    var img = SpriteEngine.createSpriteImg(player.animal);
+    img.style.width = '100%'; img.style.height = '100%';
+    avatarEl.appendChild(img);
+    nameEl.textContent = player.name;
+    // Score from live hand
+    var hand = (typeof Game.getHand === 'function') ? Game.getHand(player.id) : null;
+    var total = (hand && hand.cards) ? CardSystem.handTotal(hand.cards) : '';
+    scoreEl.textContent = total || '';
+    // Badges: dealer / stay / bust
+    badgesEl.innerHTML = '';
+    if (player.isDealer) {
+      var d = document.createElement('span');
+      d.className = 'mbar-badge dealer'; d.textContent = 'D';
+      badgesEl.appendChild(d);
+    }
+    if (hand && hand.busted) {
+      var b = document.createElement('span');
+      b.className = 'mbar-badge bust'; b.textContent = 'Bust';
+      badgesEl.appendChild(b);
+    } else if (hand && hand.stayed) {
+      var s = document.createElement('span');
+      s.className = 'mbar-badge stay'; s.textContent = 'Stay';
+      badgesEl.appendChild(s);
+    }
+  }
+
+  // Wire mobile bar's Draw / Stay once at init to the same handlers.
+  (function wireMobileBar() {
+    var d = document.getElementById('mbar-btn-draw');
+    var s = document.getElementById('mbar-btn-stay');
+    if (d) d.addEventListener('click', function () {
+      if (!gameFlowLocked) humanAction('draw');
+    });
+    if (s) s.addEventListener('click', function () {
+      if (!gameFlowLocked) humanAction('stay');
+    });
+    // Refresh the bar when the viewport changes orientation.
+    window.addEventListener('resize', function () {
+      if (gamePhase === 'playing') updateMobileActionBar();
+    });
+  })();
 
   // ================================================================
   //  RESULTS

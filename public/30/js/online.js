@@ -68,6 +68,11 @@ var Online = (function () {
 
   // ---- Initialize ----
   function initLobbyState() {
+    // Clear roomCode too — without this, the stale code from a
+    // previously-disbanded room lingers in the HUD / lobby header
+    // when the user immediately hosts or joins a new room.
+    lobbyState.roomCode = '';
+    lobbyState.dealerIndex = -1;
     lobbyState.seats = [];
     for (var i = 0; i < NUM_SEATS; i++) {
       lobbyState.seats.push({
@@ -76,11 +81,19 @@ var Online = (function () {
         name: '',
         isHuman: false,
         isAI: false,
-        deviceId: null
+        deviceId: null,
+        isDealer: false
       });
     }
     lobbyState.devices = {};
     pendingRequests = [];
+    // Clear the DOM displays that might still show the OLD code.
+    var codeEl = document.getElementById('online-room-code');
+    if (codeEl) codeEl.textContent = '---';
+    var hudCode = document.getElementById('hud-room-code');
+    if (hudCode) hudCode.textContent = '---';
+    var hudRoomRow = document.getElementById('hud-room-row');
+    if (hudRoomRow) hudRoomRow.style.display = 'none';
   }
 
   // ---- Get next N available seats in fill order ----
@@ -419,11 +432,31 @@ var Online = (function () {
     // Notify guest
     Network.send(peerId, {
       type: 'join_response',
-      data: { approved: true, deviceId: peerId }
+      data: { approved: true, deviceId: peerId, midGame: gamePhase === 'playing' }
     });
 
     // Broadcast updated lobby
     broadcastLobbyState();
+
+    // If a round is already in progress, give the new device
+    // enough state to render the game screen directly (instead of
+    // the lobby's "Waiting for host..." view). Send game_starting
+    // first (player list + lobbyState) and then a full state sync.
+    if (gamePhase === 'playing') {
+      Network.send(peerId, {
+        type: 'game_starting',
+        data: {
+          players: Game.getState().players,
+          lobbyState: JSON.parse(JSON.stringify(lobbyState)),
+          midGame: true
+        }
+      });
+      Network.send(peerId, {
+        type: 'game_state_sync',
+        data: { gameState: Game.serialize(), lobbyState: JSON.parse(JSON.stringify(lobbyState)) }
+      });
+    }
+
     renderOnlineLobby();
     renderJoinRequests();
   }
@@ -794,6 +827,20 @@ var Online = (function () {
     if (typeof onHostAutoPlayCallback === 'function') onHostAutoPlayCallback();
   }
 
+  // ---- Host: Set the dealer to a specific occupied seat ----
+  // Tracked in lobbyState.dealerIndex (not on the seat itself, so
+  // there's always exactly one dealer). If the previous dealer's
+  // seat no longer exists (removed), dealerIndex falls back to -1
+  // and startOnlineGame falls back to a random pick.
+  function setDealer(seatIdx) {
+    if (!_isHost) return;
+    var seat = lobbyState.seats[seatIdx];
+    if (!seat || !seat.occupied) return;
+    lobbyState.dealerIndex = seatIdx;
+    broadcastLobbyState();
+    renderOnlineLobby();
+  }
+
   // ---- Host: Remove a player/AI from a seat ----
   function removeFromSeat(seatIdx) {
     if (!_isHost) return;
@@ -825,22 +872,26 @@ var Online = (function () {
 
     gamePhase = 'playing';
 
-    // Build player list from lobby seats
+    // Build player list from lobby seats. Also map the chosen
+    // dealer's seatIndex to the corresponding player index so
+    // Game.setupGame gets the right dealerIdx.
     var players = [];
-    var dealerIdx = 0;
+    var dealerIdx = -1;
     var id = 0;
     for (var i = 0; i < NUM_SEATS; i++) {
       var seat = lobbyState.seats[i];
       if (!seat.occupied) continue;
       var p = Game.createPlayer(id, i, seat.animal, seat.name, seat.isHuman, false);
-      // Store deviceId mapping for later
       p.deviceId = seat.deviceId;
       p.isAI = seat.isAI;
       players.push(p);
+      if (i === lobbyState.dealerIndex) dealerIdx = id;
       id++;
     }
+    // Fall back to a random dealer if none was picked during lobby.
+    if (dealerIdx < 0) dealerIdx = Math.floor(Math.random() * players.length);
 
-    Game.setupGame(players, 0);
+    Game.setupGame(players, dealerIdx);
 
     // Broadcast game start with player list
     Network.broadcast({
@@ -979,10 +1030,16 @@ var Online = (function () {
 
   function handleGameStarting(data) {
     gamePhase = 'playing';
-    // Rebuild game state from host's data
     var players = data.players;
     Game.setupGame(players, 0);
     lobbyState = data.lobbyState;
+
+    // Mid-game join: skip beginNewRound (no deal animation) and go
+    // straight to the running game via a different callback.
+    if (data.midGame && typeof onMidGameEntryCallback === 'function') {
+      onMidGameEntryCallback(players);
+      return;
+    }
 
     if (typeof onGameStartCallback === 'function') {
       onGameStartCallback(players);
@@ -1172,11 +1229,13 @@ var Online = (function () {
   var onActionCallback = null;
   var onGameActionCallback = null;
   var onGameStateSyncCallback = null;
+  var onMidGameEntryCallback = null;
 
   function onGameStart(cb) { onGameStartCallback = cb; }
   function onAction(cb) { onActionCallback = cb; }
   function onGameAction(cb) { onGameActionCallback = cb; }
   function onGameStateSync(cb) { onGameStateSyncCallback = cb; }
+  function onMidGameEntry(cb) { onMidGameEntryCallback = cb; }
 
   // ======== HOST: Game Flow Helpers ========
 
@@ -1271,6 +1330,7 @@ var Online = (function () {
     addPlayer: addPlayer,
     removeFromSeat: removeFromSeat,
     assignSeatController: assignSeatController,
+    setDealer: setDealer,
     swapSeats: swapSeats,
     startOnlineGame: startOnlineGame,
     sendAction: sendAction,
@@ -1282,6 +1342,7 @@ var Online = (function () {
     onAction: onAction,
     onGameAction: onGameAction,
     onGameStateSync: onGameStateSync,
+    onMidGameEntry: onMidGameEntry,
     onRenderLobby: onRenderLobby,
     broadcastGameAction: broadcastGameAction,
     broadcastGameStateSync: broadcastGameStateSync,

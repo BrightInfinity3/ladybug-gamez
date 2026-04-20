@@ -1288,6 +1288,36 @@ html, body {
   .confirm-sub { font-size: 0.75rem; margin-bottom: 0.7em; }
   .confirm-buttons { gap: 0.4em; }
   .confirm-buttons .btn { width: 10rem; font-size: 0.8rem; padding: 0.35em 1em; }
+  /* HUD on landscape phones: the default bottom:50%+43.7vmin pushes
+     the top row off the viewport because vmin=H is so small. Drop
+     the offset AND shrink the HUD font so the top row fits above
+     the top character's seat without being clipped by the status
+     bar / notch. */
+  .game-hud,
+  .setup-header,
+  #online-lobby-header {
+    bottom: calc(50% + 40vmin);
+  }
+  .game-hud .hud-label,
+  .game-hud .hud-value,
+  .game-hud .hud-left {
+    font-size: 1.6vmin;
+  }
+  .game-hud .btn {
+    font-size: 1.25vmin;
+    padding: 0.4vmin 1vmin;
+  }
+  .hud-room-row {
+    bottom: calc(50% + 37vmin);
+  }
+  .hud-room-row .hud-label,
+  .hud-room-row .lobby-code {
+    font-size: 1.3vmin;
+  }
+  .lobby-label,
+  .lobby-player-count { font-size: 1.3vmin; }
+  .lobby-code { font-size: 1.3vmin; }
+  #online-lobby-header .btn { font-size: 1.25vmin; padding: 0.4vmin 1vmin; }
 }
 
 /* ---------- Results Screen ---------- */
@@ -1649,43 +1679,182 @@ html, body {
    bolder digit color with a soft radial text-shadow halo that
    follows the glyph outlines instead of a ring. Gently pulses. */
 .game-seat-total.leader {
-  /* Legible gold digit color (was #fff8d8 which read as near-white).
-     Gold-light variable is ~#ffe89a which stays legible against the
-     glow and reads as clearly gold, not white. */
   color: var(--gold-light);
   font-weight: 900;
-  /* Inner-glow reverted to pre-v98 luminosity — digits are legible
-     and obviously gold, not washed out. OUTER spread enlarged and
-     made brighter so the pulsing halo radiates further and is
-     easier to see from across the table. */
+  /* ~10× brighter aura than v99. Each outer layer is DUPLICATED
+     (or tripled) so shadows stack additively; every layer at alpha
+     1.0 except the outermost tails. Inner two layers stay single so
+     the digit edges don't smear. */
   text-shadow:
-    0 0 4px   rgba(255, 235, 160, 0.95),
-    0 0 10px  rgba(255, 225, 120, 0.85),
-    0 0 22px  rgba(255, 218, 95,  0.85),
-    0 0 48px  rgba(255, 210, 80,  0.8),
-    0 0 90px  rgba(255, 205, 70,  0.65),
-    0 0 150px rgba(255, 200, 60,  0.45);
+    0 0 3px   rgba(255, 240, 170, 1),
+    0 0 6px   rgba(255, 230, 130, 1),
+    0 0 6px   rgba(255, 230, 130, 1),
+    0 0 14px  rgba(255, 222, 100, 1),
+    0 0 14px  rgba(255, 222, 100, 1),
+    0 0 14px  rgba(255, 222, 100, 1),
+    0 0 28px  rgba(255, 215, 85,  1),
+    0 0 28px  rgba(255, 215, 85,  1),
+    0 0 28px  rgba(255, 215, 85,  1),
+    0 0 55px  rgba(255, 210, 75,  1),
+    0 0 55px  rgba(255, 210, 75,  1),
+    0 0 55px  rgba(255, 210, 75,  1),
+    0 0 100px rgba(255, 205, 65,  0.9),
+    0 0 100px rgba(255, 205, 65,  0.9),
+    0 0 160px rgba(255, 200, 55,  0.7);
   animation: leaderGlowPulse 2s ease-in-out infinite;
 }
 
 @keyframes leaderGlowPulse {
   0%, 100% {
     text-shadow:
-      0 0 4px   rgba(255, 235, 160, 0.95),
-      0 0 10px  rgba(255, 225, 120, 0.85),
-      0 0 22px  rgba(255, 218, 95,  0.85),
-      0 0 48px  rgba(255, 210, 80,  0.8),
-      0 0 90px  rgba(255, 205, 70,  0.65),
-      0 0 150px rgba(255, 200, 60,  0.45);
+      0 0 3px   rgba(255, 240, 170, 1),
+      0 0 6px   rgba(255, 230, 130, 1),
+      0 0 6px   rgba(255, 230, 130, 1),
+      0 0 14px  rgba(255, 222, 100, 1),
+      0 0 14px  rgba(255, 222, 100, 1),
+      0 0 14px  rgba(255, 222, 100, 1),
+      0 0 28px  rgba(255, 215, 85,  1),
+      0 0 28px  rgba(255, 215, 85,  1),
+      0 0 28px  rgba(255, 215, 85,  1),
+      0 0 55px  rgba(255, 210, 75,  1),
+      0 0 55px  rgba(255, 210, 75,  1),
+      0 0 55px  rgba(255, 210, 75,  1),
+      0 0 100px rgba(255, 205, 65,  0.9),
+      0 0 100px rgba(255, 205, 65,  0.9),
+      0 0 160px rgba(255, 200, 55,  0.7);
   }
   50% {
     text-shadow:
-      0 0 5px   rgba(255, 240, 175, 1),
-      0 0 13px  rgba(255, 230, 130, 1),
-      0 0 28px  rgba(255, 223, 100, 1),
-      0 0 60px  rgba(255, 215, 85,  0.95),
-      0 0 110px rgba(255, 210, 75,  0.8),
-      0 0 180px rgba(255, 205, 65,  0.6);
+      0 0 4px   rgba(255, 245, 185, 1),
+      0 0 8px   rgba(255, 235, 140, 1),
+      0 0 8px   rgba(255, 235, 140, 1),
+      0 0 18px  rgba(255, 226, 108, 1),
+      0 0 18px  rgba(255, 226, 108, 1),
+      0 0 18px  rgba(255, 226, 108, 1),
+      0 0 34px  rgba(255, 220, 92,  1),
+      0 0 34px  rgba(255, 220, 92,  1),
+      0 0 34px  rgba(255, 220, 92,  1),
+      0 0 68px  rgba(255, 214, 82,  1),
+      0 0 68px  rgba(255, 214, 82,  1),
+      0 0 68px  rgba(255, 214, 82,  1),
+      0 0 120px rgba(255, 210, 75,  1),
+      0 0 120px rgba(255, 210, 75,  1),
+      0 0 190px rgba(255, 205, 65,  0.85);
+  }
+}
+
+/* ---------- Mobile-portrait bottom action bar ---------- */
+/* Hidden by default; the @media query below reveals it only on narrow
+   phones in portrait orientation. JS (updateMobileActionBar) fills in
+   the leader + current player info each turn. */
+.mobile-action-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0.5rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, transparent 0%, rgba(5,12,10,0.85) 40%, rgba(5,12,10,1) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  z-index: 30;
+  pointer-events: auto;
+}
+.mobile-action-bar .mbar-player {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+.mobile-action-bar .mbar-avatar {
+  width: 3.2rem;
+  height: 3.2rem;
+  border-radius: 50%;
+  border: 2px solid var(--wood-mid);
+  background: rgba(20, 30, 25, 0.9);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.mobile-action-bar .mbar-avatar img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.mbar-leader .mbar-avatar {
+  border-color: var(--gold);
+  box-shadow: 0 0 0.8rem rgba(255, 215, 85, 0.6);
+}
+.mobile-action-bar .mbar-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  min-width: 0;
+}
+.mobile-action-bar .mbar-score {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  color: var(--gold-light);
+  font-weight: 900;
+  line-height: 1;
+}
+.mobile-action-bar .mbar-name {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  color: var(--text-light);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 6rem;
+}
+.mobile-action-bar .mbar-badges {
+  display: flex;
+  gap: 0.25rem;
+  font-size: 0.6rem;
+}
+.mobile-action-bar .mbar-badges .mbar-badge {
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.3rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.mbar-badge.dealer {
+  background: linear-gradient(135deg, var(--gold), var(--gold-dim));
+  color: #000;
+}
+.mbar-badge.stay  { background: rgba(196, 144, 0, 0.3); color: var(--stay-amber); }
+.mbar-badge.bust  { background: rgba(211, 47, 47, 0.3); color: var(--bust-red); }
+.mbar-current .mbar-meta {
+  align-items: flex-end;
+}
+.mobile-action-bar .mbar-buttons {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  max-width: 11rem;
+}
+.mobile-action-bar .mbar-buttons .btn {
+  width: 100%;
+  font-size: 1.1rem;
+  padding: 0.7em 0.5em;
+}
+.mobile-action-bar .mbar-buttons .btn:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* On mobile portrait ONLY, reveal the bottom action bar and hide the
+   on-table draw/stay buttons. Other breakpoints keep the old layout. */
+@media (orientation: portrait) and (max-width: 480px) {
+  .mobile-action-bar.visible {
+    display: flex;
+  }
+  .mobile-action-bar.visible + #game-actions,
+  body.mbar-active #game-actions {
+    display: none !important;
+  }
+  body.mbar-active .game-actions {
+    display: none !important;
   }
 }
 
