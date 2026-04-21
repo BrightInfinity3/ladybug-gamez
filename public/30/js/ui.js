@@ -2564,23 +2564,31 @@ var UI = (function () {
     return window.matchMedia('(orientation: portrait) and (max-width: 480px)').matches;
   }
 
-  // Rebuild the mobile bottom action bar (leader | buttons | current).
-  // Called on every showActionBar() and updatePlayerTotal() so it
-  // tracks live game state. `visible`/`disableStay` mirror the
-  // on-table bar's call so the mobile Draw/Stay follow the same rules.
+  // Track the latest "is it my turn" state so updatePlayerTotal can
+  // re-render the bar without changing visibility.
+  var _mbarTurnActive = false;
+
+  // Rebuild the mobile portrait action panel. Only shown when ALL of:
+  //   - gamePhase === 'playing'
+  //   - viewport is mobile portrait
+  //   - it's THIS device's local player's turn (showActionBar(true))
+  // `visible` / `disableStay` come from showActionBar and set the
+  // turn-gated visibility. A subsequent updatePlayerTotal() call
+  // (visible === undefined) just refreshes the leader / score info
+  // without changing the bar's overall visibility.
   function updateMobileActionBar(visible, disableStay) {
     var bar = document.getElementById('mobile-action-bar');
     if (!bar) return;
-    // Gate on phase AND viewport.
-    var active = (gamePhase === 'playing') && isMobilePortrait();
-    document.body.classList.toggle('mbar-active', !!active);
-    if (!active) {
+    if (visible !== undefined) _mbarTurnActive = !!visible;
+    var phaseOk = (gamePhase === 'playing');
+    var portrait = isMobilePortrait();
+    var shouldShow = phaseOk && portrait && _mbarTurnActive;
+    document.body.classList.toggle('mbar-active', shouldShow);
+    if (!shouldShow) {
       bar.style.display = 'none';
-      bar.classList.remove('visible');
       return;
     }
     bar.style.display = 'flex';
-    bar.classList.add('visible');
 
     var gs = Game.getState && Game.getState();
     if (!gs || !gs.players || !gs.players.length) return;
@@ -2592,22 +2600,12 @@ var UI = (function () {
     var current = (typeof Game.getCurrentPlayer === 'function') ? Game.getCurrentPlayer() : null;
     fillMbarPlayer(document.getElementById('mbar-current'), current);
 
-    // Buttons mirror the on-table state. If we don't have the call
-    // context (e.g. updated from updatePlayerTotal), assume hidden.
-    var btns = document.getElementById('mbar-buttons');
+    // Buttons — since the bar is only shown during this device's
+    // turn, Draw is always enabled and Stay follows disableStay.
     var drawBtn = document.getElementById('mbar-btn-draw');
     var stayBtn = document.getElementById('mbar-btn-stay');
-    if (visible === undefined) {
-      // Preserve previous: only the paired showActionBar toggles explicit.
-      return;
-    }
-    if (!visible) {
-      btns.style.visibility = 'hidden';
-      drawBtn.disabled = true; stayBtn.disabled = true;
-    } else {
-      btns.style.visibility = 'visible';
-      drawBtn.disabled = false; stayBtn.disabled = !!disableStay;
-    }
+    if (drawBtn) drawBtn.disabled = false;
+    if (stayBtn) stayBtn.disabled = !!disableStay;
   }
 
   function findCurrentLeader() {
@@ -2639,15 +2637,17 @@ var UI = (function () {
 
   function fillMbarPlayer(container, player) {
     if (!container) return;
+    // New layout (v101): [.mbar-top: score + badges] above avatar,
+    // name below avatar. Matches the table seat's vertical order.
     var avatarEl = container.querySelector('.mbar-avatar');
-    var badgesEl = container.querySelector('.mbar-badges');
-    var scoreEl  = container.querySelector('.mbar-score');
+    var badgesEl = container.querySelector('.mbar-top .mbar-badges');
+    var scoreEl  = container.querySelector('.mbar-top .mbar-score');
     var nameEl   = container.querySelector('.mbar-name');
     if (!player) {
-      avatarEl.innerHTML = '';
-      badgesEl.innerHTML = '';
-      scoreEl.textContent = '';
-      nameEl.textContent = '';
+      if (avatarEl) avatarEl.innerHTML = '';
+      if (badgesEl) badgesEl.innerHTML = '';
+      if (scoreEl) scoreEl.textContent = '';
+      if (nameEl) nameEl.textContent = '';
       return;
     }
     avatarEl.innerHTML = '';
@@ -2655,11 +2655,9 @@ var UI = (function () {
     img.style.width = '100%'; img.style.height = '100%';
     avatarEl.appendChild(img);
     nameEl.textContent = player.name;
-    // Score from live hand
     var hand = (typeof Game.getHand === 'function') ? Game.getHand(player.id) : null;
     var total = (hand && hand.cards) ? CardSystem.handTotal(hand.cards) : '';
     scoreEl.textContent = total || '';
-    // Badges: dealer / stay / bust
     badgesEl.innerHTML = '';
     if (player.isDealer) {
       var d = document.createElement('span');

@@ -1288,16 +1288,26 @@ html, body {
   .confirm-sub { font-size: 0.75rem; margin-bottom: 0.7em; }
   .confirm-buttons { gap: 0.4em; }
   .confirm-buttons .btn { width: 10rem; font-size: 0.8rem; padding: 0.35em 1em; }
-  /* HUD on landscape phones: the default bottom:50%+43.7vmin pushes
-     the top row off the viewport because vmin=H is so small. Drop
-     the offset AND shrink the HUD font so the top row fits above
-     the top character's seat without being clipped by the status
-     bar / notch. */
+}
+
+/* Landscape top-row HUD fix — covers both phones AND tablets that
+   aren't running fullscreen (iPad Safari keeps the top URL bar which
+   shaves off ~80-90px). Anything up to 900px tall in landscape gets
+   the shorter HUD offset so the top row is never clipped by the
+   browser chrome / notch. */
+@media (orientation: landscape) and (max-height: 900px) {
   .game-hud,
   .setup-header,
   #online-lobby-header {
     bottom: calc(50% + 40vmin);
   }
+  .hud-room-row {
+    bottom: calc(50% + 37vmin);
+  }
+}
+
+/* Additional font shrink for the narrower landscape-PHONE band only. */
+@media (orientation: landscape) and (max-height: 500px) {
   .game-hud .hud-label,
   .game-hud .hud-value,
   .game-hud .hud-left {
@@ -1306,9 +1316,6 @@ html, body {
   .game-hud .btn {
     font-size: 1.25vmin;
     padding: 0.4vmin 1vmin;
-  }
-  .hud-room-row {
-    bottom: calc(50% + 37vmin);
   }
   .hud-room-row .hud-label,
   .hud-room-row .lobby-code {
@@ -1681,179 +1688,170 @@ html, body {
 .game-seat-total.leader {
   color: var(--gold-light);
   font-weight: 900;
-  /* ~10× brighter aura than v99. Each outer layer is DUPLICATED
-     (or tripled) so shadows stack additively; every layer at alpha
-     1.0 except the outermost tails. Inner two layers stay single so
-     the digit edges don't smear. */
+  /* Back to ~v99 intensity (v100's 10x stack washed the digits out).
+     Each layer at moderate alpha; the PULSE keyframe has a brighter
+     peak to give the aura visible movement without overpowering the
+     rest of the seat. Max spread 150px. */
   text-shadow:
-    0 0 3px   rgba(255, 240, 170, 1),
-    0 0 6px   rgba(255, 230, 130, 1),
-    0 0 6px   rgba(255, 230, 130, 1),
-    0 0 14px  rgba(255, 222, 100, 1),
-    0 0 14px  rgba(255, 222, 100, 1),
-    0 0 14px  rgba(255, 222, 100, 1),
-    0 0 28px  rgba(255, 215, 85,  1),
-    0 0 28px  rgba(255, 215, 85,  1),
-    0 0 28px  rgba(255, 215, 85,  1),
-    0 0 55px  rgba(255, 210, 75,  1),
-    0 0 55px  rgba(255, 210, 75,  1),
-    0 0 55px  rgba(255, 210, 75,  1),
-    0 0 100px rgba(255, 205, 65,  0.9),
-    0 0 100px rgba(255, 205, 65,  0.9),
-    0 0 160px rgba(255, 200, 55,  0.7);
+    0 0 4px   rgba(255, 235, 160, 0.95),
+    0 0 10px  rgba(255, 225, 120, 0.85),
+    0 0 22px  rgba(255, 218, 95,  0.85),
+    0 0 48px  rgba(255, 210, 80,  0.8),
+    0 0 90px  rgba(255, 205, 70,  0.65),
+    0 0 150px rgba(255, 200, 60,  0.45);
   animation: leaderGlowPulse 2s ease-in-out infinite;
 }
 
 @keyframes leaderGlowPulse {
   0%, 100% {
     text-shadow:
-      0 0 3px   rgba(255, 240, 170, 1),
-      0 0 6px   rgba(255, 230, 130, 1),
-      0 0 6px   rgba(255, 230, 130, 1),
-      0 0 14px  rgba(255, 222, 100, 1),
-      0 0 14px  rgba(255, 222, 100, 1),
-      0 0 14px  rgba(255, 222, 100, 1),
-      0 0 28px  rgba(255, 215, 85,  1),
-      0 0 28px  rgba(255, 215, 85,  1),
-      0 0 28px  rgba(255, 215, 85,  1),
-      0 0 55px  rgba(255, 210, 75,  1),
-      0 0 55px  rgba(255, 210, 75,  1),
-      0 0 55px  rgba(255, 210, 75,  1),
-      0 0 100px rgba(255, 205, 65,  0.9),
-      0 0 100px rgba(255, 205, 65,  0.9),
-      0 0 160px rgba(255, 200, 55,  0.7);
+      0 0 4px   rgba(255, 235, 160, 0.95),
+      0 0 10px  rgba(255, 225, 120, 0.85),
+      0 0 22px  rgba(255, 218, 95,  0.85),
+      0 0 48px  rgba(255, 210, 80,  0.8),
+      0 0 90px  rgba(255, 205, 70,  0.65),
+      0 0 150px rgba(255, 200, 60,  0.45);
   }
   50% {
+    /* Peak: inner alphas pushed to 1.0 and mid-spread alphas boosted
+       so the pulse "breathes" visibly without changing the halo
+       radius or washing the digits toward white. */
     text-shadow:
-      0 0 4px   rgba(255, 245, 185, 1),
-      0 0 8px   rgba(255, 235, 140, 1),
-      0 0 8px   rgba(255, 235, 140, 1),
-      0 0 18px  rgba(255, 226, 108, 1),
-      0 0 18px  rgba(255, 226, 108, 1),
-      0 0 18px  rgba(255, 226, 108, 1),
-      0 0 34px  rgba(255, 220, 92,  1),
-      0 0 34px  rgba(255, 220, 92,  1),
-      0 0 34px  rgba(255, 220, 92,  1),
-      0 0 68px  rgba(255, 214, 82,  1),
-      0 0 68px  rgba(255, 214, 82,  1),
-      0 0 68px  rgba(255, 214, 82,  1),
-      0 0 120px rgba(255, 210, 75,  1),
-      0 0 120px rgba(255, 210, 75,  1),
-      0 0 190px rgba(255, 205, 65,  0.85);
+      0 0 5px   rgba(255, 245, 185, 1),
+      0 0 13px  rgba(255, 232, 140, 1),
+      0 0 28px  rgba(255, 223, 105, 1),
+      0 0 58px  rgba(255, 215, 85,  0.98),
+      0 0 105px rgba(255, 210, 75,  0.85),
+      0 0 175px rgba(255, 205, 65,  0.65);
   }
 }
 
-/* ---------- Mobile-portrait bottom action bar ---------- */
-/* Hidden by default; the @media query below reveals it only on narrow
-   phones in portrait orientation. JS (updateMobileActionBar) fills in
-   the leader + current player info each turn. */
+/* ---------- Mobile-portrait action panel ----------
+   Positioned just below the bottom character's name in the card
+   table (roughly center + 46vmin). Layout per player column:
+     [ SCORE + badges ]     ← mirrors the table seat's top row
+     [ AVATAR circle  ]
+     [ NAME           ]
+   Leader on the LEFT, current active player on the RIGHT. Below
+   both: [Draw] [Stay] at equal size.
+
+   Only the @media + body.mbar-active combination reveals the bar;
+   JS sets body.mbar-active when (it's my turn) AND (mobile portrait).
+   Other orientations/sizes see the on-table .game-actions as before. */
 .mobile-action-bar {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 0.5rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(180deg, transparent 0%, rgba(5,12,10,0.85) 40%, rgba(5,12,10,1) 100%);
+  top: calc(50% + 46vmin);
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
+  gap: 0.6rem;
   z-index: 30;
   pointer-events: auto;
+  width: 100%;
+  max-width: 22rem;
+  padding: 0 0.5rem;
+}
+.mobile-action-bar .mbar-players {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-start;
+  width: 100%;
 }
 .mobile-action-bar .mbar-player {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-  flex: 0 0 auto;
+  gap: 0.15rem;
+  flex: 0 0 40%;
 }
+.mobile-action-bar .mbar-top {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 1.4rem;
+  line-height: 1;
+}
+.mobile-action-bar .mbar-score {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  color: var(--gold-light);
+  font-weight: 900;
+  line-height: 1;
+}
+.mobile-action-bar .mbar-badges {
+  display: inline-flex;
+  gap: 0.2rem;
+  font-family: var(--font-display);
+}
+.mobile-action-bar .mbar-badges .mbar-badge {
+  padding: 0.12rem 0.4rem;
+  border-radius: 0.3rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.mbar-badge.dealer {
+  background: linear-gradient(135deg, var(--gold), var(--gold-dim));
+  color: #000;
+  box-shadow: 0 0 0.3rem rgba(255, 215, 85, 0.5);
+}
+.mbar-badge.stay  { background: rgba(196, 144, 0, 0.3); color: var(--stay-amber); }
+.mbar-badge.bust  { background: rgba(211, 47, 47, 0.3); color: var(--bust-red); }
 .mobile-action-bar .mbar-avatar {
-  width: 3.2rem;
-  height: 3.2rem;
+  width: 3rem;
+  height: 3rem;
   border-radius: 50%;
   border: 2px solid var(--wood-mid);
   background: rgba(20, 30, 25, 0.9);
   overflow: hidden;
-  flex-shrink: 0;
 }
 .mobile-action-bar .mbar-avatar img {
   width: 100%; height: 100%; object-fit: cover;
 }
 .mbar-leader .mbar-avatar {
   border-color: var(--gold);
-  box-shadow: 0 0 0.8rem rgba(255, 215, 85, 0.6);
-}
-.mobile-action-bar .mbar-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.1rem;
-  min-width: 0;
-}
-.mobile-action-bar .mbar-score {
-  font-family: var(--font-display);
-  font-size: 1.4rem;
-  color: var(--gold-light);
-  font-weight: 900;
-  line-height: 1;
+  box-shadow: 0 0 0.8rem rgba(255, 215, 85, 0.55);
 }
 .mobile-action-bar .mbar-name {
   font-family: var(--font-display);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: var(--text-light);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 6rem;
-}
-.mobile-action-bar .mbar-badges {
-  display: flex;
-  gap: 0.25rem;
-  font-size: 0.6rem;
-}
-.mobile-action-bar .mbar-badges .mbar-badge {
-  padding: 0.1rem 0.4rem;
-  border-radius: 0.3rem;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-.mbar-badge.dealer {
-  background: linear-gradient(135deg, var(--gold), var(--gold-dim));
-  color: #000;
-}
-.mbar-badge.stay  { background: rgba(196, 144, 0, 0.3); color: var(--stay-amber); }
-.mbar-badge.bust  { background: rgba(211, 47, 47, 0.3); color: var(--bust-red); }
-.mbar-current .mbar-meta {
-  align-items: flex-end;
+  max-width: 7rem;
+  text-align: center;
 }
 .mobile-action-bar .mbar-buttons {
-  flex: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-  max-width: 11rem;
+  gap: 0.6rem;
+  width: 100%;
+  max-width: 14rem;
 }
 .mobile-action-bar .mbar-buttons .btn {
   width: 100%;
   font-size: 1.1rem;
-  padding: 0.7em 0.5em;
+  padding: 0.6em 0;
+  /* Same size for both Draw and Stay buttons regardless of text
+     width — grid column-widths are exactly equal. */
 }
 .mobile-action-bar .mbar-buttons .btn:disabled {
   opacity: 0.35;
   pointer-events: none;
 }
 
-/* On mobile portrait ONLY, reveal the bottom action bar and hide the
-   on-table draw/stay buttons. Other breakpoints keep the old layout. */
+/* Only reveal the bar on mobile portrait AND when JS flags it
+   active (which it does when it's this device's local player's
+   turn). Other breakpoints keep the on-table Draw/Stay layout. */
 @media (orientation: portrait) and (max-width: 480px) {
-  .mobile-action-bar.visible {
+  body.mbar-active .mobile-action-bar {
     display: flex;
   }
-  .mobile-action-bar.visible + #game-actions,
   body.mbar-active #game-actions {
-    display: none !important;
-  }
-  body.mbar-active .game-actions {
     display: none !important;
   }
 }
@@ -2190,11 +2188,13 @@ html, body {
 }
 
 .lobby-code {
-  font-family: var(--font-display);
+  /* Georgia (with serif fallback) — every weight of Cinzel draws the
+     Q with a long descender tail that clashes with the chip border
+     and with adjacent letters. Georgia's Q is the standard compact
+     Roman form and reads cleanly in the room-code chip. The long-
+     tail Q is intentionally reserved for the face cards only. */
+  font-family: Georgia, 'Times New Roman', serif;
   font-size: 1.7vmin;
-  /* Cinzel @ 700 — the 900 weight has a dramatic long-descender Q
-     that kept colliding with the next letter. 700 keeps the Roman
-     chisel look without the extended Q tail. */
   font-weight: 700;
   color: var(--gold-light);
   letter-spacing: 0.15em;
