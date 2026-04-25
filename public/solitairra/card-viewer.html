@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<title>Solitairra - Card Reference Viewer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a2e;
+    color: #e0e0e0;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    padding: 20px;
+  }
+  h1 {
+    text-align: center;
+    color: #d4a017;
+    margin-bottom: 10px;
+    font-size: 2rem;
+    font-family: 'Cinzel', serif;
+    font-weight: 900;
+  }
+  .subtitle {
+    text-align: center;
+    color: #888;
+    margin-bottom: 30px;
+    font-size: 0.9rem;
+  }
+  .section-header {
+    font-size: 1.6rem;
+    color: #d4a017;
+    margin: 30px 0 15px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #444;
+    text-align: center;
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+  }
+  .suit-section {
+    margin-bottom: 20px;
+  }
+  .suit-title {
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #333;
+  }
+  .suit-title.dolphins  { color: #1565C0; }
+  .suit-title.hares     { color: #b77743; }
+  .suit-title.spiders   { color: #bbb; }
+  .suit-title.cubs      { color: #8d6a52; }
+  .suit-title.diamonds-red   { color: #b71c1c; }
+  .suit-title.diamonds-blue  { color: #1565C0; }
+  .suit-title.diamonds-orange{ color: #e65100; }
+  .suit-title.diamonds-green { color: #2E7D32; }
+  .suit-title.hearts-red     { color: #c62828; }
+  .suit-title.hearts-blue    { color: #1565C0; }
+  .suit-title.hearts-hybrid  { color: #1B5E20; }
+  .suit-title.spades         { color: #bbb; }
+  .suit-title.spades-red     { color: #c62828; }
+  .suit-title.spades-blue    { color: #1565C0; }
+  .suit-title.clubs          { color: #999; }
+  .suit-title.clubs-red      { color: #c62828; }
+  .suit-title.clubs-blue     { color: #1565C0; }
+  .suit-title.clubs-hybrid   { color: #6a1b9a; }
+  .suit-title.classic        { color: #c41e1e; }
+  .card-row {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    margin-bottom: 6px;
+    overflow-x: auto;
+  }
+  .card-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+  }
+  .card-label {
+    font-size: 0.6rem;
+    color: #888;
+  }
+  canvas.card-canvas {
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  }
+</style>
+</head>
+<body>
+<h1>Solitairra Card Reference</h1>
+<p class="subtitle">All 10 ranks per suit across every suit-style mode. Laser variants included for reference — the Laser mode button is currently hidden in Options but all code paths are intact.</p>
+<div id="viewer"></div>
+
+<script src="js/textures.js?v=13"></script>
+<script src="js/cards.js?v=13"></script>
+<script src="js/game.js?v=13"></script>
+<script src="js/renderer.js?v=13"></script>
+<script>
+(function() {
+  'use strict';
+
+  // Show every card style: rank-1 (no-face-card default), full numeric run 2-10,
+  // then A/J/Q/K grouped together at the end.
+  var ALL_RANKS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'A', 'J', 'Q', 'K'];
+  var SUITS = ['diamonds', 'hearts', 'spades', 'clubs'];
+
+  var viewer = document.getElementById('viewer');
+
+  function renderSuitRow(parent, suit, ranks) {
+    var row = document.createElement('div');
+    row.className = 'card-row';
+    for (var ri = 0; ri < ranks.length; ri++) {
+      var rank = ranks[ri];
+      var container = document.createElement('div');
+      container.className = 'card-container';
+      var cardCanvas = Renderer._renderCard(rank, suit);
+      cardCanvas.className = 'card-canvas';
+      container.appendChild(cardCanvas);
+      var label = document.createElement('div');
+      label.className = 'card-label';
+      label.textContent = rank;
+      container.appendChild(label);
+      row.appendChild(container);
+    }
+    parent.appendChild(row);
+  }
+
+  function addSectionHeader(text) {
+    var h = document.createElement('h2');
+    h.className = 'section-header';
+    h.textContent = text;
+    viewer.appendChild(h);
+  }
+
+  function addSuitSection(title, cls, suit) {
+    var section = document.createElement('div');
+    section.className = 'suit-section';
+    var titleEl = document.createElement('h3');
+    titleEl.className = 'suit-title ' + (cls || '');
+    titleEl.textContent = title;
+    section.appendChild(titleEl);
+    renderSuitRow(section, suit, ALL_RANKS);
+    viewer.appendChild(section);
+  }
+
+  function setAllMode(mode) {
+    for (var i = 0; i < SUITS.length; i++) Renderer.setSuitSkin(SUITS[i], mode);
+  }
+
+  Promise.all([
+    document.fonts.load('bold 28px Cinzel'),
+    document.fonts.load('900 28px Cinzel'),
+    document.fonts.load('bold 11px Cinzel')
+  ]).then(function() {
+    // ================================
+    // ANIMALS (default mode in Solitairra). Diamonds renders the chosen
+    // dolphin variant (V11 "Iconic leaping"). Other variants are shown
+    // for reference in the alternates section below.
+    // ================================
+    setAllMode('animals');
+    Renderer.setDolphinVariant(null);   // null → reset to the default (V11)
+    addSectionHeader('Animals (Default — V11 Iconic leaping)');
+    addSuitSection('Dolphins (Diamonds)', 'dolphins', 'diamonds');
+    addSuitSection('Hares (Hearts)',      'hares',    'hearts');
+    addSuitSection('Spiders (Spades)',    'spiders',  'spades');
+    addSuitSection('Cubs (Clubs)',        'cubs',     'clubs');
+
+    // ================================
+    // DOLPHIN DESIGN ALTERNATES — kept for reference / future iteration.
+    // Each row shows one variant across all 14 ranks.
+    // ================================
+    addSectionHeader('Dolphin Design Alternates (reference)');
+    var variantCount = Renderer.getDolphinVariantCount();
+    for (var vi = 0; vi < variantCount; vi++) {
+      Renderer.setDolphinVariant(vi);
+      var label = 'Variant ' + (vi + 1) + ' — ' + Renderer.getDolphinVariantName(vi);
+      addSuitSection(label, 'dolphins', 'diamonds');
+    }
+    Renderer.setDolphinVariant(null);   // back to the chosen default (V11)
+
+    // ================================
+    // CLASSIC
+    // ================================
+    setAllMode('classic');
+    addSectionHeader('Classic');
+    addSuitSection('Diamonds', 'classic',  'diamonds');
+    addSuitSection('Hearts',   'classic',  'hearts');
+    addSuitSection('Spades',   'classic',  'spades');
+    addSuitSection('Clubs',    'classic',  'clubs');
+
+    // ================================
+    // LASER — default variants (button hidden in Options, code preserved)
+    // ================================
+    setAllMode('laser');
+    Renderer.setDiodeScheme('red');
+    Renderer.setPrismScheme('red');
+    Renderer.setBladeScheme('black');
+    Renderer.setBladeStyle('fan');
+    Renderer.setCombinerScheme('black');
+    addSectionHeader('Laser (Deactivated in UI — Default Variants)');
+    addSuitSection('Diodes — Red (default)',   'diamonds-red',  'diamonds');
+    addSuitSection('Prisms — Red (default)',   'hearts-red',    'hearts');
+    addSuitSection('Blades — Fan (default)',   'spades',        'spades');
+    addSuitSection('Combiners — Black (default)', 'clubs',      'clubs');
+
+    // ================================
+    // DIODE SKINS
+    // ================================
+    addSectionHeader('Diode Skins');
+    Renderer.setDiodeScheme('blue');
+    addSuitSection('Blue Diodes', 'diamonds-blue', 'diamonds');
+    Renderer.setDiodeScheme('orange');
+    addSuitSection('Orange Diodes', 'diamonds-orange', 'diamonds');
+    Renderer.setDiodeScheme('green');
+    addSuitSection('Green Diodes', 'diamonds-green', 'diamonds');
+    Renderer.setDiodeScheme('red');
+
+    // ================================
+    // PRISM SKINS
+    // ================================
+    addSectionHeader('Prism Skins');
+    Renderer.setPrismScheme('blue');
+    addSuitSection('Blue Prisms', 'hearts-blue', 'hearts');
+    Renderer.setPrismScheme('warm');
+    addSuitSection('Warm Prisms (red/orange/gold)', 'hearts-red', 'hearts');
+    Renderer.setPrismScheme('cool');
+    addSuitSection('Cool Prisms (blue/indigo/violet)', 'hearts-blue', 'hearts');
+    Renderer.setPrismScheme('hybrid');
+    addSuitSection('Hybrid Prisms (RGB merged)', 'hearts-hybrid', 'hearts');
+    Renderer.setPrismScheme('red');
+
+    // ================================
+    // BLADE STYLES + SKINS
+    // ================================
+    addSectionHeader('Blade Styles + Skins');
+    Renderer.setBladeStyle('blade');
+    Renderer.setBladeScheme('black');
+    addSuitSection('Swords — Black', 'spades', 'spades');
+    Renderer.setBladeScheme('red');
+    addSuitSection('Swords — Red glow', 'spades-red', 'spades');
+    Renderer.setBladeScheme('blue');
+    addSuitSection('Swords — Blue glow', 'spades-blue', 'spades');
+    Renderer.setBladeStyle('fan');
+    Renderer.setBladeScheme('red');
+    addSuitSection('Fans — Red glow', 'spades-red', 'spades');
+    Renderer.setBladeScheme('blue');
+    addSuitSection('Fans — Blue glow', 'spades-blue', 'spades');
+    Renderer.setBladeScheme('black');
+
+    // ================================
+    // COMBINER SKINS
+    // ================================
+    addSectionHeader('Combiner Skins');
+    Renderer.setCombinerScheme('red');
+    addSuitSection('Red Combiners', 'clubs-red', 'clubs');
+    Renderer.setCombinerScheme('blue');
+    addSuitSection('Blue Combiners', 'clubs-blue', 'clubs');
+    Renderer.setCombinerScheme('hybrid');
+    addSuitSection('Hybrid Combiners (red + blue inputs)', 'clubs-hybrid', 'clubs');
+    Renderer.setCombinerScheme('black');
+
+    // Reset to Solitairra defaults (animals)
+    setAllMode('animals');
+  });
+})();
+</script>
+</body>
+</html>

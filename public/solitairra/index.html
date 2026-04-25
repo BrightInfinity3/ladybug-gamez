@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solitairra - Klondike Solitaire</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=14">
+</head>
+<body>
+
+  <!-- ========== TITLE SCREEN ========== -->
+  <div id="screen-title" class="screen active">
+    <div class="title-bg">
+      <div class="floating-suits"></div>
+    </div>
+    <div class="title-content">
+      <div class="title-stack">
+        <div class="title-card-bg" aria-hidden="true"></div>
+        <h1 class="game-title">Solitairra</h1>
+      </div>
+      <div class="title-buttons">
+        <button class="btn btn-gold btn-play" id="btn-play">Play</button>
+        <button class="btn btn-outline btn-menu-size" id="btn-how-to-play">How to Play</button>
+        <button class="btn btn-outline btn-menu-size" id="btn-options">Options</button>
+        <button class="btn btn-outline btn-menu-size" id="btn-leaderboard">Leaderboard</button>
+        <a href="/" class="btn-home" id="btn-home" title="Home">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10.5z"/>
+            <polyline points="9 22 9 14 15 14 15 22"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== HOW TO PLAY SCREEN ========== -->
+  <div id="screen-rules" class="screen">
+    <div class="rules-panel">
+      <h2>How to Play</h2>
+      <div class="rules-content" id="rules-content">
+        <!-- Populated dynamically by UI.renderRules() based on current suit style -->
+      </div>
+      <div class="rules-back-row">
+        <button class="btn btn-gold" id="btn-rules-back">Back</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== OPTIONS SCREEN ========== -->
+  <div id="screen-options" class="screen">
+    <div class="options-panel">
+      <h2>Options</h2>
+      <div class="options-content">
+        <!-- Deck Size option (hidden, keeping default as no face cards)
+        <div class="option-section">
+          <h3>Deck Size</h3>
+          <div class="suit-picker">
+            <div class="suit-mode-toggle">
+              <button class="btn btn-sm suit-mode-btn active" id="btn-face-off">No Face Cards</button>
+              <button class="btn btn-sm suit-mode-btn" id="btn-face-on">Face Cards</button>
+            </div>
+          </div>
+        </div>
+        -->
+
+        <div class="option-section">
+          <h3>Card Suit Style</h3>
+          <div class="suit-picker">
+            <div class="suit-mode-toggle">
+              <button class="btn btn-sm suit-mode-btn active" id="btn-mode-animals">Animals</button>
+              <!-- Laser mode deactivated (code preserved in renderer + ui for future use)
+              <button class="btn btn-sm suit-mode-btn" id="btn-mode-laser">Laser</button>
+              -->
+              <button class="btn btn-sm suit-mode-btn" id="btn-mode-classic">Classic</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="option-section" id="laser-options" style="display:none">
+          <h3>Laser Suit Options</h3>
+          <div class="variant-row">
+            <span class="variant-label">Diodes:</span>
+            <div class="variant-buttons">
+              <button class="btn btn-sm variant-btn" data-suit="diamonds" data-variant="red">Red</button>
+              <button class="btn btn-sm variant-btn active" data-suit="diamonds" data-variant="blue">Blue</button>
+            </div>
+          </div>
+          <div class="variant-row">
+            <span class="variant-label">Prisms:</span>
+            <div class="variant-buttons">
+              <button class="btn btn-sm variant-btn active" data-suit="hearts" data-variant="red">Red</button>
+              <button class="btn btn-sm variant-btn" data-suit="hearts" data-variant="blue">Blue</button>
+              <button class="btn btn-sm variant-btn" data-suit="hearts" data-variant="hybrid">Hybrid</button>
+            </div>
+          </div>
+          <div class="variant-row">
+            <span class="variant-label">Blades:</span>
+            <div class="variant-buttons">
+              <button class="btn btn-sm variant-btn active" data-suit="spades-style" data-variant="fan">Fan</button>
+              <!-- Sai deactivated, kept in code for future resurrection
+              <button class="btn btn-sm variant-btn" data-suit="spades-style" data-variant="sai">Sai</button>
+              -->
+              <button class="btn btn-sm variant-btn" data-suit="spades-style" data-variant="blade">Sword</button>
+            </div>
+          </div>
+          <div class="variant-row">
+            <span class="variant-label">Combiners:</span>
+            <div class="variant-buttons">
+              <button class="btn btn-sm variant-btn active" data-suit="clubs" data-variant="black">Black</button>
+              <button class="btn btn-sm variant-btn" data-suit="clubs" data-variant="red">Red</button>
+              <button class="btn btn-sm variant-btn" data-suit="clubs" data-variant="blue">Blue</button>
+              <button class="btn btn-sm variant-btn" data-suit="clubs" data-variant="hybrid">Hybrid</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="option-section">
+          <h3>Preview</h3>
+          <div class="suit-preview" id="suit-preview">
+            <canvas id="preview-canvas" width="560" height="280"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="options-back-row">
+        <button class="btn btn-gold" id="btn-options-back">Back</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== GAME SCREEN ========== -->
+  <div id="screen-game" class="screen">
+    <!-- Game HUD -->
+    <div class="game-hud" id="game-hud">
+      <div class="hud-group">
+        <div class="hud-item" id="hud-item-moves">
+          <span class="hud-label">Moves:</span>
+          <span class="hud-value" id="hud-moves">0</span>
+        </div>
+        <div class="hud-item" id="hud-item-stock">
+          <span class="hud-label">Stock:</span>
+          <span class="hud-value" id="hud-stock">24</span>
+        </div>
+      </div>
+      <div class="hud-group">
+        <button class="btn btn-outline btn-hud" id="btn-new-game-hud">New Game</button>
+        <button class="btn btn-outline btn-hud" id="btn-menu">Main Menu</button>
+      </div>
+    </div>
+
+    <!-- Dev win button (hidden, kept for testing)
+    <button class="btn btn-outline" id="btn-dev-win" style="position:absolute;z-index:20;font-size:0.5rem;padding:1px 4px;opacity:0.3;pointer-events:auto">DEV</button>
+    -->
+
+    <div class="table-container">
+      <div class="card-table game-table">
+        <canvas id="game-canvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Confirm exit overlay -->
+    <div class="confirm-overlay" id="confirm-exit" style="display:none">
+      <div class="confirm-panel">
+        <p class="confirm-title">Return to Main Menu?</p>
+        <p class="confirm-sub">Your current game will be lost.</p>
+        <div class="confirm-buttons">
+          <button class="btn btn-gold" id="btn-confirm-yes">Yes, Exit</button>
+          <button class="btn btn-outline" id="btn-confirm-no">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirm new game overlay -->
+    <div class="confirm-overlay" id="confirm-new" style="display:none">
+      <div class="confirm-panel">
+        <p class="confirm-title">Start New Game?</p>
+        <p class="confirm-sub">Your current game will be lost.</p>
+        <div class="confirm-buttons">
+          <button class="btn btn-gold" id="btn-confirm-new-yes">Yes, New Game</button>
+          <button class="btn btn-outline" id="btn-confirm-new-no">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== RESULTS SCREEN ========== -->
+  <!-- ========== LEADERBOARD SCREEN ========== -->
+  <div id="screen-leaderboard" class="screen">
+    <div class="leaderboard-panel">
+      <h2>Leaderboard</h2>
+      <div class="leaderboard-table-wrap">
+        <table class="leaderboard-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Score</th>
+              <th>Moves</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboard-body"></tbody>
+        </table>
+        <p class="leaderboard-empty" id="leaderboard-empty">No scores yet. Win a game to get on the board!</p>
+      </div>
+      <div class="rules-back-row">
+        <button class="btn btn-gold" id="btn-leaderboard-back">Back</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== RESULTS SCREEN ========== -->
+  <div id="screen-results" class="screen">
+    <div class="results-content">
+      <div class="results-winner">
+        <h2 class="winner-title">You Win!</h2>
+        <div class="result-stats">
+          <div class="result-stat">
+            <span class="result-label">Score</span>
+            <span class="result-value" id="result-score">0</span>
+          </div>
+          <div class="result-stat">
+            <span class="result-label">Moves</span>
+            <span class="result-value" id="result-moves">0</span>
+          </div>
+        </div>
+        <div class="result-foundations-row" id="result-foundations"></div>
+        <div class="score-formula" id="score-formula"></div>
+      </div>
+      <div class="leaderboard-entry" id="leaderboard-entry">
+        <input type="text" id="leaderboard-name" class="leaderboard-input" placeholder="Enter your name" maxlength="20" autocomplete="off">
+        <button class="btn btn-gold btn-sm" id="btn-submit-score">Submit</button>
+      </div>
+      <div class="results-buttons">
+        <button class="btn btn-gold btn-large" id="btn-play-again">Play Again</button>
+        <button class="btn btn-outline btn-large" id="btn-results-menu">Main Menu</button>
+      </div>
+    </div>
+    <div class="confetti-container" id="confetti-container"></div>
+  </div>
+
+  <!-- Scripts in dependency order -->
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js@8/dist/pixi.min.js"></script>
+  <script src="js/cards.js?v=14"></script>
+  <script src="js/game.js?v=14"></script>
+  <script src="js/animations.js?v=14"></script>
+  <script src="js/textures.js?v=14"></script>
+  <script src="js/renderer.js?v=14"></script>
+  <script src="js/save.js?v=14"></script>
+  <script src="js/ui.js?v=14"></script>
+
+</body>
+</html>
