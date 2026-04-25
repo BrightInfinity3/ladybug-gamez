@@ -7,7 +7,7 @@
     <title>Lango</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=Caveat:wght@400;700&family=Patrick+Hand&family=Great+Vibes&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=Caveat:wght@400;700&family=Patrick+Hand&family=Sacramento&display=swap" rel="stylesheet">
     <style>
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
         html,body{width:100%;height:100%;overflow-x:hidden}
@@ -28,22 +28,24 @@
                 hsl(var(--sheet-hue), var(--sheet-sat), calc(var(--sheet-L) - 5%))) fixed;
         }
 
-        /* ── Font options. Four are pure Google Fonts so they look identical
-              on every device; only `hand` keeps a system-font chain so
-              Windows users continue to see Comic Sans MS.
+        /* ── Font options.
               Slot 1 hand:        'Comic Sans MS' (Windows) / 'Chalkboard SE'
                                   (iOS) / sans-serif (Android).
               Slot 2 script:      Caveat — same on every device.
-              Slot 3 cursive:     Patrick Hand — same on every device, and
-                                  visibly distinct from slot 1.
+              Slot 3 cursive:     Patrick Hand on Windows (via the
+                                  `platform-windows` body class set in JS);
+                                  OS-native cursive face elsewhere — Android
+                                  shows its system "Casual" cursive, iOS
+                                  shows Snell Roundhand.
               Slot 4 outfit:      Outfit — same on every device.
-              Slot 5 calligraphy: Great Vibes — formal calligraphy script,
-                                  same on every device. */
+              Slot 5 calligraphy: Sacramento — slim, elegant calligraphy
+                                  script, same on every device. */
         body.font-hand{--game-font:'Comic Sans MS','Chalkboard SE',sans-serif}
         body.font-script{--game-font:'Caveat',cursive}
-        body.font-cursive{--game-font:'Patrick Hand',cursive,sans-serif}
+        body.font-cursive{--game-font:cursive,sans-serif}
+        body.font-cursive.platform-windows{--game-font:'Patrick Hand',cursive,sans-serif}
         body.font-outfit{--game-font:'Outfit'}
-        body.font-calligraphy{--game-font:'Great Vibes',cursive}
+        body.font-calligraphy{--game-font:'Sacramento',cursive}
 
         /* ── Accent (Words) — fixed color per option (Shade now controls sheet lightness instead) ── */
         body.accent-purple{--accent-primary:#8b5cf6;--accent-secondary:#7c3aed;--accent-light:rgba(139,92,246,.15);--accent-border:rgba(139,92,246,.3);--accent-glow:rgba(139,92,246,.4)}
@@ -167,9 +169,10 @@
         .font-swatch{background:#fff;display:flex;align-items:center;justify-content:center;font-size:1.05rem;font-weight:700;color:var(--accent-primary);--sw-ring:var(--accent-primary)}
         .f-hand{font-family:'Comic Sans MS','Chalkboard SE',sans-serif}
         .f-script{font-family:'Caveat',cursive}
-        .f-cursive{font-family:'Patrick Hand',cursive,sans-serif}
+        .f-cursive{font-family:cursive,sans-serif}
+        body.platform-windows .f-cursive{font-family:'Patrick Hand',cursive,sans-serif}
         .f-outfit{font-family:'Outfit',sans-serif}
-        .f-calligraphy{font-family:'Great Vibes',cursive}
+        .f-calligraphy{font-family:'Sacramento',cursive}
         /* Shade swatches — preview five lightness levels of the CURRENT sheet hue */
         .style-swatch.s-1{background:hsl(var(--sheet-hue, 262), var(--sheet-sat, 55%), 90%);--sw-ring:hsl(var(--sheet-hue, 262), var(--sheet-sat, 55%), 55%)}
         .style-swatch.s-2{background:hsl(var(--sheet-hue, 262), var(--sheet-sat, 55%), 75%);--sw-ring:hsl(var(--sheet-hue, 262), var(--sheet-sat, 55%), 45%)}
@@ -332,9 +335,12 @@
         .ex-absent{background:var(--cell-bg);color:var(--text-primary);border:2px solid var(--cell-border);opacity:.35}
         .ex-first{background:var(--accent-primary);color:#fff}
 
-        /* ── Mobile sizing — proportionally tighter so the whole card +
-              keyboard fits in portrait without scrolling. */
+        /* ── Mobile sizing — every screen + keyboard has to fit in portrait
+              on phones (down to ~320×568) without scrolling. Swatches /
+              cells / kb-keys / vertical gaps all step down progressively
+              by viewport breakpoints. */
         @media(max-width:480px){
+            body{padding:12px 8px}
             .game-card{padding:14px 10px;max-width:calc(100vw - 12px)}
             .letter-cell,.first-letter-display,.letter-input,.letter-input-wrap{width:42px;height:42px;font-size:1.1rem}
             .kb-key{min-width:24px;height:32px;font-size:.7rem;padding:0 4px}
@@ -353,9 +359,44 @@
             .message{padding:6px 12px;font-size:.85rem;min-height:34px;margin:5px auto}
             .logo{font-size:5rem;margin-bottom:1rem}
             .menu-btn{width:200px;height:42px;padding:10px 0;font-size:.95rem}
-            .menu-buttons{min-height:300px}
+            .menu-buttons{min-height:300px;gap:8px}
             .lango-home-btn{width:40px;height:40px}
             .lango-home-btn svg{width:20px;height:20px}
+
+            /* Style screen — drop the hardcoded 745px height so the card
+               can shrink to its actual content; tighten every row. */
+            #styleScreen .game-card{width:auto;max-width:calc(100vw - 12px);height:auto;padding:14px 12px}
+            .style-screen h2{font-size:1.2rem;margin-bottom:12px;line-height:1.6rem;min-height:1.6rem}
+            .style-section{margin-bottom:14px}
+            .style-section-title{font-size:.78rem;margin-bottom:7px;letter-spacing:1.5px}
+            .style-row{height:32px;gap:10px;margin-bottom:7px;font-size:.78rem}
+            .style-row label{width:50px;font-size:.7rem}
+            .style-swatch{width:28px;height:28px;border-width:2px}
+            .style-swatches{gap:6px}
+            .toggle-label{font-size:.72rem;min-width:50px}
+            .toggle-btn{padding:3px 9px;font-size:.68rem}
+            .style-section .style-row .style-swatches:has(.toggle-btn){min-width:170px}
+            #styleScreen .btn-primary{width:130px;height:40px}
+
+            /* Rules screen — tighter line-height, smaller example tiles */
+            .rules-screen h2{font-size:1.25rem;margin-bottom:12px}
+            .rules-screen .rule{font-size:.85rem;margin-bottom:11px;line-height:1.4}
+            .rules-screen .ex-cell{width:32px;height:32px;font-size:.9rem}
+
+            /* Links screen — narrower name input, tighter title */
+            .links-screen h2{font-size:1.25rem;margin-bottom:14px}
+            .links-name-label{font-size:.78rem;margin-bottom:5px}
+            .links-name-input{width:180px;height:34px;font-size:.95rem}
+            .links-action-btn{width:130px;padding:9px 0}
+            .links-share-help{font-size:.85rem;margin-bottom:6px}
+            #linksMessage{padding:8px 10px;font-size:.8rem;min-height:54px}
+            .links-button-row{gap:8px;margin-bottom:8px}
+
+            /* Modal */
+            .modal-box{padding:22px 18px;max-width:300px}
+            .modal-box h3{font-size:1.05rem}
+            .modal-box p{font-size:.85rem}
+            .modal-buttons .btn{min-width:96px;padding:10px 18px;font-size:.88rem}
         }
         @media(max-width:380px){
             .letter-cell,.first-letter-display,.letter-input,.letter-input-wrap{width:38px;height:38px;font-size:1rem}
@@ -364,7 +405,15 @@
             .row-spacer{width:22px}
             .game-title-center{font-size:1.25rem}
             .logo{font-size:4rem}
+            .menu-btn{width:180px;height:40px;font-size:.9rem}
+            .style-swatch{width:26px;height:26px}
+            .style-row{height:30px;margin-bottom:6px}
+            .links-name-input{width:160px}
+            .links-action-btn{width:120px}
         }
+        /* Short-height tightening — kicks in on iPhone SE class (568px) and
+           any mobile/tablet where the gameArea stack would otherwise need
+           to scroll. */
         @media(max-height:680px) and (max-width:1024px){
             .game-card{padding:12px 12px}
             .game-title-center{font-size:1.3rem;margin-bottom:4px}
@@ -374,8 +423,63 @@
             .attempts-grid{gap:3px}
             .attempts-text{margin:3px 0;font-size:.75rem}
             .keyes-row{margin:3px 0;line-height:1}
-            .known-row{margin-bottom:4px}
+            .known-row{margin-bottom:4px;min-height:24px}
+            .known-slot{font-size:.95rem}
             .message{padding:5px 10px;font-size:.8rem;min-height:30px;margin:4px auto}
+            .style-section{margin-bottom:10px}
+            .style-section-title{margin-bottom:6px}
+            .style-screen h2{margin-bottom:8px;font-size:1.1rem;line-height:1.4rem;min-height:1.4rem}
+            .style-row{height:28px;margin-bottom:5px}
+            .style-swatch{width:24px;height:24px}
+            #styleScreen .btn-primary{height:36px}
+        }
+        @media(max-height:580px){
+            .logo{font-size:3rem;margin-bottom:.6rem}
+            .menu-btn{height:36px;padding:8px 0;font-size:.85rem}
+            .menu-buttons{min-height:240px;gap:6px}
+            .lango-home-btn{width:36px;height:36px;margin-top:2px}
+            .game-card{padding:10px 10px}
+            .game-title-center{font-size:1.15rem;margin-bottom:3px}
+            .kb-key{height:26px;font-size:.6rem}
+            .attempts-grid{gap:2px}
+            .style-row{height:26px;margin-bottom:4px}
+            .style-swatch{width:22px;height:22px}
+            .style-section{margin-bottom:8px}
+        }
+
+        /* Portrait phones (typical 360-428×640-844). Game stack with Keyes
+           on is the worst case; this combo shrinks it enough to fit. */
+        @media(max-width:480px) and (max-height:760px){
+            .letter-cell,.first-letter-display,.letter-input,.letter-input-wrap{width:38px;height:38px;font-size:1rem}
+            .kb-key{min-width:22px;height:28px;font-size:.64rem;padding:0 3px}
+            .kb-key.wide{padding:0 6px;font-size:.58rem}
+            .row-number{font-size:1rem;width:22px}
+            .row-spacer{width:22px}
+            .attempts-grid{gap:2px}
+            .attempt-row,.current-guess{gap:3px}
+            .keyboard-area{margin-top:4px;gap:2px}
+            .kb-row{gap:2px}
+            .guess-spacer{height:6px}
+            .game-title-center{font-size:1.2rem;margin-bottom:2px}
+            .attempts-text{margin:2px 0;font-size:.72rem}
+            .keyes-row{margin:2px 0}
+            .known-row{margin-bottom:2px;min-height:22px}
+            .known-slot{width:24px;font-size:.95rem}
+            .known-toggle-row{margin-bottom:4px}
+            .message{padding:4px 8px;font-size:.78rem;min-height:26px;margin:2px auto}
+            .game-area .button-row .btn,.btn-leave{padding:7px 16px;font-size:.85rem;min-width:80px}
+            .game-card{padding:10px 8px}
+            /* Style screen — even tighter for short phones */
+            .style-screen h2{font-size:1.1rem;margin-bottom:8px;line-height:1.4rem;min-height:1.4rem}
+            .style-section{margin-bottom:10px}
+            .style-section-title{margin-bottom:6px;font-size:.72rem}
+            .style-row{height:28px;margin-bottom:5px;font-size:.74rem}
+            .style-row label{width:46px;font-size:.66rem}
+            .style-swatch{width:24px;height:24px}
+            .style-swatches{gap:5px}
+            .toggle-btn{padding:2px 8px;font-size:.66rem}
+            .style-section .style-row .style-swatches:has(.toggle-btn){min-width:160px}
+            #styleScreen .btn-primary{height:36px;width:120px}
         }
 
         /* ── Portrait lock — touch devices in landscape see a rotate prompt
@@ -736,6 +840,14 @@ var allowedWords = ["AALII","ABACA","ABACK","ABAFT","ABAMP","ABASE","ABASH","ABA
 var allowedSet = {};
 for (var i = 0; i < allowedWords.length; i++) allowedSet[allowedWords[i]] = true;
 for (var i = 0; i < answerWords.length; i++) allowedSet[answerWords[i]] = true;
+
+// Detect Windows up front so the cursive slot can pick its OS-specific
+// face before first paint. Other platforms inherit the bare `cursive`
+// keyword and let the OS pick its native cursive font (Android's casual,
+// iOS's Snell Roundhand, etc.).
+if (typeof navigator !== 'undefined' && /Windows/i.test(navigator.userAgent || '')) {
+    document.body.classList.add('platform-windows');
+}
 
 // ── Game State ──
 var currentMode = '';      // 'single' | 'two' | 'links' (receiver) | ''
