@@ -3138,8 +3138,15 @@ var Renderer = (function () {
     var isAnimals = isAnimalsSuit(suit);
     var useWideLayout = isCustom || isAnimals;
     var fontSize = 20;     // uniform 20px for classic pips (all ranks)
-    var customSize = (count === 1) ? 57.5 : 16;  // 1-cards get +25%, +15%, +25% (32→40→46→57.5)
+    // Rank-1 pip size diverges by mode:
+    //   Laser (isCustom): 57.5 × 0.85 = 48.875 (slightly smaller)
+    //   Animals:         57.5 × 1.15 = 66.125 (slightly larger)
+    var customSize = (count === 1) ? (isAnimals ? 66.125 : 48.875) : 16;
     if (suit === 'hearts' && isCustom && count > 2) customSize = 15.2; // prisms 5% smaller for 3+
+    // Animals 2-10 get a +10% baseline boost, applied before per-suit specifics.
+    if (isAnimals && count > 1) {
+      customSize = customSize * 1.10;
+    }
     // Per-suit size boosts for Animals mode, counts 2-10:
     //   Hares (hearts): 25%
     //   Dolphins (diamonds) & Spiders (spades): 10%
@@ -3157,8 +3164,9 @@ var Renderer = (function () {
       customSize = customSize * 1.25 * 1.10 * 1.10;
     }
 
-    // Classic 1-cards get a double-sized centre pip, +25%, +15%, +25% on top (40→50→57.5→71.875)
-    var classicOneSize = (count === 1) ? 71.875 : fontSize;
+    // Classic 1-cards: double-sized centre pip, scaled +25%, +15%, +25%, then -15%
+    // (40 → 50 → 57.5 → 71.875 → 61.09375)
+    var classicOneSize = (count === 1) ? 61.09375 : fontSize;
 
     // Use spread-out layouts for custom (laser) and animals suits
     if (useWideLayout && CUSTOM_PIP_LAYOUTS[count]) {
@@ -3501,7 +3509,9 @@ var Renderer = (function () {
 
     // Suit symbol in center (2x size for visibility)
     if (suit) {
-      var phPipSize = 48;
+      // Animal placeholders use a slightly bigger pip (+20%) since the silhouettes
+      // read better at larger size, especially with the 0.55 alpha blit.
+      var phPipSize = isAnimalsSuit(suit) ? 57.6 : 48;
       if (isAnimalsSuit(suit)) {
         // Render the pip opaquely to an offscreen canvas first, THEN blit
         // that single image at reduced alpha. This keeps each sub-shape
