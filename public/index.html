@@ -115,6 +115,19 @@
       gap: 16px;
     }
 
+    /* On wide screens, render the logo on a single line: LADYBUG | bug | GAMES */
+    @media (min-width: 720px) {
+      .logo-stack {
+        flex-direction: row;
+        align-items: center;
+        gap: 24px;
+      }
+      .logo-line2 {
+        flex-direction: row-reverse;
+        gap: 24px;
+      }
+    }
+
     .logo-bug-wrap {
       position: relative;
       display: flex;
@@ -669,7 +682,7 @@
       x.save();
       x.translate(24, 24);
       x.rotate(-Math.PI * 0.18);
-      const s = 0.72; // tile-fit scale
+      const s = 1.008; // tile-fit scale (40% larger than original 0.72)
       x.translate(-0.3 * s, 1 * s);
 
       x.beginPath();
