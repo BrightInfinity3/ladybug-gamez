@@ -3140,8 +3140,8 @@ var Renderer = (function () {
     var fontSize = 20;     // uniform 20px for classic pips (all ranks)
     // Rank-1 pip size diverges by mode:
     //   Laser (isCustom): 57.5 × 0.85 = 48.875 (slightly smaller)
-    //   Animals:         57.5 × 1.15 = 66.125 (slightly larger)
-    var customSize = (count === 1) ? (isAnimals ? 66.125 : 48.875) : 16;
+    //   Animals:         57.5 × 1.15 × 1.10 = 72.7375 (slightly larger)
+    var customSize = (count === 1) ? (isAnimals ? 72.7375 : 48.875) : 16;
     if (suit === 'hearts' && isCustom && count > 2) customSize = 15.2; // prisms 5% smaller for 3+
     // Animals 2-10 get a +10% baseline boost, applied before per-suit specifics.
     if (isAnimals && count > 1) {
@@ -3300,10 +3300,12 @@ var Renderer = (function () {
     // Base (counts 2+) is 16; apply the same suit-specific scaling renderPips uses.
     var faceCardPipSize = 16;
     if (isCustomSuit(suit) && suit === 'hearts') faceCardPipSize = 15.2;
-    if (isAnimalsSuit(suit) && suit === 'diamonds') faceCardPipSize = 16 * 1.10;
-    if (isAnimalsSuit(suit) && suit === 'hearts')   faceCardPipSize = 16 * 1.25;
-    if (isAnimalsSuit(suit) && suit === 'spades')   faceCardPipSize = 16 * 1.10;
-    if (isAnimalsSuit(suit) && suit === 'clubs')    faceCardPipSize = 16 * 1.25 * 1.10 * 1.10;
+    // Animals face-card (A/J/Q/K) centre pips get the same +10% baseline as the
+    // 2-10 pips, then the per-suit boost on top.
+    if (isAnimalsSuit(suit) && suit === 'diamonds') faceCardPipSize = 16 * 1.10 * 1.10;
+    if (isAnimalsSuit(suit) && suit === 'hearts')   faceCardPipSize = 16 * 1.10 * 1.25;
+    if (isAnimalsSuit(suit) && suit === 'spades')   faceCardPipSize = 16 * 1.10 * 1.10;
+    if (isAnimalsSuit(suit) && suit === 'clubs')    faceCardPipSize = 16 * 1.10 * 1.25 * 1.10 * 1.10;
     var classicFacePipSize = 20;  // matches classic 2-10 font size
     if (isAnimalsSuit(suit)) {
       drawAnimalPip(c, cx, suitPipY, faceCardPipSize, suit, false);
@@ -3509,9 +3511,10 @@ var Renderer = (function () {
 
     // Suit symbol in center (2x size for visibility)
     if (suit) {
-      // Animal placeholders use a slightly bigger pip (+20%) since the silhouettes
-      // read better at larger size, especially with the 0.55 alpha blit.
-      var phPipSize = isAnimalsSuit(suit) ? 57.6 : 48;
+      // Animal placeholders use a bigger pip (two compounded +20% boosts:
+      // 48 × 1.20 × 1.20 = 69.12) since the silhouettes read better at
+      // larger size, especially with the 0.55 alpha blit.
+      var phPipSize = isAnimalsSuit(suit) ? 69.12 : 48;
       if (isAnimalsSuit(suit)) {
         // Render the pip opaquely to an offscreen canvas first, THEN blit
         // that single image at reduced alpha. This keeps each sub-shape
