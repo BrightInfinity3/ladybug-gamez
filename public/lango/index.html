@@ -7,7 +7,7 @@
     <title>Lango</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=Caveat:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=Caveat:wght@400;700&family=Patrick+Hand&family=Great+Vibes&display=swap" rel="stylesheet">
     <style>
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
         html,body{width:100%;height:100%;overflow-x:hidden}
@@ -28,21 +28,22 @@
                 hsl(var(--sheet-hue), var(--sheet-sat), calc(var(--sheet-L) - 5%))) fixed;
         }
 
-        /* ── Font options.
-              Slot 1 hand:    'Comic Sans MS' on Windows, 'Chalkboard SE'
-                              on iOS (similar look), system sans on Android.
-              Slot 2 script:  Caveat (Google Font) — same beautiful cursive
-                              on every device.
-              Slot 3 cursive: lets each OS pick its own cursive face — this
-                              brings back the Android system cursive that
-                              looks beautiful on Android.
-              Slot 4 outfit:  Outfit (Google Font).
-              Slot 5 round:   Verdana / Trebuchet. */
+        /* ── Font options. Four are pure Google Fonts so they look identical
+              on every device; only `hand` keeps a system-font chain so
+              Windows users continue to see Comic Sans MS.
+              Slot 1 hand:        'Comic Sans MS' (Windows) / 'Chalkboard SE'
+                                  (iOS) / sans-serif (Android).
+              Slot 2 script:      Caveat — same on every device.
+              Slot 3 cursive:     Patrick Hand — same on every device, and
+                                  visibly distinct from slot 1.
+              Slot 4 outfit:      Outfit — same on every device.
+              Slot 5 calligraphy: Great Vibes — formal calligraphy script,
+                                  same on every device. */
         body.font-hand{--game-font:'Comic Sans MS','Chalkboard SE',sans-serif}
         body.font-script{--game-font:'Caveat',cursive}
-        body.font-cursive{--game-font:cursive,sans-serif}
+        body.font-cursive{--game-font:'Patrick Hand',cursive,sans-serif}
         body.font-outfit{--game-font:'Outfit'}
-        body.font-round{--game-font:Verdana,'Trebuchet MS',sans-serif}
+        body.font-calligraphy{--game-font:'Great Vibes',cursive}
 
         /* ── Accent (Words) — fixed color per option (Shade now controls sheet lightness instead) ── */
         body.accent-purple{--accent-primary:#8b5cf6;--accent-secondary:#7c3aed;--accent-light:rgba(139,92,246,.15);--accent-border:rgba(139,92,246,.3);--accent-glow:rgba(139,92,246,.4)}
@@ -166,9 +167,9 @@
         .font-swatch{background:#fff;display:flex;align-items:center;justify-content:center;font-size:1.05rem;font-weight:700;color:var(--accent-primary);--sw-ring:var(--accent-primary)}
         .f-hand{font-family:'Comic Sans MS','Chalkboard SE',sans-serif}
         .f-script{font-family:'Caveat',cursive}
-        .f-cursive{font-family:cursive,sans-serif}
+        .f-cursive{font-family:'Patrick Hand',cursive,sans-serif}
         .f-outfit{font-family:'Outfit',sans-serif}
-        .f-round{font-family:Verdana,'Trebuchet MS',sans-serif}
+        .f-calligraphy{font-family:'Great Vibes',cursive}
         /* Shade swatches — preview five lightness levels of the CURRENT sheet hue */
         .style-swatch.s-1{background:hsl(var(--sheet-hue, 262), var(--sheet-sat, 55%), 90%);--sw-ring:hsl(var(--sheet-hue, 262), var(--sheet-sat, 55%), 55%)}
         .style-swatch.s-2{background:hsl(var(--sheet-hue, 262), var(--sheet-sat, 55%), 75%);--sw-ring:hsl(var(--sheet-hue, 262), var(--sheet-sat, 55%), 45%)}
@@ -214,8 +215,13 @@
         .letter-cell.pop{animation:cellPop .3s ease}
         @keyframes cellPop{0%{transform:scale(1)}50%{transform:scale(1.12)}100%{transform:scale(1)}}
 
-        /* ── Flash Cant (🚫 overlay on blocked input) ── */
-        .letter-input-wrap{position:relative;display:inline-block}
+        /* ── Flash Cant (🚫 overlay on blocked input) ──
+           Explicit width/height matches .letter-input so the wrap and the
+           plain first-letter-display sibling render at the same size on
+           every device (otherwise inline-block intrinsic sizing can drift
+           on Android, making the first letter appear narrower). */
+        .letter-input-wrap{position:relative;display:inline-block;width:48px;height:48px;flex-shrink:0;box-sizing:border-box}
+        .first-letter-display{flex-shrink:0;box-sizing:border-box}
         .flash-cant{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:1.6rem;pointer-events:none;animation:flashCantAnim .5s ease forwards;z-index:5;border-radius:10px;background:rgba(220,38,38,.12)}
         @keyframes flashCantAnim{0%{opacity:1;transform:scale(1.1)}70%{opacity:1}100%{opacity:0;transform:scale(1)}}
 
@@ -326,16 +332,70 @@
         .ex-absent{background:var(--cell-bg);color:var(--text-primary);border:2px solid var(--cell-border);opacity:.35}
         .ex-first{background:var(--accent-primary);color:#fff}
 
-        @media(max-width:380px){
-            .letter-cell,.first-letter-display,.letter-input{width:42px;height:42px;font-size:1.15rem}
-            .kb-key{min-width:26px;height:34px;font-size:.78rem}
-            .logo{font-size:3.8rem}
+        /* ── Mobile sizing — proportionally tighter so the whole card +
+              keyboard fits in portrait without scrolling. */
+        @media(max-width:480px){
+            .game-card{padding:14px 10px;max-width:calc(100vw - 12px)}
+            .letter-cell,.first-letter-display,.letter-input,.letter-input-wrap{width:42px;height:42px;font-size:1.1rem}
+            .kb-key{min-width:24px;height:32px;font-size:.7rem;padding:0 4px}
+            .kb-key.wide{padding:0 8px;font-size:.62rem}
+            .game-title-center{font-size:1.4rem;margin-bottom:6px}
+            .row-number{font-size:1.1rem;width:24px}
+            .row-spacer{width:24px}
+            .attempts-grid{gap:4px}
+            .attempt-row,.current-guess{gap:4px}
+            .keyboard-area{gap:3px;margin-top:8px}
+            .kb-row{gap:3px}
+            .keyes-row{margin:6px 0}
+            .known-row{margin-bottom:6px;min-height:26px}
             .known-slot{width:26px;font-size:1rem}
-            .row-number{font-size:1.15rem;width:24px}
+            .attempts-text{font-size:.78rem;margin:5px 0}
+            .message{padding:6px 12px;font-size:.85rem;min-height:34px;margin:5px auto}
+            .logo{font-size:5rem;margin-bottom:1rem}
+            .menu-btn{width:200px;height:42px;padding:10px 0;font-size:.95rem}
+            .menu-buttons{min-height:300px}
+            .lango-home-btn{width:40px;height:40px}
+            .lango-home-btn svg{width:20px;height:20px}
+        }
+        @media(max-width:380px){
+            .letter-cell,.first-letter-display,.letter-input,.letter-input-wrap{width:38px;height:38px;font-size:1rem}
+            .kb-key{min-width:22px;height:30px;font-size:.65rem}
+            .row-number{font-size:1rem;width:22px}
+            .row-spacer{width:22px}
+            .game-title-center{font-size:1.25rem}
+            .logo{font-size:4rem}
+        }
+        @media(max-height:680px) and (max-width:1024px){
+            .game-card{padding:12px 12px}
+            .game-title-center{font-size:1.3rem;margin-bottom:4px}
+            .keyboard-area{margin-top:6px;gap:3px}
+            .kb-row{gap:3px}
+            .kb-key{height:30px}
+            .attempts-grid{gap:3px}
+            .attempts-text{margin:3px 0;font-size:.75rem}
+            .keyes-row{margin:3px 0;line-height:1}
+            .known-row{margin-bottom:4px}
+            .message{padding:5px 10px;font-size:.8rem;min-height:30px;margin:4px auto}
+        }
+
+        /* ── Portrait lock — touch devices in landscape see a rotate prompt
+              instead of the game (CSS-only, no JS API needed). */
+        .rotate-overlay{display:none;position:fixed;inset:0;background:#0f172a;color:#e2e8f0;align-items:center;justify-content:center;flex-direction:column;gap:1.4rem;z-index:10000;font-family:'Outfit',sans-serif;text-align:center;padding:1rem}
+        .rotate-overlay .rotate-icon{font-size:5rem;line-height:1;animation:rotateBob 1.6s ease-in-out infinite alternate;color:#a78bfa}
+        .rotate-overlay .rotate-text{font-size:1.25rem;font-weight:700;letter-spacing:1px}
+        @keyframes rotateBob{from{transform:rotate(0deg)}to{transform:rotate(-90deg)}}
+        @media (max-device-width:1024px) and (orientation:landscape) and (hover:none){
+            .rotate-overlay{display:flex}
+            .container{visibility:hidden}
         }
     </style>
 </head>
 <body class="theme-light accent-purple sheet-purple font-hand shade-1">
+    <!-- Rotate-to-portrait overlay. Visible only on touch devices in landscape. -->
+    <div class="rotate-overlay" id="rotateOverlay">
+        <div class="rotate-icon">↺</div>
+        <div class="rotate-text">Please rotate to portrait</div>
+    </div>
     <div class="modal-overlay" id="confirmModal">
         <div class="modal-box">
             <h3 id="modalTitle">Leave Round?</h3>
@@ -460,7 +520,7 @@
                             <div class="style-swatch font-swatch f-script" onclick="changeFont('script')">L</div>
                             <div class="style-swatch font-swatch f-cursive" onclick="changeFont('cursive')">L</div>
                             <div class="style-swatch font-swatch f-outfit" onclick="changeFont('outfit')">L</div>
-                            <div class="style-swatch font-swatch f-round" onclick="changeFont('round')">L</div>
+                            <div class="style-swatch font-swatch f-calligraphy" onclick="changeFont('calligraphy')">L</div>
                         </div>
                     </div>
                     <div class="style-row">
@@ -551,8 +611,8 @@
                     <textarea id="linksMessage" readonly rows="2"></textarea>
                     <div id="linksCopyStatus" class="links-copy-status"></div>
                     <div class="links-button-row">
-                        <button class="btn btn-primary links-action-btn" onclick="copyLink()">Paste</button>
                         <button class="btn btn-primary links-action-btn" id="linksNativeShareBtn" onclick="shareLinkNative()">Share</button>
+                        <button class="btn btn-primary links-action-btn" onclick="copyLink()">Paste</button>
                     </div>
                     <div class="links-button-row">
                         <button class="btn btn-primary links-action-btn" onclick="resetLinks()">Again</button>
@@ -571,7 +631,7 @@
                 <canvas id="confettiCanvas"></canvas>
 
                 <!-- Sender row (links receiver mode only) -->
-                <div class="links-sender-row hidden" id="linksSenderRow">Lango from <span id="linksSenderName"></span></div>
+                <div class="links-sender-row hidden" id="linksSenderRow">Lango Maker: <span id="linksSenderName"></span></div>
 
                 <!-- Title (top of card) -->
                 <div class="game-title-center" id="gameTitle">Discover The Word</div>
@@ -694,6 +754,8 @@ var modalCallback = null;
 var confettiAnim = null;
 var linksSenderName = '';  // populated when receiver opens a `?ll=` URL
 var styleReturnTarget = null;  // null = main menu; 'links' = links share view
+var linksActive = null;        // {word, name} of the most recently created link
+var linksStyleSnapshot = null; // style snapshot taken on entering Style from Links
 
 // ── Game Titles (random per round) ──
 // gameTitles[i] is paired with winMessages[i] — when title #i is shown above
@@ -741,7 +803,7 @@ function pickSetupTitle() {
 var SW_THEMES   = ['light', 'dark', 'pink', 'green', 'sunset'];
 var SW_ACCENTS  = ['purple', 'blue', 'pink', 'green', 'orange'];
 var SW_SHEETS   = ['purple', 'blue', 'pink', 'green', 'orange'];
-var SW_FONTS    = ['hand', 'script', 'cursive', 'outfit', 'round'];
+var SW_FONTS    = ['hand', 'script', 'cursive', 'outfit', 'calligraphy'];
 var SW_SHADES   = ['1', '2', '3', '4', '5'];
 
 function setActiveSwatch(selector, values, current) {
@@ -840,9 +902,24 @@ function backFromSub() {
     if (styleReturnTarget === 'links') {
         styleReturnTarget = null;
         document.getElementById('linksScreen').classList.add('active');
+        // If Style options changed (net) while inside the Links sub-window,
+        // regenerate the share URL so the receiver gets the sender's new look.
+        if (linksActive && linksStyleSnapshot && linksStyleSnapshot !== styleSnapshot()) {
+            regenerateLinksUrl();
+        }
+        linksStyleSnapshot = null;
     } else {
         document.getElementById('menu').classList.remove('hidden');
     }
+}
+
+function styleSnapshot() {
+    return [
+        currentStyleClass('accent'),
+        currentStyleClass('sheet'),
+        currentStyleClass('shade'),
+        currentStyleClass('font')
+    ].join('|');
 }
 
 // ── Links (async multiplayer via shareable URL) ──
@@ -881,15 +958,19 @@ function showLinks() {
 
 // Style screen routes back to the menu via backFromSub. When opened from
 // the Links share view we mark `styleReturnTarget = 'links'` so backFromSub
-// pops back to the share view instead of the main menu.
+// pops back to the share view instead of the main menu, and we snapshot
+// the style so we can detect a net change and regenerate the share URL.
 function showStyleFromLinks() {
     styleReturnTarget = 'links';
+    linksStyleSnapshot = styleSnapshot();
     document.getElementById('linksScreen').classList.remove('active');
     showStyle();
 }
 
 function backFromLinks() {
     isSettingLink = false;
+    linksActive = null;
+    linksStyleSnapshot = null;
     document.getElementById('linksScreen').classList.remove('active');
     moveKeyboardToGame();
     document.getElementById('menu').classList.remove('hidden');
@@ -977,6 +1058,7 @@ function createLink() {
     btn.textContent = 'Creating...';
     btn.disabled = true;
 
+    linksActive = { word: word, name: name };
     var longUrl = buildLinksUrl(word, name);
     Promise.race([
         shortenUrl(longUrl),
@@ -986,6 +1068,30 @@ function createLink() {
         btn.textContent = originalText;
         btn.disabled = false;
         showLinksShare(name, finalUrl);
+    });
+}
+
+// Rebuild the share URL using the current Style choices. Called from
+// backFromSub when Style was opened via the Links sub-window and the user
+// made a net change. Updates the share textarea synchronously with the
+// long URL, then asynchronously swaps in a shortened version if is.gd
+// responds within 4s.
+function regenerateLinksUrl() {
+    if (!linksActive) return;
+    var longUrl = buildLinksUrl(linksActive.word, linksActive.name);
+    showLinksShare(linksActive.name, longUrl);
+    Promise.race([
+        shortenUrl(longUrl),
+        new Promise(function(r) { setTimeout(function() { r(null); }, 4000); })
+    ]).then(function(shortUrl) {
+        if (!shortUrl) return;
+        var ta = document.getElementById('linksMessage');
+        if (!ta) return;
+        ta.value = linksActive.name + ' has shared a Lango! ' + shortUrl;
+        setTimeout(function() {
+            ta.style.height = 'auto';
+            ta.style.height = (ta.scrollHeight + 2) + 'px';
+        }, 0);
     });
 }
 
@@ -1193,6 +1299,14 @@ function setKeyes(val) {
         else     inp.removeAttribute('inputmode');
     });
     refreshKeyboardClickability();
+    // Restore focus on the appropriate letter input so the cursor keeps
+    // blinking after a Keyes On/Off tap (otherwise tapping the toggle
+    // steals focus and the user would have to re-tap to keep typing).
+    setTimeout(function() {
+        if (isSettingLink) ensureLinksLetterFocus();
+        else if (isSettingWord) ensureSetupFocus();
+        else if (!gameOver) ensureFocus();
+    }, 0);
 }
 
 // Move the single #keyboardArea to whichever screen needs it.
@@ -1483,7 +1597,7 @@ function cursorPosition(inp) {
     }, 0);
 }
 function ensureFocus() {
-    if (gameOver || isSettingWord) return;
+    if (gameOver || isSettingWord || isSettingLink) return;
     for (var i = 1; i <= 4; i++) {
         var inp = document.getElementById('letter' + i);
         if (!inp.value && !inp.disabled) { inp.focus(); cursorPosition(inp); return; }
@@ -2646,7 +2760,11 @@ window.addEventListener('load', function() {
             input.addEventListener('input', function() {
                 this.value = this.value.replace(/[^A-Za-z]/g, '').toUpperCase();
                 cursorPosition(this);
-                if (this.value && idx < 4) document.getElementById('linksLetter' + (idx + 1)).focus();
+                if (this.value && idx < 4) {
+                    var nxt = document.getElementById('linksLetter' + (idx + 1));
+                    nxt.focus();
+                    cursorPosition(nxt);
+                }
             });
             input.addEventListener('focus', function() { cursorPosition(this); });
             input.addEventListener('click', function() { cursorPosition(this); });
@@ -2655,6 +2773,7 @@ window.addEventListener('load', function() {
                 if (e.key === 'ArrowLeft')  { e.preventDefault(); if (idx > 0) document.getElementById('linksLetter' + (idx - 1)).focus(); return; }
                 if (e.key === 'Home')       { e.preventDefault(); document.getElementById('linksLetter0').focus(); return; }
                 if (e.key === 'End')        { e.preventDefault(); document.getElementById('linksLetter4').focus(); return; }
+                if (e.key === ' ')          { e.preventDefault(); kbSpace(); return; }
                 if (e.key === 'Backspace' && !this.value) {
                     var prevIdx = idx > 0 ? idx - 1 : 0;
                     var prev = document.getElementById('linksLetter' + prevIdx);
@@ -2662,6 +2781,22 @@ window.addEventListener('load', function() {
                     e.preventDefault();
                 }
                 if (e.key === 'Enter') { e.preventDefault(); createLink(); }
+            });
+            // Auto-refocus on blur so the cursor keeps blinking when a kb-key
+            // tap or screen-redraw briefly steals focus on touch devices.
+            input.addEventListener('blur', function() {
+                setTimeout(function() {
+                    if (!isSettingLink) return;
+                    var active = document.activeElement;
+                    if (!active || active === document.body ||
+                        (!active.classList.contains('letter-input') &&
+                         !active.classList.contains('kb-key') &&
+                         !active.classList.contains('btn') &&
+                         !active.classList.contains('links-name-input') &&
+                         active.tagName !== 'INPUT')) {
+                        ensureLinksLetterFocus();
+                    }
+                }, 50);
             });
         })(i);
     }
