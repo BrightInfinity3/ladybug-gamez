@@ -2119,10 +2119,14 @@ var Renderer = (function () {
       name: 'Iconic leaping (emoji style)',
       draw: function (c, x, y, size, flip) {
         c.save();
-        c.translate(x, y);
+        var s = size / 20;
+        // Screen-space lift so the visual centre of the rotated dolphin sits
+        // on the (x, y) origin. Without this, the body's centre-of-mass lands
+        // ~1.8s below the origin (rows of pips and the foundation placeholder
+        // would have a too-thick top margin and a too-thin bottom margin).
+        c.translate(x, y - 1.8 * s);
         if (flip) c.rotate(Math.PI);
         c.rotate(-Math.PI * 0.18);
-        var s = size / 20;
         c.translate(-0.3 * s, 1 * s);
 
         // Body silhouette — melon-forward leaping arc.
