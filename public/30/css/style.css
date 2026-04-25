@@ -1659,16 +1659,31 @@ html, body {
   text-align: center;
 }
 
+/* The picker's Cancel button — `.btn-sm` defaults to 0.9vmin, which
+   is ~4px on a phone. Override with rem so the button is properly
+   tappable across all device sizes. Tier shrinks slightly on phones
+   but never falls below a reasonable touch target. */
+.picker-panel .btn-sm,
+.character-picker .btn-sm {
+  font-size: 1rem;
+  padding: 0.5em 1.6em;
+  min-width: 6.5rem;
+}
+
 @media (max-width: 1024px) {
   .picker-panel { max-width: min(94vw, 24rem); padding: 1.2rem 1.4rem; }
   .picker-panel h3 { font-size: 1.25rem; }
   .picker-grid { gap: 0.5rem; }
+  .picker-panel .btn-sm,
+  .character-picker .btn-sm { font-size: 0.95rem; padding: 0.45em 1.5em; }
 }
 @media (max-width: 768px) {
   .picker-panel { padding: 1rem 1.15rem; border-radius: 0.65rem; }
   .picker-panel h3 { font-size: 1.15rem; }
   .picker-grid { gap: 0.45rem; }
   .picker-animal-name { font-size: 0.5rem; }
+  .picker-panel .btn-sm,
+  .character-picker .btn-sm { font-size: 0.9rem; padding: 0.42em 1.4em; min-width: 6rem; }
 }
 @media (max-width: 480px) {
   .picker-panel { padding: 0.85rem 0.95rem; }
@@ -1676,6 +1691,8 @@ html, body {
   .picker-grid { gap: 0.4rem; }
   .picker-animal { border-width: 1.5px; }
   .picker-animal-name { font-size: 0.46rem; }
+  .picker-panel .btn-sm,
+  .character-picker .btn-sm { font-size: 0.85rem; padding: 0.45em 1.3em; min-width: 5.5rem; }
 }
 
 /* ---------- Confetti ---------- */
