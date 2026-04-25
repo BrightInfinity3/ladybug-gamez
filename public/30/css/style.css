@@ -1306,8 +1306,29 @@ html, body {
   }
 }
 
-/* Additional font shrink for the narrower landscape-PHONE band only. */
+/* Mobile / short landscape: switch HUD anchoring from bottom-based
+   to TOP-based with a safe-area inset so the row sits inside the
+   visible viewport even when the browser URL bar is showing.
+   bottom-based positioning at 40vmin still placed the HUD around
+   y=29px on a typical mobile-landscape inner viewport (290px
+   tall) — barely below the URL bar. Top-anchored with safe-area
+   guarantees a small gap regardless of chrome state. The HUD line
+   is the lowest absolute-positioned element here, so leaving it
+   anchored to the top doesn't conflict with anything else. */
 @media (orientation: landscape) and (max-height: 500px) {
+  .game-hud,
+  .setup-header,
+  #online-lobby-header {
+    bottom: auto;
+    top: max(0.45rem, env(safe-area-inset-top, 0.45rem));
+  }
+  .hud-room-row {
+    bottom: auto;
+    /* Fixed offset below the HUD line — we no longer rely on
+       viewport-percentage math for these. */
+    top: calc(max(0.45rem, env(safe-area-inset-top, 0.45rem)) + 1.6rem);
+  }
+  /* Fonts are also shrunk to keep the line compact horizontally. */
   .game-hud .hud-label,
   .game-hud .hud-value,
   .game-hud .hud-left {
@@ -1702,11 +1723,18 @@ html, body {
 }
 
 /* Leader avatar ring — every seat that is the current leader gets a
-   gold border around their character icon (replacing the brown
-   wood-mid ring) regardless of whose turn it is. Mirrors the gold
-   ring on the mobile-portrait Leader display. */
+   bright gold border around their character icon (replacing the
+   brown wood-mid ring) regardless of whose turn it is. Mirrors the
+   gold ring on the mobile-portrait Leader display. We use the
+   bright `--gold-light` (#f0d060) instead of the dimmer `--gold`
+   (#d4a017) — the dimmer one reads as bronze on the dark felt.
+   Border thickened from 0.21vmin to 0.35vmin and a soft gold halo
+   added so the ring reads as obviously gold even in low-contrast
+   light. */
 .game-seat.is-leader .game-seat-avatar {
-  border-color: var(--gold);
+  border-color: var(--gold-light);
+  border-width: 0.35vmin;
+  box-shadow: 0 0 1.2vmin rgba(255, 215, 95, 0.55);
 }
 
 /* When the leader is ALSO the active player, the silver-only pulse
@@ -1725,12 +1753,12 @@ html, body {
       0 0 120px rgba(160, 175, 200, 0.5);
   }
   50% {
-    border-color: var(--gold);
+    border-color: var(--gold-light);
     box-shadow:
-      0 0 18px rgba(255, 220, 110, 1),
-      0 0 45px rgba(255, 210, 90, 0.98),
-      0 0 90px rgba(255, 205, 80, 0.92),
-      0 0 135px rgba(255, 200, 70, 0.6);
+      0 0 18px rgba(255, 230, 130, 1),
+      0 0 45px rgba(255, 215, 95, 0.98),
+      0 0 90px rgba(255, 210, 85, 0.92),
+      0 0 135px rgba(255, 205, 75, 0.6);
   }
 }
 .game-seat.active.is-leader .game-seat-avatar {
@@ -1785,15 +1813,16 @@ html, body {
 }
 
 /* ---------- Mobile-portrait display panel ----------
-   Two stacked sections under the table:
+   Two SEPARATELY positioned sections (no longer stacked):
      1. mbar-leader-section  ALWAYS visible during gameplay (mobile
-        portrait). Header "Leader" + score-on-top + avatar + name.
-        Score uses a 1fr-auto-1fr grid so it stays centered above
-        the avatar even when a dealer / stay / bust pill is shown
-        on either side, mirroring the table seat's top row.
+        portrait). Anchored to the TOP of the viewport, ABOVE the
+        round/turn/leave HUD line. "Leader" label + score-above-
+        avatar + name. Score uses a 1fr-auto-1fr grid so it stays
+        centered above the avatar even when a dealer / stay / bust
+        pill is shown on either side, mirroring the table seat row.
      2. mbar-turn-section    Only visible on THIS device's local
-        turn. Current actor (same vertical layout as the leader
-        card) plus Draw / Stay buttons in a 1fr 1fr grid.
+        turn. Anchored BELOW the table. Current actor (same vertical
+        layout as the leader card) plus Draw / Stay buttons.
 
    .mbar-active is set on <body> by JS during gameplay on mobile
    portrait — it reveals the bar AND hides the on-table game-actions
@@ -1801,34 +1830,48 @@ html, body {
    .mbar-turn-active is set when it's also THIS device's player's
    turn — only then does the turn-section appear. */
 .mobile-action-bar {
+  /* Wrapper has no own positioning anymore; the two child sections
+     each anchor themselves. Display:contents would ideally make
+     the wrapper invisible to layout — but it interferes with the
+     visibility-toggling JS — so we keep it as a no-op block. */
+  position: static;
+  pointer-events: none;
+  display: block;
+  width: 0;
+  height: 0;
+}
+.mobile-action-bar .mbar-leader-section,
+.mobile-action-bar .mbar-turn-section {
   position: absolute;
-  top: calc(50% + 44vmin);
   left: 50%;
   transform: translateX(-50%);
-  display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.55rem;
   z-index: 30;
   pointer-events: auto;
   width: 100%;
   max-width: 22rem;
   padding: 0 0.5rem;
-}
-.mobile-action-bar .mbar-leader-section,
-.mobile-action-bar .mbar-turn-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-}
-/* Turn section is hidden by default. Revealed only when the body
-   carries .mbar-turn-active (set by showActionBar(true) on this
-   device's player's turn). */
-.mobile-action-bar .mbar-turn-section {
+  /* Hidden by default. Revealed only by the body.mbar-active /
+     body.mbar-turn-active rules below (mobile portrait only). */
   display: none;
+}
+/* Leader section anchored to the TOP of the viewport so it sits
+   ABOVE the round/turn/leave HUD line. The HUD's bottom edge sits
+   at calc(50% + 43.7vmin) from the bottom of the viewport — i.e.
+   roughly 240px down from the top on a typical phone — leaving
+   ~200px of room up here for the leader card. */
+.mobile-action-bar .mbar-leader-section {
+  top: 1.5vmin;
+}
+body.mbar-active .mobile-action-bar .mbar-leader-section {
+  display: flex;
+}
+/* Turn section anchored BELOW the table — same position the bar
+   used to occupy. */
+.mobile-action-bar .mbar-turn-section {
+  top: calc(50% + 44vmin);
   gap: 0.45rem;
-  margin-top: 0.4rem;
 }
 body.mbar-turn-active .mobile-action-bar .mbar-turn-section {
   display: flex;
@@ -1927,8 +1970,9 @@ body.mbar-turn-active .mobile-action-bar .mbar-turn-section {
   width: 100%; height: 100%; object-fit: cover;
 }
 .mbar-leader .mbar-avatar {
-  border-color: var(--gold);
-  box-shadow: 0 0 0.8rem rgba(255, 215, 85, 0.55);
+  border-color: var(--gold-light);
+  border-width: 3px;
+  box-shadow: 0 0 0.9rem rgba(255, 215, 95, 0.6);
 }
 .mobile-action-bar .mbar-name {
   font-family: var(--font-display);
@@ -1960,14 +2004,12 @@ body.mbar-turn-active .mobile-action-bar .mbar-turn-section {
   pointer-events: none;
 }
 
-/* Only reveal the bar on mobile portrait AND when JS flags the
-   game phase active (mbar-active). The turn-section's visibility
-   is gated separately on .mbar-turn-active so the leader card
-   stays visible even when it isn't this device's turn. */
+/* On mobile portrait + this device's turn, hide the on-table
+   game-actions buttons so the mobile-bar Draw/Stay take over.
+   Section visibility itself is handled by the body.mbar-active
+   / body.mbar-turn-active rules above; this only deals with the
+   on-table buttons that would otherwise double up. */
 @media (orientation: portrait) and (max-width: 480px) {
-  body.mbar-active .mobile-action-bar {
-    display: flex;
-  }
   body.mbar-active.mbar-turn-active #game-actions {
     display: none !important;
   }
@@ -2309,7 +2351,14 @@ body.mbar-turn-active .mobile-action-bar .mbar-turn-section {
      Q with a long descender tail that clashes with the chip border
      and with adjacent letters. Georgia's Q is the standard compact
      Roman form and reads cleanly in the room-code chip. The long-
-     tail Q is intentionally reserved for the face cards only. */
+     tail Q is intentionally reserved for the face cards only.
+
+     Georgia ships old-style figures by default (3, 4, 5, 7, 9 have
+     descenders that drop below the baseline), which makes mixed
+     letter+number codes like "UL7" look vertically misaligned on
+     desktop and tablet renderers. `font-variant-numeric: lining-nums`
+     and the matching OpenType `lnum` feature force lining figures
+     so every glyph in the chip sits cleanly on a single baseline. */
   font-family: Georgia, 'Times New Roman', serif;
   font-size: 1.7vmin;
   font-weight: 700;
@@ -2320,6 +2369,8 @@ body.mbar-turn-active .mobile-action-bar .mbar-turn-section {
   border-radius: 0.4vmin;
   border: 0.14vmin solid var(--gold-dim);
   user-select: all;
+  font-variant-numeric: lining-nums;
+  font-feature-settings: "lnum" 1;
 }
 
 .lobby-player-count {

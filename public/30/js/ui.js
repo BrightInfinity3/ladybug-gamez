@@ -1167,6 +1167,17 @@ var UI = (function () {
       }
       return;
     }
+    // While the guest is still animating the initial deal, IGNORE any
+    // mid-game action broadcasts. On a fast host (e.g. mobile) the AI
+    // may already have started taking turns and firing action_draw
+    // events while a slow guest (e.g. desktop with PIXI texture work)
+    // is still mid-deal. Without this guard, those action_draw events
+    // would push cards into handDisplay in parallel with the in-flight
+    // animateCanvasDeal pushes — visibly DOUBLING cards for whichever
+    // players acted on host before the guest's deal finished. The
+    // queued state_sync replay in beginNewRound will paint the correct
+    // post-deal+post-action state once the deal lock releases.
+    if (_dealAnimationLock) return;
     if (data.type === 'action_draw') {
       var pid = data.playerId;
       var player = Game.getPlayerById(pid);
@@ -2643,11 +2654,11 @@ var UI = (function () {
     var shouldShow = phaseOk && portrait;
     document.body.classList.toggle('mbar-active', shouldShow);
     document.body.classList.toggle('mbar-turn-active', shouldShow && _mbarTurnActive);
-    if (!shouldShow) {
-      bar.style.display = 'none';
-      return;
-    }
-    bar.style.display = 'flex';
+    // Section visibility is now handled by the body.mbar-active /
+    // body.mbar-turn-active CSS rules — JS no longer sets inline
+    // display on the wrapper. Bail early when not visible to avoid
+    // unnecessary fillMbarPlayer work.
+    if (!shouldShow) return;
 
     var gs = Game.getState && Game.getState();
     if (!gs || !gs.players || !gs.players.length) return;
