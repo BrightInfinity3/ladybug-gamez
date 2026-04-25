@@ -186,11 +186,42 @@ var UI = (function () {
     bindEvents();
     bindOnlineEvents();
     createFloatingSuits();
+    blockPinchZoom();
     showScreen('screen-title');
     // Warm up card-texture canvases in the background so Local Play starts fast.
     if (typeof Renderer !== 'undefined' && Renderer.precacheCardCanvases) {
       try { Renderer.precacheCardCanvases(); } catch (e) { /* non-fatal */ }
     }
+  }
+
+  // Belt-and-suspenders pinch-zoom / double-tap-zoom blocker. CSS
+  // `touch-action: pan-x pan-y` plus the viewport meta tag's
+  // `maximum-scale=1, user-scalable=no` SHOULD be enough on most
+  // mobile browsers — but iPad Safari has historically ignored
+  // user-scalable=no since iOS 10, and some Safari versions still
+  // honor multi-touch gestures even when touch-action is set. The
+  // user reported a stray two-finger touch on iPad zoomed the
+  // table and they couldn't reset it. These listeners block:
+  //   - gesturestart/change/end (Safari multi-touch zoom)
+  //   - 2-finger touchmove (defensive: catches Android Chrome too)
+  //   - touchstart with >1 finger (kills the pinch before it begins)
+  //   - dblclick (legacy double-tap zoom)
+  //   - wheel + ctrlKey (desktop pinch on trackpad / Ctrl+scroll)
+  function blockPinchZoom() {
+    var prevent = function (e) { e.preventDefault(); };
+    document.addEventListener('gesturestart',  prevent, { passive: false });
+    document.addEventListener('gesturechange', prevent, { passive: false });
+    document.addEventListener('gestureend',    prevent, { passive: false });
+    document.addEventListener('touchstart', function (e) {
+      if (e.touches && e.touches.length > 1) e.preventDefault();
+    }, { passive: false });
+    document.addEventListener('touchmove', function (e) {
+      if (e.touches && e.touches.length > 1) e.preventDefault();
+    }, { passive: false });
+    document.addEventListener('dblclick', prevent, { passive: false });
+    document.addEventListener('wheel', function (e) {
+      if (e.ctrlKey) e.preventDefault();
+    }, { passive: false });
   }
 
   function initSetupSeats() {
@@ -222,6 +253,39 @@ var UI = (function () {
     if (id !== 'screen-game' && canvasReady) {
       Renderer.stopLoop();
     }
+  }
+
+  // Wipe transient per-game display state — call when leaving a room
+  // or returning to the title so the next session doesn't briefly
+  // render leftovers (old leader glow, old hand cards, old totals,
+  // old STAY/BUST pills, mobile-portrait leader card with last
+  // game's name).
+  function clearGameDisplay() {
+    handDisplay = {};
+    // Strip leader/active classes from any seat that's still in the
+    // DOM. The seats themselves get rebuilt on the next renderGameTable.
+    document.querySelectorAll('.game-seat').forEach(function (seat) {
+      seat.classList.remove('is-leader', 'active');
+    });
+    document.querySelectorAll('.game-seat-total').forEach(function (el) {
+      el.classList.remove('leader');
+      el.textContent = '';
+      el.style.visibility = 'hidden';
+    });
+    document.querySelectorAll('.game-seat-status').forEach(function (el) {
+      el.className = 'game-seat-status';
+      el.textContent = '';
+      el.style.visibility = 'hidden';
+    });
+    // Tear down the mobile bar's leader / current cells so leftover
+    // names / scores from the previous room don't flash on entry to
+    // the next one.
+    var mbarLeader = document.getElementById('mbar-leader');
+    var mbarCurrent = document.getElementById('mbar-current');
+    if (mbarLeader && typeof fillMbarPlayer === 'function') fillMbarPlayer(mbarLeader, null);
+    if (mbarCurrent && typeof fillMbarPlayer === 'function') fillMbarPlayer(mbarCurrent, null);
+    document.body.classList.remove('mbar-active', 'mbar-turn-active');
+    _mbarTurnActive = false;
   }
 
   // ---- Floating Suit Particles (Title Screen) ----
@@ -357,6 +421,9 @@ var UI = (function () {
       }
       gamePhase = 'none';
       Renderer.stopLoop();
+      // Wipe transient per-game display state so the next room
+      // doesn't briefly show the old leader / cards / pills.
+      clearGameDisplay();
       showScreen('screen-title');
     });
     document.getElementById('btn-confirm-no').addEventListener('click', function () {
@@ -390,6 +457,7 @@ var UI = (function () {
         Online.leaveRoom();
       }
       gamePhase = 'none';
+      clearGameDisplay();
       showScreen('screen-title');
     });
     document.getElementById('btn-confirm-results-no').addEventListener('click', function () {
@@ -635,6 +703,7 @@ var UI = (function () {
     // another room with one click, without having to navigate back in.
     document.getElementById('btn-disband-ok').addEventListener('click', function () {
       document.getElementById('disband-overlay').style.display = 'none';
+      clearGameDisplay();
       resetOnlineScreen();
       showScreen('screen-online');
     });

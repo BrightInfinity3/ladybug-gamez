@@ -354,6 +354,22 @@ var Online = (function () {
       Network.send(peerId, { type: 'lobby_state', data: JSON.parse(JSON.stringify(lobbyState)) });
       renderOnlineLobby();
     } else if (gamePhase === 'playing') {
+      // The reconnecting device may STILL be on the lobby/setup
+      // "Waiting for host..." view if it disconnected before the
+      // host clicked Deal. Send game_starting { midGame:true } so
+      // the guest's handleGameStarting transitions them onto the
+      // running game screen (via enterGameInProgress), then send
+      // the full state sync so they catch up to the live state.
+      // Mirrors the fresh-mid-game-joiner path in approveGuest.
+      Network.send(peerId, {
+        type: 'game_starting',
+        data: {
+          players: Game.getState().players,
+          dealerIndex: Game.getState().dealerIndex,
+          lobbyState: JSON.parse(JSON.stringify(lobbyState)),
+          midGame: true
+        }
+      });
       Network.send(peerId, {
         type: 'game_state_sync',
         data: { gameState: Game.serialize(), lobbyState: JSON.parse(JSON.stringify(lobbyState)) }

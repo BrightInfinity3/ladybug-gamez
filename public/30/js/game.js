@@ -46,6 +46,17 @@ var Game = (function () {
     state.scores = {};
     state.lastWinRound = {};
     state.roundNumber = 0;
+    // Wipe per-round state from a previous game so the leader display
+    // doesn't briefly render stale data between games. Without this,
+    // joining a new room after leaving one shows the OLD game's leader
+    // glow / score / mobile-bar leader card until the host's deal_round
+    // arrives and overwrites state.hands.
+    state.hands = {};
+    state.deck = [];
+    state.turnOrder = [];
+    state.currentTurnIndex = -1;
+    state.roundPhase = 'idle';
+    state.drawCounter = 0;
     // Set isDealer flags
     for (var i = 0; i < players.length; i++) {
       players[i].isDealer = (i === state.dealerIndex);
