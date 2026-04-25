@@ -55,12 +55,20 @@ var Game = (function () {
   }
 
   // ---- Build Turn Order ----
-  // Start from player to dealer's left (next seat index clockwise)
+  // Play order: the player immediately clockwise from the dealer acts
+  // first; play continues clockwise; dealer goes last.
+  //
+  // Seat layout (slot 0=bottom, 1=BL, 2=L, 3=TL, 4=T, 5=TR, 6=R, 7=BR).
+  // The next slot index up from the dealer is the player one position
+  // clockwise around the felt — e.g. dealer at slot 0 (bottom) → slot 1
+  // (bottom-left) acts first; dealer at slot 6 (right) → slot 7
+  // (bottom-right) acts first. We only consider OCCUPIED seats, so
+  // unfilled slots are skipped naturally by sorting + indexing.
   function buildTurnOrder() {
     var players = state.players;
     var dealerSeat = players[state.dealerIndex].seatIndex;
 
-    // Sort players by seat index
+    // Sort occupied players by seat index ascending
     var sorted = players.slice().sort(function (a, b) { return a.seatIndex - b.seatIndex; });
 
     // Find dealer position in sorted list
@@ -72,7 +80,7 @@ var Game = (function () {
       }
     }
 
-    // Build order: start after dealer, wrap around, dealer goes last
+    // Walk forward from dealer+1 around the ring; dealer goes last.
     var order = [];
     for (var j = 1; j <= sorted.length; j++) {
       var idx = (dealerPos + j) % sorted.length;

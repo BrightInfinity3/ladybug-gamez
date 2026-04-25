@@ -1554,31 +1554,34 @@ html, body {
 .picker-panel {
   background: var(--bg-panel);
   border: 1px solid rgba(212, 160, 23, 0.3);
-  border-radius: 1.1vmin;
-  padding: 1.5vmin;
+  border-radius: 0.8rem;
+  padding: 1.4rem 1.6rem;
   text-align: center;
-  max-width: 42vmin;
+  max-width: min(95vw, 26rem);
+  width: 92%;
+  max-height: 85vh;
+  overflow-y: auto;
 }
 
 .picker-panel h3 {
   font-family: var(--font-display);
   color: var(--gold-light);
-  font-size: 1.2vmin;
-  margin-bottom: 1vmin;
+  font-size: 1.35rem;
+  margin: 0 0 0.9rem 0;
 }
 
 .picker-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 0.8vmin;
-  margin-bottom: 1vmin;
+  gap: 0.55rem;
+  margin-bottom: 0.8rem;
 }
 
 .picker-animal {
-  width: 4.9vmin;
-  height: 4.9vmin;
+  width: 100%;
+  aspect-ratio: 1;
   border-radius: 50%;
-  border: 0.2vmin solid var(--wood-mid);
+  border: 2px solid var(--wood-mid);
   background: rgba(20, 30, 25, 0.8);
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -1617,10 +1620,29 @@ html, body {
 
 .picker-animal-name {
   font-family: var(--font-display);
-  font-size: 0.6vmin;
+  font-size: 0.55rem;
   color: var(--text-dim);
-  margin-top: 0.2vmin;
+  margin-top: 0.15rem;
   text-align: center;
+}
+
+@media (max-width: 1024px) {
+  .picker-panel { max-width: min(94vw, 24rem); padding: 1.2rem 1.4rem; }
+  .picker-panel h3 { font-size: 1.25rem; }
+  .picker-grid { gap: 0.5rem; }
+}
+@media (max-width: 768px) {
+  .picker-panel { padding: 1rem 1.15rem; border-radius: 0.65rem; }
+  .picker-panel h3 { font-size: 1.15rem; }
+  .picker-grid { gap: 0.45rem; }
+  .picker-animal-name { font-size: 0.5rem; }
+}
+@media (max-width: 480px) {
+  .picker-panel { padding: 0.85rem 0.95rem; }
+  .picker-panel h3 { font-size: 1rem; margin-bottom: 0.7rem; }
+  .picker-grid { gap: 0.4rem; }
+  .picker-animal { border-width: 1.5px; }
+  .picker-animal-name { font-size: 0.46rem; }
 }
 
 /* ---------- Confetti ---------- */
@@ -1679,6 +1701,42 @@ html, body {
   animation: pulseGlowSilver 2s ease-in-out infinite;
 }
 
+/* Leader avatar ring — every seat that is the current leader gets a
+   gold border around their character icon (replacing the brown
+   wood-mid ring) regardless of whose turn it is. Mirrors the gold
+   ring on the mobile-portrait Leader display. */
+.game-seat.is-leader .game-seat-avatar {
+  border-color: var(--gold);
+}
+
+/* When the leader is ALSO the active player, the silver-only pulse
+   alternates with gold — the border colour and the box-shadow halo
+   both flip gold at the keyframe peaks so it's clearly readable
+   that this seat is the leader AND the current actor. We override
+   the silver-only animation defined above by re-declaring animation
+   here at higher specificity. */
+@keyframes pulseGlowSilverGold {
+  0%, 100% {
+    border-color: #d8dde6;
+    box-shadow:
+      0 0 15px rgba(220, 225, 235, 1),
+      0 0 40px rgba(200, 210, 225, 0.95),
+      0 0 80px rgba(180, 195, 215, 0.85),
+      0 0 120px rgba(160, 175, 200, 0.5);
+  }
+  50% {
+    border-color: var(--gold);
+    box-shadow:
+      0 0 18px rgba(255, 220, 110, 1),
+      0 0 45px rgba(255, 210, 90, 0.98),
+      0 0 90px rgba(255, 205, 80, 0.92),
+      0 0 135px rgba(255, 200, 70, 0.6);
+  }
+}
+.game-seat.active.is-leader .game-seat-avatar {
+  animation: pulseGlowSilverGold 2.4s ease-in-out infinite;
+}
+
 /* Gold halo on the current leader's score.
    NO pseudo-element, NO geometric circle — the ::before circle kept
    visually competing with the dealer chip and the STAY/BUST pill
@@ -1726,72 +1784,114 @@ html, body {
   }
 }
 
-/* ---------- Mobile-portrait action panel ----------
-   Positioned just below the bottom character's name in the card
-   table (roughly center + 46vmin). Layout per player column:
-     [ SCORE + badges ]     ← mirrors the table seat's top row
-     [ AVATAR circle  ]
-     [ NAME           ]
-   Leader on the LEFT, current active player on the RIGHT. Below
-   both: [Draw] [Stay] at equal size.
+/* ---------- Mobile-portrait display panel ----------
+   Two stacked sections under the table:
+     1. mbar-leader-section  ALWAYS visible during gameplay (mobile
+        portrait). Header "Leader" + score-on-top + avatar + name.
+        Score uses a 1fr-auto-1fr grid so it stays centered above
+        the avatar even when a dealer / stay / bust pill is shown
+        on either side, mirroring the table seat's top row.
+     2. mbar-turn-section    Only visible on THIS device's local
+        turn. Current actor (same vertical layout as the leader
+        card) plus Draw / Stay buttons in a 1fr 1fr grid.
 
-   Only the @media + body.mbar-active combination reveals the bar;
-   JS sets body.mbar-active when (it's my turn) AND (mobile portrait).
-   Other orientations/sizes see the on-table .game-actions as before. */
+   .mbar-active is set on <body> by JS during gameplay on mobile
+   portrait — it reveals the bar AND hides the on-table game-actions
+   so the in-table buttons don't double up with the mobile bar.
+   .mbar-turn-active is set when it's also THIS device's player's
+   turn — only then does the turn-section appear. */
 .mobile-action-bar {
   position: absolute;
-  top: calc(50% + 46vmin);
+  top: calc(50% + 44vmin);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.55rem;
   z-index: 30;
   pointer-events: auto;
   width: 100%;
   max-width: 22rem;
   padding: 0 0.5rem;
 }
-.mobile-action-bar .mbar-players {
+.mobile-action-bar .mbar-leader-section,
+.mobile-action-bar .mbar-turn-section {
   display: flex;
-  justify-content: space-around;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: center;
   width: 100%;
+}
+/* Turn section is hidden by default. Revealed only when the body
+   carries .mbar-turn-active (set by showActionBar(true) on this
+   device's player's turn). */
+.mobile-action-bar .mbar-turn-section {
+  display: none;
+  gap: 0.45rem;
+  margin-top: 0.4rem;
+}
+body.mbar-turn-active .mobile-action-bar .mbar-turn-section {
+  display: flex;
+}
+.mobile-action-bar .mbar-leader-label {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold-light);
+  margin-bottom: 0.05rem;
+  text-align: center;
 }
 .mobile-action-bar .mbar-player {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.15rem;
-  flex: 0 0 40%;
+  gap: 0.18rem;
+  width: 100%;
 }
+/* Score row — 3-column grid (badges | score | badges) so the score
+   is exactly centered above the avatar regardless of which pills
+   are present. Pills flank the score, mirroring .game-seat-top-row. */
 .mobile-action-bar .mbar-top {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: 0.4rem;
-  height: 1.4rem;
-  line-height: 1;
+  height: 1.7rem;
+  width: 100%;
+  max-width: 14rem;
+}
+.mobile-action-bar .mbar-top .mbar-badges-left {
+  justify-self: end;
+  margin-right: 0.45rem;
+}
+.mobile-action-bar .mbar-top .mbar-badges-right {
+  justify-self: start;
+  margin-left: 0.45rem;
 }
 .mobile-action-bar .mbar-score {
+  grid-column: 2;
+  justify-self: center;
   font-family: var(--font-display);
-  font-size: 1.35rem;
+  font-size: 1.7rem;
   color: var(--gold-light);
   font-weight: 900;
   line-height: 1;
+  white-space: nowrap;
 }
 .mobile-action-bar .mbar-badges {
   display: inline-flex;
   gap: 0.2rem;
   font-family: var(--font-display);
+  align-items: center;
 }
 .mobile-action-bar .mbar-badges .mbar-badge {
-  padding: 0.12rem 0.4rem;
+  padding: 0.15rem 0.45rem;
   border-radius: 0.3rem;
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 .mbar-badge.dealer {
   background: linear-gradient(135deg, var(--gold), var(--gold-dim));
@@ -1800,9 +1900,24 @@ html, body {
 }
 .mbar-badge.stay  { background: rgba(196, 144, 0, 0.3); color: var(--stay-amber); }
 .mbar-badge.bust  { background: rgba(211, 47, 47, 0.3); color: var(--bust-red); }
+
+/* Pulsing gold halo around the leader's score — text-shadow only
+   (no background disc) so the digit sits cleanly on the dark felt
+   background, matching the table seat's leader treatment. */
+.mobile-action-bar .mbar-leader .mbar-score {
+  text-shadow:
+    0 0 4px   rgba(255, 235, 160, 0.95),
+    0 0 10px  rgba(255, 225, 120, 0.85),
+    0 0 22px  rgba(255, 218, 95,  0.85),
+    0 0 48px  rgba(255, 210, 80,  0.8),
+    0 0 90px  rgba(255, 205, 70,  0.65),
+    0 0 150px rgba(255, 200, 60,  0.45);
+  animation: leaderGlowPulse 2s ease-in-out infinite;
+}
+
 .mobile-action-bar .mbar-avatar {
-  width: 3rem;
-  height: 3rem;
+  width: 3.4rem;
+  height: 3.4rem;
   border-radius: 50%;
   border: 2px solid var(--wood-mid);
   background: rgba(20, 30, 25, 0.9);
@@ -1817,12 +1932,12 @@ html, body {
 }
 .mobile-action-bar .mbar-name {
   font-family: var(--font-display);
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   color: var(--text-light);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 7rem;
+  max-width: 11rem;
   text-align: center;
 }
 .mobile-action-bar .mbar-buttons {
@@ -1830,11 +1945,12 @@ html, body {
   grid-template-columns: 1fr 1fr;
   gap: 0.6rem;
   width: 100%;
-  max-width: 14rem;
+  max-width: 16rem;
+  margin-top: 0.1rem;
 }
 .mobile-action-bar .mbar-buttons .btn {
   width: 100%;
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   padding: 0.6em 0;
   /* Same size for both Draw and Stay buttons regardless of text
      width — grid column-widths are exactly equal. */
@@ -1844,14 +1960,15 @@ html, body {
   pointer-events: none;
 }
 
-/* Only reveal the bar on mobile portrait AND when JS flags it
-   active (which it does when it's this device's local player's
-   turn). Other breakpoints keep the on-table Draw/Stay layout. */
+/* Only reveal the bar on mobile portrait AND when JS flags the
+   game phase active (mbar-active). The turn-section's visibility
+   is gated separately on .mbar-turn-active so the leader card
+   stays visible even when it isn't this device's turn. */
 @media (orientation: portrait) and (max-width: 480px) {
   body.mbar-active .mobile-action-bar {
     display: flex;
   }
-  body.mbar-active #game-actions {
+  body.mbar-active.mbar-turn-active #game-actions {
     display: none !important;
   }
 }
@@ -2234,52 +2351,84 @@ html, body {
   z-index: 100;
 }
 
+/* Popups use rem-based sizing with media-query tiers (instead of
+   vmin) so they're consistently large and readable across phones,
+   tablets, and desktop. Since a popup blocks all gameplay until
+   resolved, generous size doesn't compete with anything else. */
 .join-requests-panel {
   background: var(--bg-panel);
-  border: 0.14vmin solid var(--gold-dim);
-  border-radius: 0.83vmin;
-  padding: 1.7vmin;
-  max-width: 28vmin;
-  width: 90%;
+  border: 1px solid var(--gold-dim);
+  border-radius: 0.8rem;
+  padding: 1.6rem 1.8rem;
+  max-width: min(95vw, 28rem);
+  width: 92%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 0.5rem 2rem rgba(0,0,0,0.5);
 }
 
 .join-requests-panel h3 {
   font-family: var(--font-display);
   color: var(--gold-light);
-  margin-bottom: 1.1vmin;
+  margin: 0 0 1rem 0;
   text-align: center;
-  font-size: 1.2vmin;
+  font-size: 1.5rem;
 }
 
 .join-request-item {
   display: flex;
   flex-direction: column;
-  gap: 0.6vmin;
-  padding: 0.9vmin;
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 0.56vmin;
-  margin-bottom: 0.6vmin;
+  gap: 0.6rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 0.55rem;
+  margin-bottom: 0.7rem;
+  background: rgba(255,255,255,0.04);
 }
 
 .join-request-info {
-  font-size: 1.1vmin;
+  font-size: 1.1rem;
   color: var(--text-light);
+  font-family: var(--font-display);
 }
 
 .join-request-warning {
-  font-size: 0.9vmin;
+  font-size: 0.9rem;
   color: var(--bust-red);
+  line-height: 1.35;
 }
 
 .join-request-buttons {
   display: flex;
-  gap: 0.6vmin;
+  gap: 0.6rem;
   justify-content: flex-end;
 }
 
 .join-request-buttons .btn {
-  font-size: 0.9vmin;
-  padding: 0.4vmin 1vmin;
+  font-size: 1rem;
+  padding: 0.5em 1.3em;
+}
+
+@media (max-width: 1024px) {
+  .join-requests-panel { max-width: min(94vw, 26rem); padding: 1.4rem 1.5rem; }
+  .join-requests-panel h3 { font-size: 1.35rem; }
+  .join-request-info { font-size: 1.02rem; }
+  .join-request-buttons .btn { font-size: 0.92rem; padding: 0.45em 1.2em; }
+}
+@media (max-width: 768px) {
+  .join-requests-panel { padding: 1.2rem 1.3rem; border-radius: 0.65rem; }
+  .join-requests-panel h3 { font-size: 1.2rem; margin-bottom: 0.85rem; }
+  .join-request-info { font-size: 0.95rem; }
+  .join-request-warning { font-size: 0.82rem; }
+  .join-request-buttons .btn { font-size: 0.88rem; }
+}
+@media (max-width: 480px) {
+  .join-requests-panel { padding: 1rem 1.1rem; }
+  .join-requests-panel h3 { font-size: 1.1rem; }
+  .join-request-info { font-size: 0.9rem; }
+  .join-request-warning { font-size: 0.78rem; }
+  .join-request-buttons { gap: 0.5rem; }
+  .join-request-buttons .btn { font-size: 0.84rem; padding: 0.45em 1.05em; }
 }
 
 /* ---------- Device Leave Overlay (host decides AI/Human per player) ---------- */
@@ -2295,55 +2444,55 @@ html, body {
 
 .device-leave-panel {
   background: var(--bg-panel);
-  border: 0.2vmin solid var(--gold-dim);
-  border-radius: 1vmin;
-  padding: 2vmin 2.2vmin;
-  max-width: 46vmin;
+  border: 1px solid var(--gold-dim);
+  border-radius: 0.9rem;
+  padding: 1.8rem 2rem;
+  max-width: min(95vw, 32rem);
   width: 92%;
-  max-height: 80vh;
+  max-height: 85vh;
   overflow-y: auto;
-  box-shadow: 0 0 3vmin rgba(255, 200, 60, 0.15);
+  box-shadow: 0 0.5rem 2rem rgba(255, 200, 60, 0.18);
 }
 
 .device-leave-panel h3 {
   font-family: var(--font-display);
   color: var(--gold-light);
-  margin: 0 0 0.5vmin 0;
+  margin: 0 0 0.4rem 0;
   text-align: center;
-  font-size: 2vmin;
+  font-size: 1.5rem;
 }
 
 .device-leave-subtitle {
-  font-size: 1.25vmin;
+  font-size: 1.05rem;
   color: var(--text-dim);
   text-align: center;
-  margin: 0 0 1.4vmin 0;
+  margin: 0 0 1.2rem 0;
   line-height: 1.4;
 }
 
 .device-leave-players {
   display: flex;
   flex-direction: column;
-  gap: 0.8vmin;
-  margin-bottom: 1.4vmin;
+  gap: 0.7rem;
+  margin-bottom: 1.2rem;
 }
 
 .device-leave-player {
   display: flex;
   align-items: center;
-  gap: 1vmin;
-  padding: 0.8vmin 1vmin;
+  gap: 0.85rem;
+  padding: 0.75rem 0.9rem;
   background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 0.6vmin;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 0.55rem;
 }
 
 .device-leave-player-avatar {
-  width: 4.5vmin;
-  height: 4.5vmin;
+  width: 3rem;
+  height: 3rem;
   border-radius: 50%;
   background: rgba(20,30,25,0.9);
-  border: 0.2vmin solid var(--wood-mid);
+  border: 2px solid var(--wood-mid);
   overflow: hidden;
   flex-shrink: 0;
 }
@@ -2358,7 +2507,7 @@ html, body {
 .device-leave-player-name {
   flex: 1;
   font-family: var(--font-display);
-  font-size: 1.5vmin;
+  font-size: 1.15rem;
   color: var(--text-light);
   min-width: 0;
   overflow: hidden;
@@ -2368,15 +2517,17 @@ html, body {
 
 .device-leave-toggle {
   display: flex;
-  gap: 0.4vmin;
+  gap: 0.4rem;
   flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .device-leave-toggle button {
   font-family: var(--font-display);
-  font-size: 1.1vmin;
-  padding: 0.4vmin 1vmin;
-  border-radius: 0.4vmin;
+  font-size: 0.95rem;
+  padding: 0.4em 1em;
+  border-radius: 0.35rem;
   background: transparent;
   border: 1px solid var(--gold-dim);
   color: var(--text-dim);
@@ -2399,12 +2550,43 @@ html, body {
 .device-leave-actions {
   display: flex;
   justify-content: center;
-  gap: 0.8vmin;
+  gap: 0.7rem;
 }
 
 .device-leave-actions .btn {
-  font-size: 1.3vmin;
-  padding: 0.6vmin 2vmin;
+  font-size: 1.05rem;
+  padding: 0.55em 1.8em;
+}
+
+@media (max-width: 1024px) {
+  .device-leave-panel { max-width: min(94vw, 30rem); padding: 1.55rem 1.8rem; }
+  .device-leave-panel h3 { font-size: 1.4rem; }
+  .device-leave-subtitle { font-size: 0.98rem; }
+  .device-leave-player-avatar { width: 2.7rem; height: 2.7rem; }
+  .device-leave-player-name { font-size: 1.05rem; }
+  .device-leave-toggle button { font-size: 0.9rem; }
+  .device-leave-actions .btn { font-size: 1rem; }
+}
+@media (max-width: 768px) {
+  .device-leave-panel { padding: 1.3rem 1.4rem; border-radius: 0.7rem; }
+  .device-leave-panel h3 { font-size: 1.25rem; }
+  .device-leave-subtitle { font-size: 0.9rem; margin-bottom: 1rem; }
+  .device-leave-players { gap: 0.55rem; }
+  .device-leave-player { padding: 0.65rem 0.75rem; }
+  .device-leave-player-avatar { width: 2.4rem; height: 2.4rem; }
+  .device-leave-player-name { font-size: 0.95rem; }
+  .device-leave-toggle button { font-size: 0.82rem; padding: 0.35em 0.85em; }
+  .device-leave-actions .btn { font-size: 0.92rem; padding: 0.5em 1.5em; }
+}
+@media (max-width: 480px) {
+  .device-leave-panel { padding: 1.05rem 1.1rem; }
+  .device-leave-panel h3 { font-size: 1.12rem; }
+  .device-leave-subtitle { font-size: 0.82rem; line-height: 1.35; }
+  .device-leave-player { padding: 0.55rem 0.6rem; gap: 0.6rem; }
+  .device-leave-player-avatar { width: 2.1rem; height: 2.1rem; }
+  .device-leave-player-name { font-size: 0.88rem; }
+  .device-leave-toggle button { font-size: 0.74rem; padding: 0.32em 0.7em; }
+  .device-leave-actions .btn { font-size: 0.85rem; padding: 0.45em 1.3em; }
 }
 
 /* ---------- Game Toast (short notification for all players) ---------- */
@@ -2420,37 +2602,37 @@ html, body {
 }
 .reassign-panel {
   background: var(--bg-panel);
-  border: 0.2vmin solid var(--gold-dim);
-  border-radius: 1vmin;
-  padding: 2vmin 2.2vmin;
-  max-width: 48vmin;
+  border: 1px solid var(--gold-dim);
+  border-radius: 0.9rem;
+  padding: 1.8rem 2rem;
+  max-width: min(95vw, 32rem);
   width: 92%;
-  max-height: 80vh;
+  max-height: 85vh;
   overflow-y: auto;
-  box-shadow: 0 0 3vmin rgba(255, 200, 60, 0.15);
+  box-shadow: 0 0.5rem 2rem rgba(255, 200, 60, 0.18);
 }
 .reassign-panel h3 {
   font-family: var(--font-display);
   color: var(--gold-light);
-  margin: 0 0 1.1vmin 0;
+  margin: 0 0 1rem 0;
   text-align: center;
-  font-size: 2vmin;
+  font-size: 1.5rem;
 }
 .reassign-player-card {
   display: flex;
   align-items: center;
-  gap: 1vmin;
-  padding: 0.8vmin 1vmin;
-  margin-bottom: 1.4vmin;
+  gap: 0.85rem;
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 1.1rem;
   background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 0.6vmin;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 0.55rem;
 }
 .reassign-player-card .ra-avatar {
-  width: 4.5vmin;
-  height: 4.5vmin;
+  width: 3rem;
+  height: 3rem;
   border-radius: 50%;
-  border: 0.2vmin solid var(--wood-mid);
+  border: 2px solid var(--wood-mid);
   overflow: hidden;
   flex-shrink: 0;
   background: rgba(20,30,25,0.9);
@@ -2461,7 +2643,7 @@ html, body {
 .reassign-player-card .ra-name {
   flex: 1;
   font-family: var(--font-display);
-  font-size: 1.6vmin;
+  font-size: 1.2rem;
   color: var(--text-light);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2470,20 +2652,20 @@ html, body {
 .reassign-options {
   display: flex;
   flex-direction: column;
-  gap: 0.55vmin;
-  margin-bottom: 1.4vmin;
+  gap: 0.5rem;
+  margin-bottom: 1.2rem;
 }
 .reassign-option {
   display: flex;
   align-items: center;
-  gap: 0.8vmin;
-  padding: 0.65vmin 1vmin;
-  border: 0.14vmin solid rgba(255,255,255,0.12);
-  border-radius: 0.5vmin;
+  gap: 0.7rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 0.45rem;
   background: transparent;
   color: var(--text-light);
   font-family: var(--font-display);
-  font-size: 1.4vmin;
+  font-size: 1.05rem;
   cursor: pointer;
   transition: all var(--transition-fast);
 }
@@ -2499,14 +2681,14 @@ html, body {
 }
 .reassign-option .ra-tag {
   display: inline-block;
-  min-width: 3.5vmin;
+  min-width: 2.6rem;
   text-align: center;
-  padding: 0.15vmin 0.6vmin;
-  font-size: 0.95vmin;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.78rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  border-radius: 0.3vmin;
-  background: rgba(255,255,255,0.07);
+  border-radius: 0.25rem;
+  background: rgba(255,255,255,0.08);
   color: var(--text-dim);
 }
 .reassign-option.current .ra-tag {
@@ -2516,11 +2698,40 @@ html, body {
 .reassign-actions {
   display: flex;
   justify-content: center;
-  gap: 0.8vmin;
+  gap: 0.7rem;
 }
 .reassign-actions .btn {
-  font-size: 1.25vmin;
-  padding: 0.5vmin 1.6vmin;
+  font-size: 1rem;
+  padding: 0.5em 1.5em;
+}
+
+@media (max-width: 1024px) {
+  .reassign-panel { max-width: min(94vw, 30rem); padding: 1.55rem 1.8rem; }
+  .reassign-panel h3 { font-size: 1.4rem; }
+  .reassign-player-card .ra-avatar { width: 2.7rem; height: 2.7rem; }
+  .reassign-player-card .ra-name { font-size: 1.1rem; }
+  .reassign-option { font-size: 1rem; }
+  .reassign-actions .btn { font-size: 0.95rem; }
+}
+@media (max-width: 768px) {
+  .reassign-panel { padding: 1.3rem 1.4rem; border-radius: 0.7rem; }
+  .reassign-panel h3 { font-size: 1.25rem; }
+  .reassign-player-card { padding: 0.65rem 0.75rem; }
+  .reassign-player-card .ra-avatar { width: 2.4rem; height: 2.4rem; }
+  .reassign-player-card .ra-name { font-size: 1rem; }
+  .reassign-option { font-size: 0.92rem; padding: 0.5rem 0.75rem; }
+  .reassign-option .ra-tag { font-size: 0.72rem; min-width: 2.3rem; }
+  .reassign-actions .btn { font-size: 0.88rem; padding: 0.5em 1.4em; }
+}
+@media (max-width: 480px) {
+  .reassign-panel { padding: 1.05rem 1.1rem; }
+  .reassign-panel h3 { font-size: 1.1rem; }
+  .reassign-player-card { padding: 0.55rem 0.6rem; gap: 0.6rem; }
+  .reassign-player-card .ra-avatar { width: 2.1rem; height: 2.1rem; }
+  .reassign-player-card .ra-name { font-size: 0.9rem; }
+  .reassign-option { font-size: 0.85rem; padding: 0.45rem 0.65rem; gap: 0.55rem; }
+  .reassign-option .ra-tag { font-size: 0.66rem; min-width: 2.1rem; padding: 0.12rem 0.4rem; }
+  .reassign-actions .btn { font-size: 0.82rem; padding: 0.45em 1.25em; }
 }
 
 /* ---------- Reconnect-gate popup (host-only) ---------- */
@@ -2535,34 +2746,54 @@ html, body {
 }
 .reconnect-gate-panel {
   background: var(--bg-panel);
-  border: 0.2vmin solid var(--gold-dim);
-  border-radius: 1vmin;
-  padding: 2vmin 2.4vmin;
-  max-width: 40vmin;
+  border: 1px solid var(--gold-dim);
+  border-radius: 0.9rem;
+  padding: 1.8rem 2.1rem;
+  max-width: min(95vw, 26rem);
   width: 92%;
   text-align: center;
-  box-shadow: 0 0 3vmin rgba(255, 200, 60, 0.15);
+  box-shadow: 0 0.5rem 2rem rgba(255, 200, 60, 0.18);
 }
 .reconnect-gate-panel h3 {
   font-family: var(--font-display);
   color: var(--gold-light);
-  margin: 0 0 0.8vmin 0;
-  font-size: 2vmin;
+  margin: 0 0 0.7rem 0;
+  font-size: 1.5rem;
 }
 .reconnect-gate-sub {
-  font-size: 1.3vmin;
+  font-size: 1.05rem;
   color: var(--text-dim);
-  margin: 0 0 1.4vmin 0;
+  margin: 0 0 1.2rem 0;
   line-height: 1.4;
 }
 .reconnect-gate-actions {
   display: flex;
   justify-content: center;
-  gap: 0.8vmin;
+  gap: 0.7rem;
 }
 .reconnect-gate-actions .btn {
-  font-size: 1.25vmin;
-  padding: 0.55vmin 1.8vmin;
+  font-size: 1rem;
+  padding: 0.5em 1.6em;
+}
+
+@media (max-width: 1024px) {
+  .reconnect-gate-panel { padding: 1.6rem 1.8rem; max-width: min(94vw, 24rem); }
+  .reconnect-gate-panel h3 { font-size: 1.4rem; }
+  .reconnect-gate-sub { font-size: 0.98rem; }
+  .reconnect-gate-actions .btn { font-size: 0.95rem; }
+}
+@media (max-width: 768px) {
+  .reconnect-gate-panel { padding: 1.35rem 1.5rem; border-radius: 0.7rem; }
+  .reconnect-gate-panel h3 { font-size: 1.25rem; }
+  .reconnect-gate-sub { font-size: 0.9rem; }
+  .reconnect-gate-actions .btn { font-size: 0.9rem; padding: 0.5em 1.5em; }
+}
+@media (max-width: 480px) {
+  .reconnect-gate-panel { padding: 1.1rem 1.2rem; }
+  .reconnect-gate-panel h3 { font-size: 1.1rem; }
+  .reconnect-gate-sub { font-size: 0.85rem; line-height: 1.35; }
+  .reconnect-gate-actions { gap: 0.55rem; }
+  .reconnect-gate-actions .btn { font-size: 0.84rem; padding: 0.45em 1.3em; }
 }
 
 .game-toast {

@@ -1092,6 +1092,12 @@ var UI = (function () {
   // stash the resolver and fire it when the broadcast arrives.
   var pendingDealOrder = null;
   var pendingDealResolve = null;
+  // Set to true on the guest while animateDealSequence is mutating
+  // state.deck via Game.dealCardTo. State syncs that arrive in this
+  // window are queued and replayed afterwards instead of clobbering
+  // the deck mid-animation (which would produce extra cards).
+  var _dealAnimationLock = false;
+  var _pendingDealLockSync = null;
 
   function waitForHostDealRound() {
     return new Promise(function (resolve) {
@@ -1200,6 +1206,13 @@ var UI = (function () {
 
   // Guest: handle full state sync from host
   function onlineHandleStateSync(data) {
+    // If we're mid-deal-animation, queue this sync — the deal flow
+    // will replay it once Game.dealCardTo is done mutating state.
+    // (See _dealAnimationLock / replay block in beginNewRound.)
+    if (_dealAnimationLock) {
+      _pendingDealLockSync = data;
+      return;
+    }
     if (data.gameState) {
       Game.deserialize(data.gameState);
     }
@@ -1234,8 +1247,15 @@ var UI = (function () {
         }
       }
       updatePlayerTotal(pid);
+      // ALWAYS reconcile the status pill against authoritative state —
+      // not just when busted/stayed is true. Without an explicit clear
+      // case, a stale STAY pill from an earlier optimistic action_stay
+      // (or a guest's local autostay logic that doesn't match the host)
+      // would remain visible after the state sync. The fourth call here
+      // hides the pill via updatePlayerStatus(_, null/undefined).
       if (hand.busted) updatePlayerStatus(pid, 'busted');
       else if (hand.stayed) updatePlayerStatus(pid, 'stayed');
+      else updatePlayerStatus(pid, null);
     }
     updateHUD();
     updateDeckCount();
@@ -1813,6 +1833,19 @@ var UI = (function () {
     }
 
     var _roundData; // captured for later stages
+    // Guard against `game_state_sync` clobbering Game state DURING the
+    // local deal animation. The host's syncGameStateToGuests fires
+    // right after its own deal completes; on a fast mobile host, that
+    // sync can arrive while a slower guest (e.g. a desktop with PIXI
+    // texture work) is still mid-animation. If we let the sync apply
+    // mid-deal, it overwrites state.deck and state.hands with the
+    // post-deal snapshot, then our in-flight `Game.dealCardTo` calls
+    // pop ANOTHER set of cards off that snapshot deck and shovel them
+    // into the now-already-populated hands — producing visibly extra
+    // cards on the slow device. We set this flag on the guest before
+    // animateDealSequence and clear it after the deal finishes; the
+    // state-sync handler queues any sync that arrives during this
+    // window and replays it once we're done.
     renderGameTable().then(function () {
       updateHUD();
       // Animate dealing
@@ -1825,6 +1858,7 @@ var UI = (function () {
       return roundDataPromise;
     }).then(function (roundData) {
       _roundData = roundData;
+      if (isOnlineGuest) _dealAnimationLock = true;
       return animateDealSequence(roundData.dealOrder);
     }).then(function () {
       // Flip all cards face up on canvas
@@ -1855,6 +1889,17 @@ var UI = (function () {
       // Host syncs initial game state after dealing
       if (Online.isActive() && Online.isHost()) syncGameStateToGuests();
       gameFlowLocked = false;
+      // Drop the deal-animation lock on the guest (so subsequent
+      // state-syncs apply immediately) and replay any sync that
+      // arrived during the deal — the latest one is the winner.
+      if (isOnlineGuest) {
+        _dealAnimationLock = false;
+        if (_pendingDealLockSync) {
+          var queued = _pendingDealLockSync;
+          _pendingDealLockSync = null;
+          onlineHandleStateSync(queued);
+        }
+      }
       nextTurn();
     });
   }
@@ -2495,6 +2540,18 @@ var UI = (function () {
         el.classList.remove('leader');
       }
     });
+    // Also tag the seat itself with .is-leader so the avatar's ring
+    // turns gold (instead of the default wood-mid border) and, when
+    // the leader is also the active player, the silver halo pulse
+    // alternates with a gold pulse via .game-seat.active.is-leader.
+    document.querySelectorAll('.game-seat').forEach(function (seatEl) {
+      var pid = seatEl.dataset.player;
+      if (leaderId !== null && pid !== undefined && Number(pid) === leaderId) {
+        seatEl.classList.add('is-leader');
+      } else {
+        seatEl.classList.remove('is-leader');
+      }
+    });
   }
 
   function updatePlayerStatus(playerId, status) {
@@ -2568,22 +2625,24 @@ var UI = (function () {
   // re-render the bar without changing visibility.
   var _mbarTurnActive = false;
 
-  // Rebuild the mobile portrait action panel. Only shown when ALL of:
-  //   - gamePhase === 'playing'
-  //   - viewport is mobile portrait
-  //   - it's THIS device's local player's turn (showActionBar(true))
+  // Rebuild the mobile portrait display panel.
+  //   * Leader card — visible whenever (gamePhase === 'playing' AND
+  //     viewport is mobile portrait), regardless of whose turn it is.
+  //   * Turn card + Draw/Stay buttons — only visible when ALSO this
+  //     device's player is on turn (showActionBar(true)).
   // `visible` / `disableStay` come from showActionBar and set the
-  // turn-gated visibility. A subsequent updatePlayerTotal() call
-  // (visible === undefined) just refreshes the leader / score info
-  // without changing the bar's overall visibility.
+  // turn-section visibility. A subsequent updatePlayerTotal() call
+  // (visible === undefined) just refreshes leader / score info
+  // without touching the turn-section gate.
   function updateMobileActionBar(visible, disableStay) {
     var bar = document.getElementById('mobile-action-bar');
     if (!bar) return;
     if (visible !== undefined) _mbarTurnActive = !!visible;
     var phaseOk = (gamePhase === 'playing');
     var portrait = isMobilePortrait();
-    var shouldShow = phaseOk && portrait && _mbarTurnActive;
+    var shouldShow = phaseOk && portrait;
     document.body.classList.toggle('mbar-active', shouldShow);
+    document.body.classList.toggle('mbar-turn-active', shouldShow && _mbarTurnActive);
     if (!shouldShow) {
       bar.style.display = 'none';
       return;
@@ -2593,19 +2652,22 @@ var UI = (function () {
     var gs = Game.getState && Game.getState();
     if (!gs || !gs.players || !gs.players.length) return;
 
-    // LEFT: current leader (same tiebreaker chain as updateLeaderGlow).
+    // Always-visible: current leader (same tiebreaker chain as
+    // updateLeaderGlow).
     var leader = findCurrentLeader();
     fillMbarPlayer(document.getElementById('mbar-leader'), leader);
-    // RIGHT: current active player.
-    var current = (typeof Game.getCurrentPlayer === 'function') ? Game.getCurrentPlayer() : null;
-    fillMbarPlayer(document.getElementById('mbar-current'), current);
 
-    // Buttons — since the bar is only shown during this device's
-    // turn, Draw is always enabled and Stay follows disableStay.
-    var drawBtn = document.getElementById('mbar-btn-draw');
-    var stayBtn = document.getElementById('mbar-btn-stay');
-    if (drawBtn) drawBtn.disabled = false;
-    if (stayBtn) stayBtn.disabled = !!disableStay;
+    // Turn section: current active player + buttons. Only fill the
+    // current-player display when the section is visible — otherwise
+    // skip work since it's hidden anyway.
+    if (_mbarTurnActive) {
+      var current = (typeof Game.getCurrentPlayer === 'function') ? Game.getCurrentPlayer() : null;
+      fillMbarPlayer(document.getElementById('mbar-current'), current);
+      var drawBtn = document.getElementById('mbar-btn-draw');
+      var stayBtn = document.getElementById('mbar-btn-stay');
+      if (drawBtn) drawBtn.disabled = false;
+      if (stayBtn) stayBtn.disabled = !!disableStay;
+    }
   }
 
   function findCurrentLeader() {
@@ -2637,15 +2699,20 @@ var UI = (function () {
 
   function fillMbarPlayer(container, player) {
     if (!container) return;
-    // New layout (v101): [.mbar-top: score + badges] above avatar,
-    // name below avatar. Matches the table seat's vertical order.
-    var avatarEl = container.querySelector('.mbar-avatar');
-    var badgesEl = container.querySelector('.mbar-top .mbar-badges');
-    var scoreEl  = container.querySelector('.mbar-top .mbar-score');
-    var nameEl   = container.querySelector('.mbar-name');
+    // v102 layout — top row uses 1fr-auto-1fr grid so the score is
+    // exactly centered above the avatar. Dealer chip goes in the
+    // LEFT badges slot, stay/bust pill goes in the RIGHT slot —
+    // mirroring .game-seat-top-row, where dealer-chip justify-end
+    // (left of score) and status pill justify-start (right of score).
+    var avatarEl   = container.querySelector('.mbar-avatar');
+    var badgesLeft = container.querySelector('.mbar-top .mbar-badges-left');
+    var badgesRight= container.querySelector('.mbar-top .mbar-badges-right');
+    var scoreEl    = container.querySelector('.mbar-top .mbar-score');
+    var nameEl     = container.querySelector('.mbar-name');
     if (!player) {
       if (avatarEl) avatarEl.innerHTML = '';
-      if (badgesEl) badgesEl.innerHTML = '';
+      if (badgesLeft) badgesLeft.innerHTML = '';
+      if (badgesRight) badgesRight.innerHTML = '';
       if (scoreEl) scoreEl.textContent = '';
       if (nameEl) nameEl.textContent = '';
       return;
@@ -2658,20 +2725,21 @@ var UI = (function () {
     var hand = (typeof Game.getHand === 'function') ? Game.getHand(player.id) : null;
     var total = (hand && hand.cards) ? CardSystem.handTotal(hand.cards) : '';
     scoreEl.textContent = total || '';
-    badgesEl.innerHTML = '';
+    badgesLeft.innerHTML = '';
+    badgesRight.innerHTML = '';
     if (player.isDealer) {
       var d = document.createElement('span');
       d.className = 'mbar-badge dealer'; d.textContent = 'D';
-      badgesEl.appendChild(d);
+      badgesLeft.appendChild(d);
     }
     if (hand && hand.busted) {
       var b = document.createElement('span');
       b.className = 'mbar-badge bust'; b.textContent = 'Bust';
-      badgesEl.appendChild(b);
+      badgesRight.appendChild(b);
     } else if (hand && hand.stayed) {
       var s = document.createElement('span');
       s.className = 'mbar-badge stay'; s.textContent = 'Stay';
-      badgesEl.appendChild(s);
+      badgesRight.appendChild(s);
     }
   }
 

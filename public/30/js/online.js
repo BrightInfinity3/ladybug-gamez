@@ -447,6 +447,7 @@ var Online = (function () {
         type: 'game_starting',
         data: {
           players: Game.getState().players,
+          dealerIndex: Game.getState().dealerIndex,
           lobbyState: JSON.parse(JSON.stringify(lobbyState)),
           midGame: true
         }
@@ -893,11 +894,16 @@ var Online = (function () {
 
     Game.setupGame(players, dealerIdx);
 
-    // Broadcast game start with player list
+    // Broadcast game start with player list. Include dealerIndex so
+    // guests start with the SAME dealer as the host — without this,
+    // guests defaulted to player[0] until the trailing deal_round
+    // arrived, briefly showing the dealer chip on the wrong seat
+    // (and computing a wrong turnOrder for that brief window).
     Network.broadcast({
       type: 'game_starting',
       data: {
         players: players,
+        dealerIndex: dealerIdx,
         lobbyState: lobbyState
       }
     });
@@ -1031,7 +1037,12 @@ var Online = (function () {
   function handleGameStarting(data) {
     gamePhase = 'playing';
     var players = data.players;
-    Game.setupGame(players, 0);
+    // Use the dealerIndex the host chose (added in v102). Fall back
+    // to 0 only when an older host hasn't sent it. Without this, the
+    // guest briefly placed the dealer chip on player[0] regardless
+    // of the actual dealer until deal_round arrived and corrected.
+    var dealerIdx = (typeof data.dealerIndex === 'number') ? data.dealerIndex : 0;
+    Game.setupGame(players, dealerIdx);
     lobbyState = data.lobbyState;
 
     // Mid-game join: skip beginNewRound (no deal animation) and go

@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=101">
+  <link rel="stylesheet" href="css/style.css?v=102">
 </head>
 <body>
 
@@ -180,35 +180,41 @@
       <button class="btn btn-stay" id="btn-stay">Stay</button>
     </div>
 
-    <!-- Mobile-portrait-only action panel. Shown INSTEAD of the
-         on-table game-actions when the viewport is a narrow phone
-         in portrait — AND only during this device's own turn, so
-         the space under the table stays quiet otherwise. Layout
-         mirrors the table seats: score-above-avatar, name-below,
-         with a dealer/stay/bust pill next to the score. Draw/Stay
-         buttons sit below at equal size. -->
+    <!-- Mobile-portrait-only display. Two stacked sections:
+           1. Leader card  — ALWAYS visible during gameplay. Shows the
+              "Leader" label, score (centered above avatar with the
+              dealer/stay/bust pill flanking via a 1fr-auto-1fr grid
+              that mirrors the table seat's top row), avatar, name.
+           2. Turn card    — only visible on THIS device's local turn.
+              Shows the current actor + Draw/Stay buttons.
+         Other orientations / sizes use the on-table .game-actions. -->
     <div class="mobile-action-bar" id="mobile-action-bar" style="display:none">
-      <div class="mbar-players">
+      <div class="mbar-leader-section" id="mbar-leader-section">
+        <div class="mbar-leader-label">Leader</div>
         <div class="mbar-player mbar-leader" id="mbar-leader">
           <div class="mbar-top">
+            <span class="mbar-badges mbar-badges-left"></span>
             <span class="mbar-score"></span>
-            <span class="mbar-badges"></span>
-          </div>
-          <div class="mbar-avatar"></div>
-          <div class="mbar-name"></div>
-        </div>
-        <div class="mbar-player mbar-current" id="mbar-current">
-          <div class="mbar-top">
-            <span class="mbar-score"></span>
-            <span class="mbar-badges"></span>
+            <span class="mbar-badges mbar-badges-right"></span>
           </div>
           <div class="mbar-avatar"></div>
           <div class="mbar-name"></div>
         </div>
       </div>
-      <div class="mbar-buttons" id="mbar-buttons">
-        <button class="btn btn-draw" id="mbar-btn-draw">Draw</button>
-        <button class="btn btn-stay" id="mbar-btn-stay">Stay</button>
+      <div class="mbar-turn-section" id="mbar-turn-section">
+        <div class="mbar-player mbar-current" id="mbar-current">
+          <div class="mbar-top">
+            <span class="mbar-badges mbar-badges-left"></span>
+            <span class="mbar-score"></span>
+            <span class="mbar-badges mbar-badges-right"></span>
+          </div>
+          <div class="mbar-avatar"></div>
+          <div class="mbar-name"></div>
+        </div>
+        <div class="mbar-buttons" id="mbar-buttons">
+          <button class="btn btn-draw" id="mbar-btn-draw">Draw</button>
+          <button class="btn btn-stay" id="mbar-btn-stay">Stay</button>
+        </div>
       </div>
     </div>
 
@@ -373,16 +379,16 @@
        now uses a plain WebSocket client (js/network.js) talking to the
        central Ladybug Gamez relay server. -->
   <script src="https://cdn.jsdelivr.net/npm/pixi.js@8/dist/pixi.min.js"></script>
-  <script src="js/sprites.js?v=101"></script>
-  <script src="js/cards.js?v=101"></script>
-  <script src="js/game.js?v=101"></script>
-  <script src="js/animations.js?v=101"></script>
-  <script src="js/textures.js?v=101"></script>
-  <script src="js/renderer.js?v=101"></script>
-  <script src="js/save.js?v=101"></script>
-  <script src="js/network.js?v=101"></script>
-  <script src="js/online.js?v=101"></script>
-  <script src="js/ui.js?v=101"></script>
+  <script src="js/sprites.js?v=102"></script>
+  <script src="js/cards.js?v=102"></script>
+  <script src="js/game.js?v=102"></script>
+  <script src="js/animations.js?v=102"></script>
+  <script src="js/textures.js?v=102"></script>
+  <script src="js/renderer.js?v=102"></script>
+  <script src="js/save.js?v=102"></script>
+  <script src="js/network.js?v=102"></script>
+  <script src="js/online.js?v=102"></script>
+  <script src="js/ui.js?v=102"></script>
 
 </body>
 </html>
