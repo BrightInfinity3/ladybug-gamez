@@ -2066,7 +2066,25 @@ var UI = (function () {
       }, function () {
         Renderer.removeFlyingCard(fc);
         if (!handDisplay[playerId]) handDisplay[playerId] = [];
-        handDisplay[playerId].push({ card: card, faceUp: true });
+        // Guard against the slow-device race that produced visibly
+        // doubled cards on Windows desktops: while a 500ms
+        // animateCanvasDraw is in flight on a slow guest, the host's
+        // post-action `game_state_sync` can arrive and run
+        // onlineHandleStateSync, which rebuilds handDisplay from
+        // authoritative state — adding THIS card to handDisplay
+        // before our completion callback runs. When the animation
+        // then finishes and pushes the card again unconditionally,
+        // the visual doubles up. Decks have unique cards within a
+        // round, so a same-rank-same-suit match is always the same
+        // card — safe to skip the push.
+        var alreadyHas = handDisplay[playerId].some(function (entry) {
+          return entry && entry.card && card &&
+                 entry.card.rank === card.rank &&
+                 entry.card.suit === card.suit;
+        });
+        if (!alreadyHas) {
+          handDisplay[playerId].push({ card: card, faceUp: true });
+        }
         resolve();
       });
     });

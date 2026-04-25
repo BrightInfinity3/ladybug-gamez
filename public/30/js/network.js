@@ -72,6 +72,14 @@ var Network = (function () {
   var resumedHandler = null;
 
   var pingTimer = null;
+  var watchdogTimer = null;
+  var reclaimTimeoutTimer = null;
+  var lastInboundMessageAt = 0;
+  // If no message has arrived from the server in this many ms, the
+  // socket is presumed half-dead and we trigger a reconnect. Tuned
+  // higher than the 10s server ping cadence so a normal slow network
+  // doesn't trigger spurious cycles.
+  var STALE_MS = 35000;
 
   // ---- Low-level socket helpers ----
   function openSocket(onReady, onError) {
@@ -83,7 +91,9 @@ var Network = (function () {
     }
     ws.addEventListener('open', function () {
       console.log('[Network] WebSocket open:', WS_URL);
+      lastInboundMessageAt = Date.now();
       startHeartbeat();
+      startWatchdog();
       if (onReady) onReady();
     });
     ws.addEventListener('message', onSocketMessage);
@@ -128,12 +138,39 @@ var Network = (function () {
 
   function startHeartbeat() {
     stopHeartbeat();
+    // Application-level ping every 10s. The server runs a 10s WS-level
+    // ping/pong as well — sending OUR own JSON ping in addition keeps
+    // the path alive across proxies that may filter WS protocol pings,
+    // and makes the server's `lastSeen` accounting always fresh. The
+    // server replies with `_pong` which resets our watchdog.
     pingTimer = setInterval(function () {
       if (ws && ws.readyState === WebSocket.OPEN) wsSend({ type: '_ping' });
-    }, 20000);
+    }, 10000);
   }
   function stopHeartbeat() {
     if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
+  }
+
+  // Watchdog: if no inbound message in STALE_MS, the connection is
+  // presumed half-dead (NAT timeout, dropped behind a proxy, etc.).
+  // Force a clean reconnect cycle so the user doesn't sit on a stale
+  // socket waiting for the server-side timeout to notice.
+  function startWatchdog() {
+    stopWatchdog();
+    watchdogTimer = setInterval(function () {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      if (userInitiatedClose) return;
+      var sinceLast = Date.now() - lastInboundMessageAt;
+      if (sinceLast > STALE_MS) {
+        console.warn('[Network] Watchdog: no inbound message in ' + sinceLast + 'ms — recycling socket');
+        // Force-close. onSocketClose will trigger scheduleReconnect()
+        // and we'll go through the reclaim flow normally.
+        try { ws.close(4000, 'watchdog stale'); } catch (e) {}
+      }
+    }, 5000);
+  }
+  function stopWatchdog() {
+    if (watchdogTimer) { clearInterval(watchdogTimer); watchdogTimer = null; }
   }
 
   // ---- Public: Create Room (host) ----
@@ -212,6 +249,8 @@ var Network = (function () {
       ws = null;
     }
     stopHeartbeat();
+    stopWatchdog();
+    if (reclaimTimeoutTimer) { clearTimeout(reclaimTimeoutTimer); reclaimTimeoutTimer = null; }
     _isHost = false;
     myPeerId = '';
     roomCode = '';
@@ -223,6 +262,10 @@ var Network = (function () {
 
   // ---- Incoming message dispatch ----
   function onSocketMessage(evt) {
+    // Record liveness on EVERY inbound message — `_pong`, peer relays,
+    // server status updates all count. The watchdog uses this stamp
+    // to decide whether the socket is alive.
+    lastInboundMessageAt = Date.now();
     var msg;
     try { msg = JSON.parse(evt.data); } catch (e) { return; }
     handleServerMessage(msg);
@@ -300,6 +343,7 @@ var Network = (function () {
       case 'reclaimed':
         // Server confirmed we retook our old peerId after a reconnect.
         // From the app's perspective we just resumed — no new join flow.
+        if (reclaimTimeoutTimer) { clearTimeout(reclaimTimeoutTimer); reclaimTimeoutTimer = null; }
         myPeerId = data.peerId || myPeerId;
         roomCode = data.roomCode || roomCode;
         connectedToRoom = true;
@@ -315,6 +359,7 @@ var Network = (function () {
       case 'reclaim_failed':
         // Our old peerId is no longer valid (grace expired or room gone).
         // Surface as a disconnect so the app can show the disband dialog.
+        if (reclaimTimeoutTimer) { clearTimeout(reclaimTimeoutTimer); reclaimTimeoutTimer = null; }
         console.warn('[Network] Reclaim failed:', data && data.reason);
         userInitiatedClose = true;
         if (disconnectHandler) disconnectHandler('host');
@@ -334,6 +379,7 @@ var Network = (function () {
   function onSocketClose() {
     console.log('[Network] WebSocket closed');
     stopHeartbeat();
+    stopWatchdog();
     ws = null;
     // If we were mid-join, fail the join promise so UI can show an error.
     if (joinReject && !connectedToRoom) {
@@ -390,9 +436,19 @@ var Network = (function () {
     openSocket(function () {
       // Socket is open — send reclaim as first message.
       wsSend({ type: 'reclaim', data: { peerId: savedPeerId, roomCode: savedRoom } });
-      // If the server responds with reclaim_failed, handleServerMessage
-      // will fire disconnectHandler. If it responds with `reclaimed`,
-      // we're back in business.
+      // Reclaim safety timeout. If the server doesn't respond with
+      // `reclaimed` or `reclaim_failed` in 8s, the request was
+      // probably swallowed (proxy, server overload, race during
+      // grace expiry). Force-close and try again so we don't hang
+      // on a half-dead socket waiting indefinitely.
+      if (reclaimTimeoutTimer) clearTimeout(reclaimTimeoutTimer);
+      reclaimTimeoutTimer = setTimeout(function () {
+        reclaimTimeoutTimer = null;
+        if (ws && ws.readyState === WebSocket.OPEN && !connectedToRoom) {
+          console.warn('[Network] Reclaim response timeout — recycling and retrying');
+          try { ws.close(4001, 'reclaim timeout'); } catch (e) {}
+        }
+      }, 8000);
     }, function () {
       // Socket open failed — try again.
       if (reconnectAttempt < 20) scheduleReconnect();
@@ -407,17 +463,22 @@ var Network = (function () {
     });
   }
 
-  // When the page regains visibility (phone wakes, tab becomes active),
-  // a dead socket may not fire `close` for a while. Force a quick check
-  // and trigger a reconnect if we're holding a dead connection.
-  document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState !== 'visible') return;
+  // Proactive reconnect triggers — combine all three signals so we
+  // don't sit on a dead socket waiting for the heartbeat to notice.
+  //   * visibilitychange: phone wake, tab focus.
+  //   * pageshow: iOS bfcache restore (back/forward navigation), which
+  //     bypasses normal load events and can leave a stale ws object
+  //     around without firing visibilitychange.
+  //   * online: device's network came back from offline (walked into
+  //     a tunnel and back, switched WiFi <-> cellular). Browsers fire
+  //     this BEFORE any TCP-level reconnect attempts, so if we go
+  //     immediately we're often back online before the server's grace
+  //     window even ticks past one heartbeat.
+  function checkAndReconnect(why) {
     if (userInitiatedClose) return;
-    // If we think we're connected but the socket is dead or closing,
-    // kick a reconnect now instead of waiting for the server heartbeat
-    // to notice 20+ seconds from now.
-    if (myPeerId && roomCode && (!ws || ws.readyState >= WebSocket.CLOSING)) {
-      console.log('[Network] Page visible — socket is dead, reconnecting now');
+    if (!myPeerId || !roomCode) return;
+    if (!ws || ws.readyState >= WebSocket.CLOSING) {
+      console.log('[Network] ' + why + ' — socket is dead, reconnecting now');
       cancelReconnect();
       doReconnect();
     } else if (ws && ws.readyState === WebSocket.OPEN) {
@@ -425,6 +486,22 @@ var Network = (function () {
       // actually half-closed we find out quickly.
       wsSend({ type: '_ping' });
     }
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState !== 'visible') return;
+    checkAndReconnect('Page visible');
+  });
+  window.addEventListener('pageshow', function (e) {
+    // e.persisted === true means restored from bfcache (iOS Safari).
+    // Always re-verify the socket on pageshow regardless.
+    checkAndReconnect(e.persisted ? 'pageshow (bfcache)' : 'pageshow');
+  });
+  window.addEventListener('online', function () {
+    checkAndReconnect('Network online');
+  });
+  window.addEventListener('offline', function () {
+    console.log('[Network] Network offline — will reconnect when back');
+    // Don't try to reconnect here; just let the next online event fire.
   });
 
   // ---- Handler registration ----
