@@ -639,6 +639,22 @@ var UI = (function () {
           Online.onRenderLobby(function () {
             renderOnlineLobbySeats();
           });
+          // Host migration: if the original host's grace expires
+          // and the server promotes US to host, this fires after
+          // online.js has flipped _isHost on, re-bound network
+          // handlers, and broadcast the updated lobby/state. We
+          // need to (a) re-render seats so they pick up the host-
+          // only treatments (clickable avatars for reassignment,
+          // dotted-D dealer marker, etc.), and (b) kick the turn
+          // loop if a round is in progress so the next-to-act
+          // seat plays.
+          Online.onHostTakeover(function () {
+            renderOnlineLobbySeats();
+            if (gamePhase === 'playing') {
+              gameFlowLocked = false;
+              nextTurn();
+            }
+          });
           enterOnlineLobby();
           Online.renderOnlineLobby();
         } else {

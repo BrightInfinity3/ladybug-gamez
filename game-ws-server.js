@@ -112,17 +112,70 @@ function attachGameWebSocketServer(httpServer, options) {
     const p = room.peers[peerId];
     if (!p) return;
     if (p.graceTimer) clearTimeout(p.graceTimer);
+    const wasHost = (room.hostPeerId === peerId);
     delete room.peers[peerId];
     peerRoom.delete(peerId);
     broadcastToRoom(room, { type: 'peer_left', data: { peerId, reason } });
     log(`peer ${peerId} removed from ${room.code} (${reason})`);
 
-    if (room.hostPeerId === peerId) {
-      disbandRoom(room.code, 'Host left.');
+    if (wasHost) {
+      // Host departed. If they EXPLICITLY left (clicked Leave Room),
+      // disband — they confirmed "this ends the game for everyone".
+      // If they timed out (network drop, screen lock past grace),
+      // and there's at least one other peer connected, migrate the
+      // host role to them so the game can continue.
+      if (reason === 'timed_out') {
+        const newHost = pickNewHost(room);
+        if (newHost) {
+          migrateHost(room, peerId, newHost, reason);
+          return;
+        }
+      }
+      const friendly = (reason === 'left') ? 'Host left.' : 'Host disconnected.';
+      disbandRoom(room.code, friendly);
     } else if (Object.keys(room.peers).length === 0) {
       rooms.delete(room.code);
       log(`room ${room.code} empty — deleted`);
     }
+  }
+
+  // Pick a peer to promote to host when the current host has timed
+  // out. Preference order:
+  //   1. Any peer with an OPEN socket — they can take over right
+  //      now and start broadcasting state.
+  //   2. Any peer still inside their own grace window (paused but
+  //      not yet timed out). They'll take over once they reclaim.
+  // Returns null if no candidates exist (room should disband).
+  function pickNewHost(room) {
+    let openCandidate = null;
+    let pausedCandidate = null;
+    for (const pid in room.peers) {
+      const p = room.peers[pid];
+      if (p.socket && p.socket.readyState === WebSocket.OPEN) {
+        if (!openCandidate) openCandidate = pid;
+      } else if (!pausedCandidate) {
+        pausedCandidate = pid;
+      }
+    }
+    return openCandidate || pausedCandidate;
+  }
+
+  // Promote `newHostPeerId` to host of `room`. Broadcasts a
+  // `host_migrated` message to all remaining peers. The new host's
+  // client takes over host duties (lobby/game state broadcasts,
+  // join-request approvals, etc.); other peers just update their
+  // host reference and continue as guests. Game state continuity
+  // comes from the routine `game_state_sync` broadcasts that all
+  // peers received before the old host vanished — every peer's
+  // local Game state is already current, so the new host can keep
+  // broadcasting from where the old one left off.
+  function migrateHost(room, oldHostPeerId, newHostPeerId, reason) {
+    room.hostPeerId = newHostPeerId;
+    log(`room ${room.code} host migrated: ${oldHostPeerId} -> ${newHostPeerId} (${reason})`);
+    broadcastToRoom(room, {
+      type: 'host_migrated',
+      data: { newHostPeerId, oldHostPeerId, reason }
+    });
   }
 
   function disbandRoom(code, reason) {

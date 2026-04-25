@@ -203,8 +203,8 @@ var Online = (function () {
         // New connection — wait for join_request message
       });
 
-      Network.onMessage(handleHostMessage);
-      Network.onDisconnect(handleGuestDisconnect);
+      installHostNetworkHandlers();
+      Network.onMigration(handleHostMigration);
 
       // v96: onPaused is now a quiet event. We mark the device paused
       // in lobbyState (so their badge can render differently if
@@ -214,74 +214,178 @@ var Online = (function () {
       // click their avatar to reassign the seat to AI / themselves /
       // another joiner, or the device can reconnect silently (reclaim
       // keeps their peerId and seats).
-      Network.onPaused(function (peerId) {
-        console.log('[Online] Guest paused:', peerId);
-        if (!lobbyState.devices[peerId]) return;
-        lobbyState.devices[peerId].paused = true;
-        lobbyState.devices[peerId].pausedSince = Date.now();
-        broadcastLobbyState();
-        renderOnlineLobby();
-      });
-
-      // Resumed — conn reopened within grace. Flip paused off, cancel
-      // any pending leave-modal, let the rejoining device reclaim their
-      // seats so they can keep playing.
-      Network.onResumed(function (peerId) {
-        console.log('[Online] Guest resumed:', peerId);
-        if (lobbyState.devices[peerId]) {
-          lobbyState.devices[peerId].paused = false;
-          lobbyState.devices[peerId].pausedSince = null;
-          lobbyState.devices[peerId].leaving = false;
-        }
-        // Cancel the scheduled-but-not-yet-opened modal AND the
-        // autoplay kick — they're back, neither needs to fire.
-        if (pauseModalTimers[peerId]) {
-          clearTimeout(pauseModalTimers[peerId]);
-          delete pauseModalTimers[peerId];
-        }
-        if (autoplayTimers[peerId]) {
-          clearTimeout(autoplayTimers[peerId]);
-          delete autoplayTimers[peerId];
-        }
-        // If the modal HAD opened already, close it — the player is
-        // back, no decision needed.
-        if (pendingLeaves[peerId]) {
-          delete pendingLeaves[peerId];
-          renderDeviceLeaveModal();
-          var uname = (lobbyState.devices[peerId] && lobbyState.devices[peerId].username) || 'A player';
-          showLocalToast(uname + ' has reconnected.');
-          Network.broadcast({ type: 'toast', data: { message: uname + ' has reconnected.' } });
-        }
-        broadcastLobbyState();
-        renderOnlineLobby();
-        // Re-send the full lobby / game state so the reconnected device
-        // catches up with anything it missed.
-        if (gamePhase === 'lobby') {
-          Network.send(peerId, { type: 'lobby_state', data: JSON.parse(JSON.stringify(lobbyState)) });
-        } else if (gamePhase === 'playing') {
-          Network.send(peerId, {
-            type: 'game_state_sync',
-            data: { gameState: Game.serialize(), lobbyState: JSON.parse(JSON.stringify(lobbyState)) }
-          });
-        }
-      });
-
-      // Reconnection handler — guest came back during grace period.
-      // Re-sync full state so they can catch up.
-      Network.onReconnect(function (peerId) {
-        console.log('[Online] Guest reconnected:', peerId);
-        if (gamePhase === 'lobby') {
-          Network.send(peerId, { type: 'lobby_state', data: JSON.parse(JSON.stringify(lobbyState)) });
-        } else if (gamePhase === 'playing') {
-          Network.send(peerId, {
-            type: 'game_state_sync',
-            data: { gameState: Game.serialize(), lobbyState: JSON.parse(JSON.stringify(lobbyState)) }
-          });
-        }
-      });
 
       return code;
     });
+  }
+
+  // Install all the network-event handlers a HOST cares about. Called
+  // from hostGame() at room-creation time AND from the host-migration
+  // path when a former guest is promoted to host. The body used to live
+  // inline inside hostGame; pulling it out lets the migration code
+  // re-bind handlers cleanly without duplicating logic.
+  function installHostNetworkHandlers() {
+    Network.onMessage(handleHostMessage);
+    Network.onDisconnect(handleGuestDisconnect);
+
+    // v96: onPaused is now a quiet event. We mark the device paused
+    // in lobbyState (so their badge can render differently if
+    // desired, and for debug) but we DON'T auto-draw, DON'T open a
+    // modal, and DON'T schedule any timers. If their turn comes up
+    // while they're away the game simply stalls — the host can
+    // click their avatar to reassign the seat to AI / themselves /
+    // another joiner, or the device can reconnect silently (reclaim
+    // keeps their peerId and seats).
+    Network.onPaused(function (peerId) {
+      console.log('[Online] Guest paused:', peerId);
+      if (!lobbyState.devices[peerId]) return;
+      lobbyState.devices[peerId].paused = true;
+      lobbyState.devices[peerId].pausedSince = Date.now();
+      broadcastLobbyState();
+      renderOnlineLobby();
+    });
+
+    // Resumed — conn reopened within grace. Flip paused off, cancel
+    // any pending leave-modal, let the rejoining device reclaim their
+    // seats so they can keep playing.
+    Network.onResumed(function (peerId) {
+      console.log('[Online] Guest resumed:', peerId);
+      if (lobbyState.devices[peerId]) {
+        lobbyState.devices[peerId].paused = false;
+        lobbyState.devices[peerId].pausedSince = null;
+        lobbyState.devices[peerId].leaving = false;
+      }
+      if (pauseModalTimers[peerId]) {
+        clearTimeout(pauseModalTimers[peerId]);
+        delete pauseModalTimers[peerId];
+      }
+      if (autoplayTimers[peerId]) {
+        clearTimeout(autoplayTimers[peerId]);
+        delete autoplayTimers[peerId];
+      }
+      if (pendingLeaves[peerId]) {
+        delete pendingLeaves[peerId];
+        renderDeviceLeaveModal();
+        var uname = (lobbyState.devices[peerId] && lobbyState.devices[peerId].username) || 'A player';
+        showLocalToast(uname + ' has reconnected.');
+        Network.broadcast({ type: 'toast', data: { message: uname + ' has reconnected.' } });
+      }
+      broadcastLobbyState();
+      renderOnlineLobby();
+      if (gamePhase === 'lobby') {
+        Network.send(peerId, { type: 'lobby_state', data: JSON.parse(JSON.stringify(lobbyState)) });
+      } else if (gamePhase === 'playing') {
+        Network.send(peerId, {
+          type: 'game_state_sync',
+          data: { gameState: Game.serialize(), lobbyState: JSON.parse(JSON.stringify(lobbyState)) }
+        });
+      }
+    });
+
+    Network.onReconnect(function (peerId) {
+      console.log('[Online] Guest reconnected:', peerId);
+      if (gamePhase === 'lobby') {
+        Network.send(peerId, { type: 'lobby_state', data: JSON.parse(JSON.stringify(lobbyState)) });
+      } else if (gamePhase === 'playing') {
+        Network.send(peerId, {
+          type: 'game_state_sync',
+          data: { gameState: Game.serialize(), lobbyState: JSON.parse(JSON.stringify(lobbyState)) }
+        });
+      }
+    });
+  }
+
+  // Host migration. Fired when the server picks a new host because the
+  // previous host's grace window expired. ALL peers in the room (the
+  // new host AND remaining guests) receive `host_migrated`; this
+  // handler runs on every device and decides what to do based on
+  // whether THIS device is the new host or just a remaining guest.
+  function handleHostMigration(data) {
+    var newHostPeerId = data && data.newHostPeerId;
+    var oldHostPeerId = data && data.oldHostPeerId;
+    if (!newHostPeerId) return;
+    var oldHostName = (lobbyState && lobbyState.devices && lobbyState.devices[oldHostPeerId]
+                      && lobbyState.devices[oldHostPeerId].username) || 'The host';
+    var newHostName = (lobbyState && lobbyState.devices && lobbyState.devices[newHostPeerId]
+                      && lobbyState.devices[newHostPeerId].username) || 'A player';
+
+    if (newHostPeerId === myDeviceId) {
+      // Promoted to host. Take over every host responsibility:
+      //   1. Flip _isHost on so future Online.isHost() calls return true
+      //      (network.js already flipped its internal mirror).
+      //   2. Re-bind the network handlers from the guest set to the
+      //      host set so we start handling join_request, player_action,
+      //      etc. routed via send('host', …).
+      //   3. Update lobbyState — mark old host gone, mark me as host,
+      //      and convert any seats the old host owned to AI so the
+      //      game can continue without manual reassignment.
+      //   4. Re-broadcast lobbyState + a game_state_sync if mid-round
+      //      so every other device picks up the new host reference
+      //      and the AI-converted seats.
+      console.log('[Online] We are now the host (migrated from ' + oldHostPeerId + ')');
+      _isHost = true;
+      installHostNetworkHandlers();
+      if (lobbyState && lobbyState.devices) {
+        if (lobbyState.devices[oldHostPeerId]) delete lobbyState.devices[oldHostPeerId];
+        if (lobbyState.devices[myDeviceId]) {
+          lobbyState.devices[myDeviceId].isHost = true;
+          lobbyState.devices[myDeviceId].paused = false;
+        }
+      }
+      // Convert any seats the old host owned to AI. Without this the
+      // game would stall on those seats' turns since their original
+      // device is gone for good.
+      if (lobbyState && lobbyState.seats) {
+        for (var i = 0; i < lobbyState.seats.length; i++) {
+          var seat = lobbyState.seats[i];
+          if (seat && seat.occupied && seat.deviceId === oldHostPeerId) {
+            seat.deviceId = null;
+            seat.isAI = true;
+            seat.isHuman = false;
+          }
+        }
+      }
+      // Mirror the seat ownership change into Game.players so turn
+      // routing uses the new ownership immediately. Important for
+      // a mid-round migration — the next nextTurn() should already
+      // see the converted seats as AI.
+      var gs = Game.getState();
+      if (gs && gs.players) {
+        for (var k = 0; k < gs.players.length; k++) {
+          if (gs.players[k].deviceId === oldHostPeerId) {
+            gs.players[k].deviceId = null;
+            gs.players[k].isAI = true;
+            gs.players[k].isHuman = false;
+          }
+        }
+      }
+      broadcastLobbyState();
+      if (gamePhase === 'playing') {
+        broadcastGameStateSync({ gameState: Game.serialize(), lobbyState: JSON.parse(JSON.stringify(lobbyState)) });
+      }
+      // User-visible notice on every device (we'll send it to others
+      // via the toast broadcast; show it locally here).
+      showLocalToast('You are the new host (' + oldHostName + ' disconnected).');
+      Network.broadcast({ type: 'toast', data: { message: oldHostName + ' disconnected. ' + newHostName + ' is the new host.' } });
+      renderOnlineLobby();
+      // Tell ui.js we just took over so it can call nextTurn() and
+      // resume the game loop. Critical when migration happens mid-
+      // round: we may have an AI-converted seat that needs to play.
+      if (typeof onHostTakeoverCallback === 'function') onHostTakeoverCallback();
+    } else {
+      // Stay as a guest, but update our local view so the badge /
+      // avatar treatment in the lobby reflects the migration. The
+      // new host will broadcast a fresh lobby_state shortly which
+      // overwrites this view, but updating now avoids a brief
+      // flicker where two devices both look like the host.
+      console.log('[Online] Host migrated to ' + newHostPeerId + ' (we remain a guest)');
+      if (lobbyState && lobbyState.devices) {
+        if (lobbyState.devices[oldHostPeerId]) delete lobbyState.devices[oldHostPeerId];
+        if (lobbyState.devices[newHostPeerId]) lobbyState.devices[newHostPeerId].isHost = true;
+      }
+      showLocalToast(oldHostName + ' disconnected. ' + newHostName + ' is the new host.');
+      renderOnlineLobby();
+    }
   }
 
   function handleHostMessage(fromPeerId, message) {
@@ -1004,6 +1108,13 @@ var Online = (function () {
           }
         });
       });
+
+      // Listen for host migrations. If the original host's grace
+      // expires, the server picks a new host and broadcasts
+      // host_migrated to everyone. If WE are the new host, this
+      // handler installs the host machinery; otherwise we just
+      // update our local host reference.
+      Network.onMigration(handleHostMigration);
     });
   }
 
@@ -1257,12 +1368,19 @@ var Online = (function () {
   var onGameActionCallback = null;
   var onGameStateSyncCallback = null;
   var onMidGameEntryCallback = null;
+  var onHostTakeoverCallback = null;
 
   function onGameStart(cb) { onGameStartCallback = cb; }
   function onAction(cb) { onActionCallback = cb; }
   function onGameAction(cb) { onGameActionCallback = cb; }
   function onGameStateSync(cb) { onGameStateSyncCallback = cb; }
   function onMidGameEntry(cb) { onMidGameEntryCallback = cb; }
+  // Fired on a device when it has just been promoted to host via
+  // migration. ui.js uses this to call nextTurn() so the game keeps
+  // moving — without it, a mid-round migration would stall on the
+  // next-to-act seat (the new host wasn't running the turn loop
+  // when they were a guest).
+  function onHostTakeover(cb) { onHostTakeoverCallback = cb; }
 
   // ======== HOST: Game Flow Helpers ========
 
@@ -1370,6 +1488,7 @@ var Online = (function () {
     onGameAction: onGameAction,
     onGameStateSync: onGameStateSync,
     onMidGameEntry: onMidGameEntry,
+    onHostTakeover: onHostTakeover,
     onRenderLobby: onRenderLobby,
     broadcastGameAction: broadcastGameAction,
     broadcastGameStateSync: broadcastGameStateSync,

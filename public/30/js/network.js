@@ -70,6 +70,7 @@ var Network = (function () {
   var reconnectHandler = null;
   var pausedHandler = null;
   var resumedHandler = null;
+  var migrationHandler = null;
 
   var pingTimer = null;
   var watchdogTimer = null;
@@ -327,6 +328,22 @@ var Network = (function () {
         if (disconnectHandler) disconnectHandler(data.peerId);
         break;
 
+      case 'host_migrated':
+        // Server promoted a different peer to host because the
+        // previous host's grace window expired. If WE are the new
+        // host, set the local _isHost flag so subsequent send/
+        // broadcast paths route correctly. Application-layer
+        // takeover (broadcasting lobby state, approving join
+        // requests, etc.) lives in online.js's migrationHandler.
+        if (data.newHostPeerId === myPeerId) {
+          _isHost = true;
+          console.log('[Network] Host migrated TO us — taking over host role');
+        } else {
+          console.log('[Network] Host migrated to', data.newHostPeerId);
+        }
+        if (migrationHandler) migrationHandler(data);
+        break;
+
       case 'room_disbanded':
         // The whole room was torn down (host left, etc.). Tell app layer
         // via disconnect('host') to match the old PeerJS behaviour.
@@ -511,6 +528,7 @@ var Network = (function () {
   function onReconnect(h)  { reconnectHandler = h; }
   function onPaused(h)     { pausedHandler = h; }
   function onResumed(h)    { resumedHandler = h; }
+  function onMigration(h)  { migrationHandler = h; }
 
   // ---- Accessors ----
   function isHost()          { return _isHost; }
@@ -534,6 +552,7 @@ var Network = (function () {
     onReconnect: onReconnect,
     onPaused: onPaused,
     onResumed: onResumed,
+    onMigration: onMigration,
     isHost: isHost,
     isConnected: isConnected,
     isReconnecting: isReconnecting,
