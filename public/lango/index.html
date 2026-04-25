@@ -7,7 +7,7 @@
     <title>Lango</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=Caveat:wght@400;700&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=Caveat:wght@400;700&display=swap" rel="stylesheet">
     <style>
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
         html,body{width:100%;height:100%;overflow-x:hidden}
@@ -28,13 +28,20 @@
                 hsl(var(--sheet-hue), var(--sheet-sat), calc(var(--sheet-L) - 5%))) fixed;
         }
 
-        /* ── Font options. Default `hand` keeps the Windows look (Comic Sans
-              MS) but adds Comic Neue (Google Font) as a cross-platform
-              fallback for Android/iOS where Comic Sans MS isn't installed. */
-        body.font-hand{--game-font:'Comic Sans MS','Comic Neue',cursive}
+        /* ── Font options.
+              Slot 1 hand:    'Comic Sans MS' on Windows, 'Chalkboard SE'
+                              on iOS (similar look), system sans on Android.
+              Slot 2 script:  Caveat (Google Font) — same beautiful cursive
+                              on every device.
+              Slot 3 cursive: lets each OS pick its own cursive face — this
+                              brings back the Android system cursive that
+                              looks beautiful on Android.
+              Slot 4 outfit:  Outfit (Google Font).
+              Slot 5 round:   Verdana / Trebuchet. */
+        body.font-hand{--game-font:'Comic Sans MS','Chalkboard SE',sans-serif}
         body.font-script{--game-font:'Caveat',cursive}
+        body.font-cursive{--game-font:cursive,sans-serif}
         body.font-outfit{--game-font:'Outfit'}
-        body.font-serif{--game-font:Georgia,'Times New Roman',serif}
         body.font-round{--game-font:Verdana,'Trebuchet MS',sans-serif}
 
         /* ── Accent (Words) — fixed color per option (Shade now controls sheet lightness instead) ── */
@@ -157,10 +164,10 @@
 
         /* Font swatches — letter is colored with the selected Words accent */
         .font-swatch{background:#fff;display:flex;align-items:center;justify-content:center;font-size:1.05rem;font-weight:700;color:var(--accent-primary);--sw-ring:var(--accent-primary)}
-        .f-hand{font-family:'Comic Sans MS','Comic Neue',cursive}
+        .f-hand{font-family:'Comic Sans MS','Chalkboard SE',sans-serif}
         .f-script{font-family:'Caveat',cursive}
+        .f-cursive{font-family:cursive,sans-serif}
         .f-outfit{font-family:'Outfit',sans-serif}
-        .f-serif{font-family:Georgia,'Times New Roman',serif}
         .f-round{font-family:Verdana,'Trebuchet MS',sans-serif}
         /* Shade swatches — preview five lightness levels of the CURRENT sheet hue */
         .style-swatch.s-1{background:hsl(var(--sheet-hue, 262), var(--sheet-sat, 55%), 90%);--sw-ring:hsl(var(--sheet-hue, 262), var(--sheet-sat, 55%), 55%)}
@@ -451,8 +458,8 @@
                         <div class="style-swatches">
                             <div class="style-swatch font-swatch f-hand active" onclick="changeFont('hand')">L</div>
                             <div class="style-swatch font-swatch f-script" onclick="changeFont('script')">L</div>
+                            <div class="style-swatch font-swatch f-cursive" onclick="changeFont('cursive')">L</div>
                             <div class="style-swatch font-swatch f-outfit" onclick="changeFont('outfit')">L</div>
-                            <div class="style-swatch font-swatch f-serif" onclick="changeFont('serif')">L</div>
                             <div class="style-swatch font-swatch f-round" onclick="changeFont('round')">L</div>
                         </div>
                     </div>
@@ -526,6 +533,11 @@
                         <input type="checkbox" id="linksUseDict" checked>
                         <label for="linksUseDict">Using Lango Dictionary</label>
                     </div>
+                    <div class="keyes-row">
+                        <span class="toggle-label">Keyes:</span>
+                        <button class="toggle-btn" id="linksKeyesOnBtn" onclick="setKeyes(true)">On</button>
+                        <button class="toggle-btn active" id="linksKeyesOffBtn" onclick="setKeyes(false)">Off</button>
+                    </div>
                     <div id="linksError" class="message error invisible"></div>
                     <div class="links-compose-buttons">
                         <button class="btn btn-primary links-action-btn" id="linksCreateBtn" onclick="createLink()">Create Link</button>
@@ -580,6 +592,11 @@
                     <div class="hide-toggle">
                         <input type="checkbox" id="useDictionary" checked>
                         <label for="useDictionary">Using Lango Dictionary</label>
+                    </div>
+                    <div class="keyes-row">
+                        <span class="toggle-label">Keyes:</span>
+                        <button class="toggle-btn" id="setupKeyesOnBtn" onclick="setKeyes(true)">On</button>
+                        <button class="toggle-btn active" id="setupKeyesOffBtn" onclick="setKeyes(false)">Off</button>
                     </div>
                     <button class="btn btn-primary btn-leave" onclick="makeGuess()">Ready</button>
                 </div>
@@ -667,6 +684,7 @@ var attempts = 0;
 var maxAttempts = 5;
 var gameOver = false;
 var isSettingWord = false;
+var isSettingLink = false; // true while in #linksCompose; routes kbType to linksLetter*
 var knownLetters = [];
 var useDictMode = true;
 var keyboardStates = {};
@@ -723,7 +741,7 @@ function pickSetupTitle() {
 var SW_THEMES   = ['light', 'dark', 'pink', 'green', 'sunset'];
 var SW_ACCENTS  = ['purple', 'blue', 'pink', 'green', 'orange'];
 var SW_SHEETS   = ['purple', 'blue', 'pink', 'green', 'orange'];
-var SW_FONTS    = ['hand', 'script', 'outfit', 'serif', 'round'];
+var SW_FONTS    = ['hand', 'script', 'cursive', 'outfit', 'round'];
 var SW_SHADES   = ['1', '2', '3', '4', '5'];
 
 function setActiveSwatch(selector, values, current) {
@@ -834,14 +852,20 @@ function backFromSub() {
 // startLinksGame jumps straight into the game with a "Lango from <NAME>" row.
 
 function showLinks() {
+    isSettingLink = true;
+    isSettingWord = false;
+    gameOver = false;
     document.getElementById('menu').classList.add('hidden');
     document.getElementById('linksScreen').classList.add('active');
-    // Compose title borrows from the Multi setup phrase pool
     document.getElementById('linksTitle').textContent = pickSetupTitle();
-    // Reset to compose view
     document.getElementById('linksCompose').classList.remove('hidden');
     document.getElementById('linksShare').classList.add('hidden');
-    // Restore last name; clear letters; clear errors
+    // Borrow the single shared keyboard so Keyes toggle works here
+    moveKeyboardTo(document.getElementById('linksCompose'));
+    keyboardStates = {};
+    buildKeyboard();
+    matchKeyboardRowWidths();
+    setKeyes(getHelpDefault('keyes'));
     var savedName = '';
     try { savedName = localStorage.getItem('lango-links-name') || ''; } catch(e) {}
     document.getElementById('linksNameInput').value = savedName;
@@ -865,7 +889,9 @@ function showStyleFromLinks() {
 }
 
 function backFromLinks() {
+    isSettingLink = false;
     document.getElementById('linksScreen').classList.remove('active');
+    moveKeyboardToGame();
     document.getElementById('menu').classList.remove('hidden');
 }
 
@@ -1127,6 +1153,8 @@ function backToMenu() {
     linksSenderName = '';
     currentMode = '';
     gameOver = false;
+    isSettingWord = false;
+    isSettingLink = false;
     cleanupConfetti();
 }
 
@@ -1140,13 +1168,41 @@ function setKnown(val) {
 }
 
 // ── Keyes Toggle ──
+// Single source of truth for the on-screen keyboard. Syncs every On/Off
+// toggle pair across the in-game, multi-setup, and links-compose screens,
+// and flips inputmode="none" on every .letter-input when Keyes is on so
+// the device's OS keyboard stays out of the way.
 function setKeyes(val) {
-    if (gameOver) return;
+    if (gameOver && !isSettingWord && !isSettingLink) return;
     keyesOn = val;
-    document.getElementById('keyesOnBtn').classList.toggle('active', val);
-    document.getElementById('keyesOffBtn').classList.toggle('active', !val);
-    document.getElementById('keyboardArea').classList.toggle('active', val);
+    var pairs = [
+        ['keyesOnBtn', 'keyesOffBtn'],            // in-game
+        ['setupKeyesOnBtn', 'setupKeyesOffBtn'],  // multi setup
+        ['linksKeyesOnBtn', 'linksKeyesOffBtn']   // links compose
+    ];
+    for (var i = 0; i < pairs.length; i++) {
+        var on  = document.getElementById(pairs[i][0]);
+        var off = document.getElementById(pairs[i][1]);
+        if (on)  on.classList.toggle('active', val);
+        if (off) off.classList.toggle('active', !val);
+    }
+    var kb = document.getElementById('keyboardArea');
+    if (kb) kb.classList.toggle('active', val);
+    document.querySelectorAll('.letter-input').forEach(function(inp) {
+        if (val) inp.setAttribute('inputmode', 'none');
+        else     inp.removeAttribute('inputmode');
+    });
     refreshKeyboardClickability();
+}
+
+// Move the single #keyboardArea to whichever screen needs it.
+function moveKeyboardTo(parentEl) {
+    var kb = document.getElementById('keyboardArea');
+    if (kb && parentEl && kb.parentNode !== parentEl) parentEl.appendChild(kb);
+}
+function moveKeyboardToGame() {
+    var card = document.querySelector('#gameArea .game-card');
+    if (card) moveKeyboardTo(card);
 }
 
 // ── Keyboard ──
@@ -1191,7 +1247,10 @@ function buildKeyboard() {
     enterBtn.className = 'kb-key wide';
     enterBtn.textContent = 'Enter';
     enterBtn.onmousedown = function(e) { e.preventDefault(); };
-    enterBtn.onclick = function() { makeGuess(); };
+    enterBtn.onclick = function() {
+        if (isSettingLink) createLink();
+        else makeGuess();
+    };
     row4.appendChild(enterBtn);
 }
 
@@ -1286,39 +1345,67 @@ function refreshKeyboardClickability() {
 }
 
 function kbType(letter) {
-    if (gameOver) return;
+    if (gameOver && !isSettingWord && !isSettingLink) return;
     if (isLetterBlocked(letter)) { flashCantKey(letter); return; }
+    if (isSettingLink) {
+        for (var i = 0; i < 5; i++) {
+            var inp = document.getElementById('linksLetter' + i);
+            if (inp && !inp.value) {
+                inp.value = letter;
+                inp.dispatchEvent(new Event('input'));
+                setTimeout(function() { ensureLinksLetterFocus(); }, 10);
+                return;
+            }
+        }
+        var lastL = document.getElementById('linksLetter4');
+        if (lastL) lastL.focus();
+        return;
+    }
     if (isSettingWord) {
         for (var i = 0; i < 5; i++) {
             var inp = document.getElementById('setup' + i);
             if (!inp.value) {
                 inp.value = letter;
                 inp.dispatchEvent(new Event('input'));
-                // Keep cursor on next empty or last input
                 setTimeout(function() { ensureSetupFocus(); }, 10);
                 return;
             }
         }
-        // All full, focus last
         document.getElementById('setup4').focus();
-    } else {
-        for (var i = 1; i <= 4; i++) {
-            var inp = document.getElementById('letter' + i);
-            if (!inp.value && !inp.disabled) {
-                // Check known position blocking before typing
-                if (isKnownBlocked(i, letter)) { flashCant(i); return; }
-                inp.value = letter; inp.dispatchEvent(new Event('input')); setTimeout(function() { ensureFocus(); }, 10); return;
-            }
-        }
-        // All full, focus last
-        setTimeout(function() { document.getElementById('letter4').focus(); }, 10);
+        return;
     }
+    for (var i = 1; i <= 4; i++) {
+        var inp = document.getElementById('letter' + i);
+        if (!inp.value && !inp.disabled) {
+            if (isKnownBlocked(i, letter)) { flashCant(i); return; }
+            inp.value = letter; inp.dispatchEvent(new Event('input')); setTimeout(function() { ensureFocus(); }, 10); return;
+        }
+    }
+    setTimeout(function() { document.getElementById('letter4').focus(); }, 10);
 }
 
 function kbBackspace() {
-    if (gameOver) return;
+    if (gameOver && !isSettingWord && !isSettingLink) return;
+    var focused = document.activeElement;
+    if (isSettingLink) {
+        var currentIdx = -1;
+        for (var i = 0; i < 5; i++) {
+            if (document.getElementById('linksLetter' + i) === focused) { currentIdx = i; break; }
+        }
+        if (currentIdx === -1) currentIdx = 4;
+        var inp = document.getElementById('linksLetter' + currentIdx);
+        if (!inp) return;
+        if (inp.value) {
+            inp.value = '';
+            setTimeout(function() { inp.focus(); }, 10);
+        } else {
+            var prevIdx = currentIdx > 0 ? currentIdx - 1 : 4;
+            var prev = document.getElementById('linksLetter' + prevIdx);
+            if (prev) { prev.value = ''; setTimeout(function() { prev.focus(); }, 10); }
+        }
+        return;
+    }
     if (isSettingWord) {
-        var focused = document.activeElement;
         var currentIdx = -1;
         for (var i = 0; i < 5; i++) {
             if (document.getElementById('setup' + i) === focused) { currentIdx = i; break; }
@@ -1334,48 +1421,56 @@ function kbBackspace() {
             prev.value = '';
             setTimeout(function() { prev.focus(); }, 10);
         }
+        return;
+    }
+    var currentIdx = -1;
+    for (var i = 1; i <= 4; i++) {
+        if (document.getElementById('letter' + i) === focused) { currentIdx = i; break; }
+    }
+    if (currentIdx === -1) currentIdx = 4;
+    var inp = document.getElementById('letter' + currentIdx);
+    if (inp.value && !inp.disabled) {
+        inp.value = '';
+        setTimeout(function() { inp.focus(); }, 10);
     } else {
-        var focused = document.activeElement;
-        var currentIdx = -1;
-        for (var i = 1; i <= 4; i++) {
-            if (document.getElementById('letter' + i) === focused) { currentIdx = i; break; }
-        }
-        if (currentIdx === -1) currentIdx = 4;
-        var inp = document.getElementById('letter' + currentIdx);
-        if (inp.value && !inp.disabled) {
-            inp.value = '';
-            setTimeout(function() { inp.focus(); }, 10);
-        } else {
-            var prevIdx = currentIdx > 1 ? currentIdx - 1 : 4;
-            var prev = document.getElementById('letter' + prevIdx);
-            if (!prev.disabled) {
-                prev.value = '';
-                setTimeout(function() { prev.focus(); }, 10);
-            }
+        var prevIdx = currentIdx > 1 ? currentIdx - 1 : 4;
+        var prev = document.getElementById('letter' + prevIdx);
+        if (!prev.disabled) {
+            prev.value = '';
+            setTimeout(function() { prev.focus(); }, 10);
         }
     }
 }
 
 function kbSpace() {
-    if (gameOver) return;
+    if (gameOver && !isSettingWord && !isSettingLink) return;
+    var focused = document.activeElement;
+    if (isSettingLink) {
+        var currentIdx = -1;
+        for (var i = 0; i < 5; i++) {
+            if (document.getElementById('linksLetter' + i) === focused) { currentIdx = i; break; }
+        }
+        var nextIdx = (currentIdx + 1) % 5;
+        var nxt = document.getElementById('linksLetter' + nextIdx);
+        if (nxt) nxt.focus();
+        return;
+    }
     if (isSettingWord) {
-        var focused = document.activeElement;
         var currentIdx = -1;
         for (var i = 0; i < 5; i++) {
             if (document.getElementById('setup' + i) === focused) { currentIdx = i; break; }
         }
         var nextIdx = (currentIdx + 1) % 5;
         document.getElementById('setup' + nextIdx).focus();
-    } else {
-        var focused = document.activeElement;
-        var currentIdx = -1;
-        for (var i = 1; i <= 4; i++) {
-            if (document.getElementById('letter' + i) === focused) { currentIdx = i; break; }
-        }
-        if (currentIdx === -1) currentIdx = 0;
-        var nextIdx = currentIdx >= 4 ? 1 : currentIdx + 1;
-        document.getElementById('letter' + nextIdx).focus();
+        return;
     }
+    var currentIdx = -1;
+    for (var i = 1; i <= 4; i++) {
+        if (document.getElementById('letter' + i) === focused) { currentIdx = i; break; }
+    }
+    if (currentIdx === -1) currentIdx = 0;
+    var nextIdx = currentIdx >= 4 ? 1 : currentIdx + 1;
+    document.getElementById('letter' + nextIdx).focus();
 }
 
 // ── Cursor Management ──
@@ -1405,15 +1500,26 @@ function ensureSetupFocus() {
     var last = document.getElementById('setup4');
     last.focus(); cursorPosition(last);
 }
+function ensureLinksLetterFocus() {
+    if (!isSettingLink) return;
+    for (var i = 0; i < 5; i++) {
+        var inp = document.getElementById('linksLetter' + i);
+        if (inp && !inp.value) { inp.focus(); cursorPosition(inp); return; }
+    }
+    var last = document.getElementById('linksLetter4');
+    if (last) { last.focus(); cursorPosition(last); }
+}
 
 // ── Game Start ──
 function startGame(mode) {
     currentMode = mode;
+    isSettingLink = false;
     document.getElementById('menu').classList.add('hidden');
     document.getElementById('rulesScreen').classList.remove('active');
     document.getElementById('styleScreen').classList.remove('active');
     document.getElementById('gameArea').classList.add('active');
     keyboardStates = {};
+    moveKeyboardToGame();
     buildKeyboard();
     matchKeyboardRowWidths();
 
@@ -1431,12 +1537,15 @@ function startGame(mode) {
 function startTwoPlayer() {
     attempts = 0;
     gameOver = false;
+    isSettingLink = false;
     cleanupConfetti();
     isSettingWord = true;
 
     // Reset keyboard state so the previous round's colored keys don't leak
-    // into the word-setup screen on "Again".
+    // into the word-setup screen on "Again". Make sure the shared keyboard
+    // lives in gameArea (it might have been borrowed by Links).
     keyboardStates = {};
+    moveKeyboardToGame();
     buildKeyboard();
     matchKeyboardRowWidths();
 
@@ -1458,8 +1567,8 @@ function startTwoPlayer() {
     document.getElementById('knownToggleRow').classList.add('hidden');
     document.getElementById('keyesRow').classList.add('hidden');
 
-    // Keyboard always visible in setup
-    document.getElementById('keyboardArea').classList.add('active');
+    // Apply the user's Keyes default (was previously hardcoded on)
+    setKeyes(getHelpDefault('keyes'));
 
     var msg = document.getElementById('message');
     msg.textContent = '';
@@ -1483,9 +1592,11 @@ function startRound() {
     gameOver = false;
     cleanupConfetti();
     isSettingWord = false;
+    isSettingLink = false;
     knownLetters = ['', '', '', '', ''];
     knownLetters[0] = currentWord[0];
     keyboardStates = {};
+    moveKeyboardToGame();
     buildKeyboard();
     matchKeyboardRowWidths();
 
@@ -1612,7 +1723,7 @@ function makeGuess() {
     attempts++;
     updateRow(attempts - 1, guess);
 
-    var againLabel = (currentMode === 'links') ? 'Send Lango' : 'Again';
+    var againLabel = (currentMode === 'links') ? 'Share Lango' : 'Again';
     if (guess === currentWord) {
         gameOver = true;
         showMsg(pickWinMessage(), 'success');
