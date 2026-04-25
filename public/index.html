@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ladybug Gamez</title>
+  <title>Ladybug Games</title>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -227,15 +227,16 @@
     }
 
     .card-icon {
-      width: 64px;
-      height: 64px;
-      border-radius: 14px;
+      width: 80px;
+      height: 80px;
+      border-radius: 16px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 30px;
+      font-size: 36px;
       line-height: 1;
       margin-bottom: 20px;
+      margin-top: -16px;
       background: var(--card-icon-bg);
       box-shadow: 0 4px 20px var(--card-glow);
       transition: transform 0.35s ease;
@@ -247,16 +248,17 @@
     }
 
     .card-icon canvas.laserman-canvas {
-      transform: scale(1.25);
+      transform: scale(1.55);
     }
 
     .card-icon canvas.solitairra-canvas {
-      transform: scale(1.45);
+      transform: scale(1.65);
     }
 
     .card-header .card-icon {
       margin-bottom: 0;
     }
+
 
     .card:hover .card-icon {
       transform: scale(1.1) rotate(-3deg);
@@ -272,6 +274,7 @@
 
     .card-header .card-title {
       margin-bottom: 0;
+      margin-top: -16px;
     }
 
     .card-desc {
@@ -423,7 +426,7 @@
       <h1 class="logo-stack">
         <span class="logo-word">LADYBUG</span>
         <div class="logo-line2">
-          <span class="logo-word">GAMEZ</span>
+          <span class="logo-word">GAMES</span>
           <div class="logo-bug-wrap">
             <div class="logo-bug-glow"></div>
             <canvas class="logo-bug" id="ladybug-logo" width="78" height="78"></canvas>
