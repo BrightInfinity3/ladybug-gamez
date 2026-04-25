@@ -47,6 +47,52 @@
         body.font-outfit{--game-font:'Outfit'}
         body.font-calligraphy{--game-font:'Sacramento',cursive}
 
+        /* Sacramento is a wide flowing script — fully-uppercased UI text
+           reads poorly in it. When font-calligraphy is selected, render
+           every text container in sentence case (lowercase + first-letter
+           uppercase). The actual game letters (cells, inputs, keyboard,
+           known slots, name input, font swatches) keep uppercase since
+           they show real letters that need to read uniformly. */
+        body.font-calligraphy{text-transform:lowercase}
+        /* Force lowercase on elements whose base CSS sets `uppercase` —
+           specificity matches via the body.font-calligraphy + class chain. */
+        body.font-calligraphy .menu-btn,
+        body.font-calligraphy .style-section-title,
+        body.font-calligraphy .style-row label,
+        body.font-calligraphy .links-name-label,
+        body.font-calligraphy .links-sender-row,
+        body.font-calligraphy .logo-modes{text-transform:lowercase}
+        /* Game letter elements stay uppercase. */
+        body.font-calligraphy .letter-input,
+        body.font-calligraphy .letter-cell,
+        body.font-calligraphy .first-letter-display,
+        body.font-calligraphy .first-letter-cell,
+        body.font-calligraphy .kb-key,
+        body.font-calligraphy .known-slot,
+        body.font-calligraphy .links-name-input,
+        body.font-calligraphy .font-swatch,
+        body.font-calligraphy .ex-cell{text-transform:uppercase}
+        /* First-letter caps per text container — gives sentence case. */
+        body.font-calligraphy .logo::first-letter,
+        body.font-calligraphy .menu-btn::first-letter,
+        body.font-calligraphy .style-section-title::first-letter,
+        body.font-calligraphy .style-row label::first-letter,
+        body.font-calligraphy .toggle-label::first-letter,
+        body.font-calligraphy .style-screen h2::first-letter,
+        body.font-calligraphy .rules-screen h2::first-letter,
+        body.font-calligraphy .links-screen h2::first-letter,
+        body.font-calligraphy .game-title-center::first-letter,
+        body.font-calligraphy .links-name-label::first-letter,
+        body.font-calligraphy .links-sender-row::first-letter,
+        body.font-calligraphy .links-share-help::first-letter,
+        body.font-calligraphy .modal-box h3::first-letter,
+        body.font-calligraphy .modal-box p::first-letter,
+        body.font-calligraphy .attempts-text::first-letter,
+        body.font-calligraphy .message::first-letter,
+        body.font-calligraphy .rule::first-letter,
+        body.font-calligraphy .btn::first-letter,
+        body.font-calligraphy .hide-toggle label::first-letter{text-transform:uppercase}
+
         /* ── Accent (Words) — fixed color per option (Shade now controls sheet lightness instead) ── */
         body.accent-purple{--accent-primary:#8b5cf6;--accent-secondary:#7c3aed;--accent-light:rgba(139,92,246,.15);--accent-border:rgba(139,92,246,.3);--accent-glow:rgba(139,92,246,.4)}
         body.accent-blue{--accent-primary:#3b82f6;--accent-secondary:#2563eb;--accent-light:rgba(59,130,246,.15);--accent-border:rgba(59,130,246,.3);--accent-glow:rgba(59,130,246,.4)}
@@ -326,6 +372,8 @@
         .rules-screen.active{display:block}
         .rules-screen h2{font-size:1.4rem;font-weight:800;color:var(--accent-primary);margin-bottom:16px}
         .rules-screen .rule{margin-bottom:14px;font-size:.9rem;line-height:1.5;color:var(--text-primary)}
+        .rules-screen .rule.legend-line{margin-bottom:4px}
+        .rules-screen .rule.rule-example{margin-bottom:8px}
         .rules-screen .rule strong{color:var(--accent-primary)}
         .rules-screen .example-row{display:flex;gap:5px;margin:8px 0;justify-content:center}
         .rules-screen .ex-cell{width:36px;height:36px;font-size:1rem;font-weight:800;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:inherit}
@@ -536,7 +584,7 @@
                 <div class="rule"><strong>Guess</strong> the 5-letter word in 5 attempts.</div>
                 <div class="rule">The <strong>first</strong> letter is always set.</div>
                 <div class="rule">After every <strong>guess</strong>, tiles morph:</div>
-                <div class="rule">
+                <div class="rule rule-example">
                     <div class="example-row">
                         <div class="ex-cell ex-first">L</div>
                         <div class="ex-cell ex-absent">A</div>
@@ -544,10 +592,10 @@
                         <div class="ex-cell ex-absent">G</div>
                         <div class="ex-cell ex-correct">H</div>
                     </div>
-                    <strong style="color:var(--accent-primary)">Solid</strong> = correct letter in right place.<br>
-                    <strong style="color:var(--accent-primary)">Rings</strong> = correct letter in wrong place.<br>
-                    <strong style="color:var(--accent-primary)">Blank</strong> = letter is not in the word.
                 </div>
+                <div class="rule legend-line"><strong style="color:var(--accent-primary)">Solid</strong> = correct letter in right place.</div>
+                <div class="rule legend-line"><strong style="color:var(--accent-primary)">Rings</strong> = correct letter in wrong place.</div>
+                <div class="rule legend-line"><strong style="color:var(--accent-primary)">Blank</strong> = letter is not in the word.</div>
                 <h2 style="margin-top:2.4rem">Modes</h2>
                 <div class="rule"><strong>Solos:</strong> Lango picks a word.</div>
                 <div class="rule"><strong>Multi:</strong> Friends choose the word.</div>
