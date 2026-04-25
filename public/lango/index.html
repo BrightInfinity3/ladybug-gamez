@@ -7,7 +7,7 @@
     <title>Lango</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=Caveat:wght@400;700&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
     <style>
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
         html,body{width:100%;height:100%;overflow-x:hidden}
@@ -28,11 +28,13 @@
                 hsl(var(--sheet-hue), var(--sheet-sat), calc(var(--sheet-L) - 5%))) fixed;
         }
 
-        /* ── Font options ── */
+        /* ── Font options. Default `hand` keeps the Windows look (Comic Sans
+              MS) but adds Comic Neue (Google Font) as a cross-platform
+              fallback for Android/iOS where Comic Sans MS isn't installed. */
+        body.font-hand{--game-font:'Comic Sans MS','Comic Neue',cursive}
+        body.font-script{--game-font:'Caveat',cursive}
         body.font-outfit{--game-font:'Outfit'}
         body.font-serif{--game-font:Georgia,'Times New Roman',serif}
-        body.font-mono{--game-font:'Courier New',Consolas,monospace}
-        body.font-hand{--game-font:'Comic Sans MS','Chalkboard SE',cursive}
         body.font-round{--game-font:Verdana,'Trebuchet MS',sans-serif}
 
         /* ── Accent (Words) — fixed color per option (Shade now controls sheet lightness instead) ── */
@@ -101,10 +103,10 @@
         .logo-modes{font-size:.9rem;font-weight:600;letter-spacing:5px;text-transform:uppercase;color:var(--accent-primary);margin-bottom:.4rem;opacity:.7}
 
         /* ── Menu Buttons ── */
-        .menu-buttons{display:flex;flex-direction:column;gap:10px;margin-bottom:2rem;align-items:center;min-height:290px}
+        .menu-buttons{display:flex;flex-direction:column;gap:10px;margin-bottom:2rem;align-items:center;min-height:340px}
 
-        /* Home button — Lango take on the small icon-button used by Laserman/SoloTerra/Solitairra. Top-right of the main menu, accent-colored. */
-        .lango-home-btn{position:fixed;top:18px;right:18px;background:transparent;border:1.5px solid var(--accent-border);border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--accent-primary);cursor:pointer;padding:0;z-index:10;transition:transform .15s,background .2s,border-color .2s,box-shadow .2s;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+        /* Home button — Lango take on the icon-style home button used by Laserman / SoloTerra / Solitairra. Sits below Style as the last menu item. */
+        .lango-home-btn{margin-top:6px;background:transparent;border:1.5px solid var(--accent-border);border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--accent-primary);cursor:pointer;padding:0;transition:transform .15s,background .2s,border-color .2s,box-shadow .2s;box-shadow:0 2px 8px rgba(0,0,0,.06);font-family:inherit}
         .lango-home-btn:hover{background:var(--accent-light);border-color:var(--accent-primary);transform:scale(1.05);box-shadow:0 4px 12px var(--accent-light)}
         .lango-home-btn:active{transform:scale(.95)}
         .lango-home-btn svg{display:block}
@@ -155,10 +157,10 @@
 
         /* Font swatches — letter is colored with the selected Words accent */
         .font-swatch{background:#fff;display:flex;align-items:center;justify-content:center;font-size:1.05rem;font-weight:700;color:var(--accent-primary);--sw-ring:var(--accent-primary)}
+        .f-hand{font-family:'Comic Sans MS','Comic Neue',cursive}
+        .f-script{font-family:'Caveat',cursive}
         .f-outfit{font-family:'Outfit',sans-serif}
         .f-serif{font-family:Georgia,'Times New Roman',serif}
-        .f-mono{font-family:'Courier New',Consolas,monospace}
-        .f-hand{font-family:'Comic Sans MS',cursive}
         .f-round{font-family:Verdana,'Trebuchet MS',sans-serif}
         /* Shade swatches — preview five lightness levels of the CURRENT sheet hue */
         .style-swatch.s-1{background:hsl(var(--sheet-hue, 262), var(--sheet-sat, 55%), 90%);--sw-ring:hsl(var(--sheet-hue, 262), var(--sheet-sat, 55%), 55%)}
@@ -340,12 +342,6 @@
     <div class="container">
         <!-- ══ MAIN MENU ══ -->
         <div id="menu" class="menu-screen">
-            <button class="lango-home-btn" onclick="goHome()" title="Back to Ladybug Gamez" aria-label="Home">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 12L12 3l9 9"/>
-                    <path d="M5 10v9a1 1 0 001 1h3v-5h6v5h3a1 1 0 001-1v-9"/>
-                </svg>
-            </button>
             <h1 class="logo">Lango</h1>
             <div class="menu-buttons">
                 <button class="menu-btn" onclick="startGame('single')">Solos</button>
@@ -353,6 +349,12 @@
                 <button class="menu-btn" onclick="showLinks()">Links</button>
                 <button class="menu-btn sec" onclick="showRules()">Rules</button>
                 <button class="menu-btn sec" onclick="showStyle()">Style</button>
+                <button class="lango-home-btn" onclick="goHome()" title="Back to Ladybug Gamez" aria-label="Home">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 12L12 3l9 9"/>
+                        <path d="M5 10v9a1 1 0 001 1h3v-5h6v5h3a1 1 0 001-1v-9"/>
+                    </svg>
+                </button>
             </div>
         </div>
 
@@ -448,9 +450,9 @@
                         <label>Fonts:</label>
                         <div class="style-swatches">
                             <div class="style-swatch font-swatch f-hand active" onclick="changeFont('hand')">L</div>
+                            <div class="style-swatch font-swatch f-script" onclick="changeFont('script')">L</div>
                             <div class="style-swatch font-swatch f-outfit" onclick="changeFont('outfit')">L</div>
                             <div class="style-swatch font-swatch f-serif" onclick="changeFont('serif')">L</div>
-                            <div class="style-swatch font-swatch f-mono" onclick="changeFont('mono')">L</div>
                             <div class="style-swatch font-swatch f-round" onclick="changeFont('round')">L</div>
                         </div>
                     </div>
@@ -673,6 +675,7 @@ var keyesOn = false;
 var modalCallback = null;
 var confettiAnim = null;
 var linksSenderName = '';  // populated when receiver opens a `?ll=` URL
+var styleReturnTarget = null;  // null = main menu; 'links' = links share view
 
 // ── Game Titles (random per round) ──
 // gameTitles[i] is paired with winMessages[i] — when title #i is shown above
@@ -720,7 +723,7 @@ function pickSetupTitle() {
 var SW_THEMES   = ['light', 'dark', 'pink', 'green', 'sunset'];
 var SW_ACCENTS  = ['purple', 'blue', 'pink', 'green', 'orange'];
 var SW_SHEETS   = ['purple', 'blue', 'pink', 'green', 'orange'];
-var SW_FONTS    = ['hand', 'outfit', 'serif', 'mono', 'round'];
+var SW_FONTS    = ['hand', 'script', 'outfit', 'serif', 'round'];
 var SW_SHADES   = ['1', '2', '3', '4', '5'];
 
 function setActiveSwatch(selector, values, current) {
@@ -816,7 +819,12 @@ function goHome() {
 function backFromSub() {
     document.getElementById('rulesScreen').classList.remove('active');
     document.getElementById('styleScreen').classList.remove('active');
-    document.getElementById('menu').classList.remove('hidden');
+    if (styleReturnTarget === 'links') {
+        styleReturnTarget = null;
+        document.getElementById('linksScreen').classList.add('active');
+    } else {
+        document.getElementById('menu').classList.remove('hidden');
+    }
 }
 
 // ── Links (async multiplayer via shareable URL) ──
@@ -848,9 +856,10 @@ function showLinks() {
 }
 
 // Style screen routes back to the menu via backFromSub. When opened from
-// the Links share view we close the Links screen first so navigation lands
-// cleanly on Style.
+// the Links share view we mark `styleReturnTarget = 'links'` so backFromSub
+// pops back to the share view instead of the main menu.
 function showStyleFromLinks() {
+    styleReturnTarget = 'links';
     document.getElementById('linksScreen').classList.remove('active');
     showStyle();
 }
@@ -877,8 +886,20 @@ function b64urlDecode(str) {
     try { return decodeURIComponent(escape(atob(str))); } catch(e) { return null; }
 }
 
+function currentStyleClass(prefix) {
+    var m = document.body.className.match(new RegExp(prefix + '-(\\S+)'));
+    return m ? m[1] : null;
+}
+
 function buildLinksUrl(word, name) {
-    var payload = word + '|' + name;
+    // Pack the sender's Style choices into the URL so the receiver opens the
+    // game in the same look the sender created it with. Order: WORD | NAME |
+    // accentIdx | sheetIdx | shadeIdx | fontIdx (indices reference SW_*).
+    var ai = Math.max(0, SW_ACCENTS.indexOf(currentStyleClass('accent')));
+    var si = Math.max(0, SW_SHEETS.indexOf(currentStyleClass('sheet')));
+    var hi = Math.max(0, SW_SHADES.indexOf(currentStyleClass('shade')));
+    var fi = Math.max(0, SW_FONTS.indexOf(currentStyleClass('font')));
+    var payload = word + '|' + name + '|' + ai + '|' + si + '|' + hi + '|' + fi;
     var token = b64urlEncode(payload);
     var base = window.location.origin + window.location.pathname;
     return base + '?ll=' + token;
@@ -895,7 +916,13 @@ function parseLinksUrl() {
     var word = (parts[0] || '').toUpperCase();
     if (word.length !== 5 || !/^[A-Z]+$/.test(word)) return null;
     var name = (parts[1] || 'Friend').slice(0, 12) || 'Friend';
-    return { word: word, name: name };
+    var info = { word: word, name: name };
+    // Optional Style fields (older URLs without them still work)
+    var pi = parseInt(parts[2]); if (!isNaN(pi) && SW_ACCENTS[pi]) info.accent = SW_ACCENTS[pi];
+    pi = parseInt(parts[3]);     if (!isNaN(pi) && SW_SHEETS[pi])  info.sheet  = SW_SHEETS[pi];
+    pi = parseInt(parts[4]);     if (!isNaN(pi) && SW_SHADES[pi])  info.shade  = SW_SHADES[pi];
+    pi = parseInt(parts[5]);     if (!isNaN(pi) && SW_FONTS[pi])   info.font   = SW_FONTS[pi];
+    return info;
 }
 
 function shortenUrl(url) {
@@ -1002,6 +1029,13 @@ function startLinksGame(info) {
     currentMode = 'links';
     currentWord = info.word;
     linksSenderName = info.name;
+    // Apply the sender's Style choices so the receiver sees the look the
+    // sender created the link in. Older URLs without these fields just keep
+    // the receiver's current style.
+    if (info.accent) changeAccent(info.accent);
+    if (info.sheet)  changeSheet(info.sheet);
+    if (info.shade)  changeShade(info.shade);
+    if (info.font)   changeFont(info.font);
     // Strip URL param so a refresh doesn't replay
     try { window.history.replaceState({}, '', window.location.pathname); } catch(e) {}
     document.getElementById('menu').classList.add('hidden');
