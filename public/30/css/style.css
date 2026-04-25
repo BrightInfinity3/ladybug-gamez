@@ -1856,21 +1856,28 @@ html, body {
      body.mbar-turn-active rules below (mobile portrait only). */
   display: none;
 }
-/* Leader section anchored to the TOP of the viewport so it sits
-   ABOVE the round/turn/leave HUD line. The HUD's bottom edge sits
-   at calc(50% + 43.7vmin) from the bottom of the viewport — i.e.
-   roughly 240px down from the top on a typical phone — leaving
-   ~200px of room up here for the leader card. */
+/* Leader section anchored just ABOVE the round/turn/leave HUD line
+   via bottom-positioning. The HUD's BOTTOM edge sits at
+   calc(50% + 43.7vmin) from the bottom of the viewport, and the
+   HUD content itself is roughly 4vmin tall, so the HUD's TOP edge
+   is at ~calc(50% + 47.7vmin). We place the leader section's
+   BOTTOM 1vmin above that — at calc(50% + 49vmin) — so the leader
+   NAME (the last child = the bottom of the section) sits cleanly
+   above the HUD line with a small gap. The empty space above the
+   leader card on tall phones is intentional (and clears notches /
+   front cameras automatically since we're not anchored to the
+   top edge anymore). */
 .mobile-action-bar .mbar-leader-section {
-  top: 1.5vmin;
+  bottom: calc(50% + 49vmin);
 }
 body.mbar-active .mobile-action-bar .mbar-leader-section {
   display: flex;
 }
-/* Turn section anchored BELOW the table — same position the bar
-   used to occupy. */
+/* Turn section anchored BELOW the bottom seat's name (~44vmin
+   below center) with a few vmin of breathing room — score 14,
+   avatar etc. used to brush up against the bottom seat's name. */
 .mobile-action-bar .mbar-turn-section {
-  top: calc(50% + 44vmin);
+  top: calc(50% + 47vmin);
   gap: 0.45rem;
 }
 body.mbar-turn-active .mobile-action-bar .mbar-turn-section {
@@ -2012,6 +2019,31 @@ body.mbar-turn-active .mobile-action-bar .mbar-turn-section {
 @media (orientation: portrait) and (max-width: 480px) {
   body.mbar-active.mbar-turn-active #game-actions {
     display: none !important;
+  }
+}
+
+/* Shrink Draw/Stay buttons (ONLY them — the rest of the leader
+   and turn sections stay the same size) when the portrait viewport
+   is shorter than ~800px. This is the typical state of a phone in
+   portrait WITHOUT fullscreen mode (URL bar visible eats ~80-150px),
+   where the default 1.15rem buttons on top of the avatar+name+score
+   stack would push the buttons off the bottom of the screen. */
+@media (orientation: portrait) and (max-height: 800px) {
+  .mobile-action-bar .mbar-buttons .btn {
+    font-size: 0.95rem;
+    padding: 0.5em 0;
+  }
+}
+@media (orientation: portrait) and (max-height: 700px) {
+  .mobile-action-bar .mbar-buttons .btn {
+    font-size: 0.85rem;
+    padding: 0.42em 0;
+  }
+}
+@media (orientation: portrait) and (max-height: 600px) {
+  .mobile-action-bar .mbar-buttons .btn {
+    font-size: 0.78rem;
+    padding: 0.36em 0;
   }
 }
 
@@ -2347,19 +2379,19 @@ body.mbar-turn-active .mobile-action-bar .mbar-turn-section {
 }
 
 .lobby-code {
-  /* Georgia (with serif fallback) — every weight of Cinzel draws the
-     Q with a long descender tail that clashes with the chip border
-     and with adjacent letters. Georgia's Q is the standard compact
-     Roman form and reads cleanly in the room-code chip. The long-
-     tail Q is intentionally reserved for the face cards only.
-
-     Georgia ships old-style figures by default (3, 4, 5, 7, 9 have
-     descenders that drop below the baseline), which makes mixed
-     letter+number codes like "UL7" look vertically misaligned on
-     desktop and tablet renderers. `font-variant-numeric: lining-nums`
-     and the matching OpenType `lnum` feature force lining figures
-     so every glyph in the chip sits cleanly on a single baseline. */
-  font-family: Georgia, 'Times New Roman', serif;
+  /* Sans-serif stack chosen specifically because every font in it
+     ships LINING FIGURES by default (3, 4, 5, 7, 9 sit cleanly on
+     the baseline next to letters). The previous Georgia choice
+     looked clean on desktop Chrome but iPad Safari rendered its
+     OLD-STYLE figures with descenders, dropping numerals below the
+     letters — making mixed codes like "UL7" or "7US" look
+     misaligned. Using Helvetica/Arial with a system fallback
+     guarantees the same single-baseline look on every device and
+     OS. We also keep the lining-nums hint as a defensive default,
+     plus geometricPrecision so the rasterizer doesn't subtract
+     descender hints from numerals during sub-pixel layout. */
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue',
+               Arial, 'Segoe UI', sans-serif;
   font-size: 1.7vmin;
   font-weight: 700;
   color: var(--gold-light);
@@ -2369,8 +2401,15 @@ body.mbar-turn-active .mobile-action-bar .mbar-turn-section {
   border-radius: 0.4vmin;
   border: 0.14vmin solid var(--gold-dim);
   user-select: all;
-  font-variant-numeric: lining-nums;
-  font-feature-settings: "lnum" 1;
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: "lnum" 1, "tnum" 1;
+  text-rendering: geometricPrecision;
+  /* Single baseline regardless of vertical-align defaults of
+     children (the room code is wrapped in a span and lives next
+     to "Room:" labels on both the lobby and the in-game HUD). */
+  display: inline-block;
+  vertical-align: baseline;
+  line-height: 1;
 }
 
 .lobby-player-count {
