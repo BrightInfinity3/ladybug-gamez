@@ -3138,7 +3138,7 @@ var Renderer = (function () {
     var isAnimals = isAnimalsSuit(suit);
     var useWideLayout = isCustom || isAnimals;
     var fontSize = 20;     // uniform 20px for classic pips (all ranks)
-    var customSize = (count === 1) ? 46 : 16;  // 1-cards get +25% then another +15% (32→40→46)
+    var customSize = (count === 1) ? 57.5 : 16;  // 1-cards get +25%, +15%, +25% (32→40→46→57.5)
     if (suit === 'hearts' && isCustom && count > 2) customSize = 15.2; // prisms 5% smaller for 3+
     // Per-suit size boosts for Animals mode, counts 2-10:
     //   Hares (hearts): 25%
@@ -3157,8 +3157,8 @@ var Renderer = (function () {
       customSize = customSize * 1.25 * 1.10 * 1.10;
     }
 
-    // Classic 1-cards get a double-sized centre pip, +25% then +15% on top (40→50→57.5)
-    var classicOneSize = (count === 1) ? 57.5 : fontSize;
+    // Classic 1-cards get a double-sized centre pip, +25%, +15%, +25% on top (40→50→57.5→71.875)
+    var classicOneSize = (count === 1) ? 71.875 : fontSize;
 
     // Use spread-out layouts for custom (laser) and animals suits
     if (useWideLayout && CUSTOM_PIP_LAYOUTS[count]) {
