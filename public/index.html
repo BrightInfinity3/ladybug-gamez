@@ -268,6 +268,23 @@
       transform: scale(1.65);
     }
 
+    .moregames-emoji {
+      display: block;
+      font-size: 54px;
+      line-height: 1;
+      transform: translateY(-4px);
+    }
+
+    /* Windows 11 renders this emoji noticeably lower in its glyph box;
+       nudge up so it visually centers like the other platforms. */
+    html.win11 .moregames-emoji {
+      transform: translateY(-10px);
+    }
+
+    .card-tags .coming-soon-badge {
+      margin-top: 0;
+    }
+
     .card-header .card-icon {
       margin-bottom: 0;
     }
@@ -494,13 +511,18 @@
       <!-- COMING SOON PLACEHOLDER -->
       <div class="card coming-soon">
         <div class="card-header">
-          <div class="card-icon"><span style="display:block;font-size:54px;line-height:1;transform:translateY(-4px)">🎮</span></div>
+          <div class="card-icon"><span class="moregames-emoji">🎮</span></div>
           <h2 class="card-title">More Games</h2>
         </div>
         <p class="card-desc">
           New games are being built. Stay tuned for more additions to the arcade.
         </p>
-        <span class="coming-soon-badge">Coming Soon</span>
+        <div class="card-tags">
+          <span class="coming-soon-badge">Coming Soon</span>
+        </div>
+        <div class="card-play" aria-hidden="true" style="visibility:hidden">
+          Play Now <span class="arrow">&rarr;</span>
+        </div>
       </div>
 
     </div>
@@ -508,6 +530,16 @@
   </div>
 
   <script>
+    // Detect Windows 11 (UA-CH platformVersion ≥ 13) so we can nudge the
+    // controller emoji — Win11's emoji font renders noticeably low.
+    if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+      navigator.userAgentData.getHighEntropyValues(['platformVersion']).then(ua => {
+        if (ua.platform === 'Windows' && parseFloat(ua.platformVersion) >= 13) {
+          document.documentElement.classList.add('win11');
+        }
+      }).catch(() => {});
+    }
+
     // Floating particle system
     const canvas = document.getElementById('particles');
     const ctx = canvas.getContext('2d');
@@ -663,6 +695,13 @@
       if (!c) return;
       const x = c.getContext('2d');
 
+      // Scale entire drawing 1.1× around canvas center so the card matches
+      // Laserman's effective height in the 80×80 icon box.
+      x.save();
+      x.translate(24, 24);
+      x.scale(1.1, 1.1);
+      x.translate(-24, -24);
+
       // Mini card frame (cream w/ gold border) — same proportions as the
       // SoloTerra icon on wbcgamez so the two arcades feel consistent.
       const cLeft = 10, cTop = 4, cW = 28, cH = 40, cR = 4;
@@ -777,6 +816,8 @@
 
       drawOne(cLeft + 4.5, cTop + 3);
       drawOne(cLeft + cW - 4.5, cTop + cH - 10);
+
+      x.restore();
     })();
 
     // Draw Laserman icon — green, smiling (victory state)
