@@ -327,26 +327,39 @@ var Online = (function () {
       //   2. Re-bind the network handlers from the guest set to the
       //      host set so we start handling join_request, player_action,
       //      etc. routed via send('host', …).
-      //   3. Update lobbyState — mark old host gone, mark me as host,
-      //      and convert any seats the old host owned to AI so the
-      //      game can continue without manual reassignment.
-      //   4. Re-broadcast lobbyState + a game_state_sync if mid-round
-      //      so every other device picks up the new host reference
-      //      and the AI-converted seats.
-      console.log('[Online] We are now the host (migrated from ' + oldHostPeerId + ')');
+      //   3. Update lobbyState — depending on the migration reason:
+      //        * 'voluntary' (old host clicked CHANGE HOST and the
+      //          candidate accepted): old host is STILL CONNECTED.
+      //          Just unset their isHost flag; keep them in devices.
+      //          Their seats remain assigned to them.
+      //        * cascade_accept / timed_out: old host is GONE. Drop
+      //          them from devices and convert any seats they owned
+      //          to AI so the game keeps moving.
+      //   4. Re-broadcast lobbyState + a game_state_sync if mid-round.
+      var reasonNew = data.reason;
+      var voluntaryNew = (reasonNew === 'voluntary');
+      console.log('[Online] We are now the host (migrated from ' + oldHostPeerId + ', reason=' + reasonNew + ')');
       _isHost = true;
       installHostNetworkHandlers();
       if (lobbyState && lobbyState.devices) {
-        if (lobbyState.devices[oldHostPeerId]) delete lobbyState.devices[oldHostPeerId];
+        if (lobbyState.devices[oldHostPeerId]) {
+          if (voluntaryNew) {
+            // v113: voluntary handoff — old host stays in the room.
+            // Keep their device entry; just unset isHost.
+            lobbyState.devices[oldHostPeerId].isHost = false;
+          } else {
+            delete lobbyState.devices[oldHostPeerId];
+          }
+        }
         if (lobbyState.devices[myDeviceId]) {
           lobbyState.devices[myDeviceId].isHost = true;
           lobbyState.devices[myDeviceId].paused = false;
         }
       }
-      // Convert any seats the old host owned to AI. Without this the
-      // game would stall on those seats' turns since their original
-      // device is gone for good.
-      if (lobbyState && lobbyState.seats) {
+      // v113: only convert seats to AI when the old host is GONE
+      // (cascade migration). For voluntary handoff the old host is
+      // still here and their seats remain theirs.
+      if (!voluntaryNew && lobbyState && lobbyState.seats) {
         for (var i = 0; i < lobbyState.seats.length; i++) {
           var seat = lobbyState.seats[i];
           if (seat && seat.occupied && seat.deviceId === oldHostPeerId) {
@@ -357,16 +370,17 @@ var Online = (function () {
         }
       }
       // Mirror the seat ownership change into Game.players so turn
-      // routing uses the new ownership immediately. Important for
-      // a mid-round migration — the next nextTurn() should already
-      // see the converted seats as AI.
-      var gs = Game.getState();
-      if (gs && gs.players) {
-        for (var k = 0; k < gs.players.length; k++) {
-          if (gs.players[k].deviceId === oldHostPeerId) {
-            gs.players[k].deviceId = null;
-            gs.players[k].isAI = true;
-            gs.players[k].isHuman = false;
+      // routing uses the new ownership immediately. ONLY for
+      // non-voluntary migrations (same reasoning as above).
+      if (!voluntaryNew) {
+        var gs = Game.getState();
+        if (gs && gs.players) {
+          for (var k = 0; k < gs.players.length; k++) {
+            if (gs.players[k].deviceId === oldHostPeerId) {
+              gs.players[k].deviceId = null;
+              gs.players[k].isAI = true;
+              gs.players[k].isHuman = false;
+            }
           }
         }
       }
@@ -374,10 +388,15 @@ var Online = (function () {
       if (gamePhase === 'playing') {
         broadcastGameStateSync({ gameState: Game.serialize(), lobbyState: JSON.parse(JSON.stringify(lobbyState)) });
       }
-      // User-visible notice on every device (we'll send it to others
-      // via the toast broadcast; show it locally here).
-      showLocalToast('You are the new host (' + oldHostName + ' disconnected).');
-      Network.broadcast({ type: 'toast', data: { message: oldHostName + ' disconnected. ' + newHostName + ' is the new host.' } });
+      // v113: voluntary-aware toast wording. The new-host toast and
+      // the broadcast toast now distinguish handoff from disconnect.
+      if (voluntaryNew) {
+        showLocalToast('You are the new host (' + oldHostName + ' handed off the room).');
+        Network.broadcast({ type: 'toast', data: { message: oldHostName + ' handed the room to ' + newHostName + '.' } });
+      } else {
+        showLocalToast('You are the new host (' + oldHostName + ' disconnected).');
+        Network.broadcast({ type: 'toast', data: { message: oldHostName + ' disconnected. ' + newHostName + ' is the new host.' } });
+      }
       renderOnlineLobby();
       // Tell ui.js we just took over so it can call nextTurn() and
       // resume the game loop. Critical when migration happens mid-
@@ -1395,11 +1414,22 @@ var Online = (function () {
     if (changeHostBtn) {
       changeHostBtn.style.display = _isHost ? '' : 'none';
     }
-    // Similarly, the lobby-waiting message for guests should ONLY be
-    // visible during the lobby phase — not during gameplay.
+    // v113: drive player-count-control visibility too, so the new
+    // host (after voluntary handoff) gets the +/- player buttons —
+    // and the OLD host loses them. enterOnlineLobby sets these
+    // once at room-entry time, but doesn't re-check after migration.
+    var pcc = document.getElementById('player-count-control');
+    if (pcc) {
+      var inLobbyPCC = (gamePhase === 'lobby');
+      pcc.style.display = (_isHost && inLobbyPCC) ? '' : 'none';
+    }
+    // Lobby-waiting: visible to guests in lobby phase (matches the
+    // original enterOnlineLobby logic but kept fresh across
+    // migration).
     var waiting = document.getElementById('lobby-waiting');
-    if (waiting && !_isHost) {
-      waiting.style.display = (gamePhase === 'lobby') ? '' : 'none';
+    if (waiting) {
+      var inLobbyWait = (gamePhase === 'lobby');
+      waiting.style.display = (!_isHost && inLobbyWait) ? '' : 'none';
     }
 
     // Delegate seat rendering to UI — but ONLY during lobby. During

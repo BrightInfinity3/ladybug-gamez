@@ -1198,29 +1198,32 @@ html, body {
 
 /* v111: Change Host as a SEPARATE absolutely-positioned button
    below the HUD's right side (or the online-lobby-header's right
-   side — both have the same anchor at calc(50% + 43.7vmin)). It
-   appears with visible breathing room below Leave Room. Same
-   width is achieved by setting both Leave Room and Change Host
-   to a shared min-width — Leave Room's natural width drives the
-   pair (since "Change Host" is slightly wider; min-width forces
-   them to match). */
+   side — both have the same anchor at calc(50% + 43.7vmin)).
+   v113 — width is now FIXED (not just min-width) so both buttons
+   render identical width regardless of grid cell sizing or text
+   content. Position moved up by 2vmin (38 -> 40) so the button
+   sits closer to Leave Room. */
 .hud-change-host {
   position: absolute;
-  bottom: calc(50% + 38vmin);
+  bottom: calc(50% + 40vmin);
   /* Right edge aligns with the HUD's right padding edge (HUD
      centered with max-width 60vmin, padding 1.6vmin). */
   right: calc(50% - 30vmin + 1.6vmin);
   z-index: 21;
   font-size: 1.6vmin;
-  padding: 0.6vmin 1.4vmin;
-  min-width: 12vmin;
+  padding: 0.6vmin 0;
+  width: 14vmin;
   text-align: center;
 }
 .game-hud .btn-action-menu,
 #online-lobby-header .btn-action-menu {
   /* Force matching width so Change Host (wider text) and Leave
-     Room (narrower text) read as the same visual button. */
-  min-width: 12vmin;
+     Room (narrower text) render as the same visual button.
+     Also ensures the button doesn't stretch to fill the HUD's
+     grid 1fr cell. */
+  justify-self: end;
+  width: 14vmin;
+  text-align: center;
 }
 
 /* Room-code row — separate absolutely-positioned element. Sits
@@ -1449,25 +1452,21 @@ html, body {
   .setup-header .btn,
   #online-lobby-header .btn { font-size: 1.875vmin; padding: 0.4vmin 1vmin; }
 
-  /* v112: Change Host on mobile landscape — top-anchored DIRECTLY
-     below Leave Room. The HUD is at top: max(0.45rem, …safe-
-     inset). Leave Room sits inside the HUD's right cell at HUD's
-     right padding edge (max-width: 60vmin centered, padding 1.6vmin).
-     Change Host's right edge aligns with that edge: viewport_right -
-     calc((100% - 60vmin)/2 + 1.6vmin) = right: calc(50% - 30vmin
-     + 1.6vmin). Top edge sits ~2.5rem below HUD top to clear the
-     Leave Room button + a small gap. */
+  /* v113: Change Host on mobile landscape. Top edge moved up
+     (2.5rem -> 2.1rem) so it sits closer to Leave Room. Width
+     fixed at 18vmin to fit "Change Host" at 1.875vmin font.
+     Both buttons share the same explicit width. */
   .hud-change-host {
     bottom: auto;
-    top: calc(max(0.45rem, env(safe-area-inset-top, 0.45rem)) + 2.5rem);
+    top: calc(max(0.45rem, env(safe-area-inset-top, 0.45rem)) + 2.1rem);
     right: calc(50% - 30vmin + 1.6vmin);
     font-size: 1.875vmin;
-    padding: 0.4vmin 1vmin;
-    min-width: 16vmin;
+    padding: 0.4vmin 0;
+    width: 18vmin;
   }
   .game-hud .btn-action-menu,
   #online-lobby-header .btn-action-menu {
-    min-width: 16vmin;
+    width: 18vmin;
   }
 }
 
@@ -2532,20 +2531,20 @@ body.mbar-turn-active .mobile-action-bar .mbar-turn-section {
     padding: 0.15vmin 0.7vmin;
   }
 
-  /* v111: Change Host button on mobile portrait — sized to match
-     the doubled HUD/lobby Leave Room button, positioned with extra
-     breathing room since the HUD is now 1.5x bigger. Right-aligned
-     to the same 2vmin viewport edge as Leave Room. */
+  /* v113: Change Host on mobile portrait. Moved up (35 -> 38vmin)
+     to sit closer to Leave Room. Width fixed at 24vmin to fit
+     "Change Host" at 2.4vmin font size (~11 chars × ~1.4vmin per
+     char + padding) and exactly match Leave Room's width. */
   .hud-change-host {
-    bottom: calc(50% + 35vmin);
+    bottom: calc(50% + 38vmin);
     right: 2vmin;
     font-size: 2.4vmin;
-    padding: 0.55vmin 1.3vmin;
-    min-width: 22vmin;
+    padding: 0.55vmin 0;
+    width: 24vmin;
   }
   .game-hud .btn-action-menu,
   #online-lobby-header .btn-action-menu {
-    min-width: 22vmin;
+    width: 24vmin;
   }
 }
 
