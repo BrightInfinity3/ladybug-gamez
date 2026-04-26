@@ -356,6 +356,21 @@ var Online = (function () {
           lobbyState.devices[myDeviceId].paused = false;
         }
       }
+      // v116 defensive: if lobbyState.dealerIndex was never set
+      // (-1) by the time we take over, auto-pick the first
+      // occupied seat as dealer. Otherwise the lobby UI shows the
+      // dotted "pick a dealer" slot on every seat with no solid D
+      // anywhere, and Game.setupGame's random fallback hides which
+      // seat the dealer is on the host's view.
+      if (lobbyState && lobbyState.seats && (lobbyState.dealerIndex == null || lobbyState.dealerIndex < 0)) {
+        for (var di = 0; di < lobbyState.seats.length; di++) {
+          if (lobbyState.seats[di] && lobbyState.seats[di].occupied) {
+            lobbyState.dealerIndex = di;
+            console.log('[Online] Migration: auto-picked dealerIndex=' + di + ' (was unset)');
+            break;
+          }
+        }
+      }
       // v113: only convert seats to AI when the old host is GONE
       // (cascade migration). For voluntary handoff the old host is
       // still here and their seats remain theirs.

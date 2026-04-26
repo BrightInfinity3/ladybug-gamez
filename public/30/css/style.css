@@ -2151,10 +2151,10 @@ body.lbar-active .mobile-action-bar .mbar-turn-section {
 }
 @media (orientation: landscape) and (max-width: 1024px) {
   body.lbar-active .mobile-action-bar .mbar-leader-section {
-    right: calc(50% + 35vmin);
+    right: calc(50% + 20vmin);
   }
   body.lbar-active .mobile-action-bar .mbar-turn-section {
-    left: calc(50% + 35vmin);
+    left: calc(50% + 20vmin);
   }
 }
 @media (orientation: landscape) and (max-height: 500px) {

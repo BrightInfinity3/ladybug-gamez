@@ -1478,7 +1478,16 @@ var UI = (function () {
     var playerId = data.playerId;
     var action = data.action;
     var player = Game.getCurrentPlayer();
-    if (!player || player.id !== playerId) return;
+    // v116 diagnostic: log when host receives an action that
+    // doesn't match its current player. Helps catch the "iPad
+    // clicks Draw → freeze" pattern where iPad's reported
+    // playerId doesn't match host's Game.getCurrentPlayer().id.
+    if (!player || player.id !== playerId) {
+      console.warn('[UI] onlineHandleRemoteAction: rejected action=' + action +
+                   ' from playerId=' + playerId +
+                   ' (host current=' + (player && player.id) + ')');
+      return;
+    }
     showActionBar(false);
     gameFlowLocked = true;
     executeAction(playerId, action);
@@ -2550,6 +2559,23 @@ var UI = (function () {
   function humanAction(action) {
     var player = Game.getCurrentPlayer();
     if (!player || !player.isHuman) return;
+    // v116 diagnostic: log who's clicking and whether the state
+    // matches. Helps catch the "Draw click does nothing" freeze
+    // that's been reported on devices that just had a seat
+    // reassigned to them. If isMyPlayer returns false, the click
+    // would be swallowed silently — log to make this visible.
+    if (Online.isActive()) {
+      var isMine = Online.isMyPlayer(player.id);
+      console.log('[UI] humanAction(' + action + ') player=' + player.id +
+                  ' deviceId=' + player.deviceId + ' isMyPlayer=' + isMine +
+                  ' isHost=' + Online.isHost());
+      if (!isMine && !Online.isHost()) {
+        // Click was made but state thinks this isn't our player.
+        // Log + bail (matches prior silent-bail behaviour).
+        console.warn('[UI] humanAction: click rejected — Game.players state thinks this seat is not ours');
+        return;
+      }
+    }
     showActionBar(false);
     gameFlowLocked = true;
 
