@@ -40,7 +40,9 @@ const WebSocket = require('ws');
 const crypto = require('crypto');
 
 function genRoomCode() {
-  const alpha = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  // Letters only (no digits). I/O/0/1 omitted to avoid look-alike
+  // pairs (I/L, O/0, 1/I) so users can type the code easily.
+  const alpha = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
   let code = '';
   for (let i = 0; i < 3; i++) code += alpha[Math.floor(Math.random() * alpha.length)];
   return code;

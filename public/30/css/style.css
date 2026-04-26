@@ -1319,13 +1319,23 @@ html, body {
    wrap the subtitle over 2-3 lines on narrower panels, which the
    user wants to avoid. Where the text doesn't fit at the default
    font, mobile portrait shrinks via the @media block below. */
+/* v119: removed .disband-message from the nowrap list. The
+   disband copy ("Lost connection to host. Please create a new
+   room to continue playing.") is too long to fit on one line in
+   the 22-32rem-wide disband panel; nowrap pushed it off the
+   right edge. Other popup subtitles are short enough that
+   nowrap fits comfortably. */
 .confirm-sub,
 .device-leave-subtitle,
 .reconnect-gate-sub,
 .host-select-sub,
-.host-request-sub,
-.disband-message {
+.host-request-sub {
   white-space: nowrap;
+}
+.disband-message {
+  /* Wrap normally; let the panel's max-width contain it. */
+  text-align: center;
+  word-wrap: break-word;
 }
 
 /* Mobile portrait subtitle shrink — necessary for the longer
@@ -1399,12 +1409,14 @@ html, body {
   }
 }
 
-/* v118: top-anchor the HUD for ANY landscape under 900px tall —
-   covers tablets in non-fullscreen mode (URL bar showing) where
-   the bottom-anchored HUD at calc(50% + 40vmin) ended up under
-   the URL bar and got clipped. Phone landscape (max-height: 500px)
-   gets additional font-shrink rules in the next media block. */
-@media (orientation: landscape) and (max-height: 900px) {
+/* v118/v119: top-anchor the HUD for ANY landscape under 900px
+   tall. Phone landscape (max-height: 500px) gets a small 0.45rem
+   offset (URL bar only). Tablet landscape (501-900px) gets a
+   larger 2.5rem offset to clear iPad Safari's URL bar PLUS its
+   tabs row in non-fullscreen mode (env(safe-area-inset-top) is
+   0 on iPad models without a notch even when tabs are showing,
+   so we can't rely on safe-area for tablet — fixed offset only). */
+@media (orientation: landscape) and (max-height: 500px) {
   .game-hud,
   .setup-header,
   #online-lobby-header {
@@ -1414,6 +1426,18 @@ html, body {
   .hud-room-row {
     bottom: auto;
     top: calc(max(0.45rem, env(safe-area-inset-top, 0.45rem)) + 1.6rem);
+  }
+}
+@media (orientation: landscape) and (min-height: 501px) and (max-height: 900px) {
+  .game-hud,
+  .setup-header,
+  #online-lobby-header {
+    bottom: auto;
+    top: max(2.5rem, env(safe-area-inset-top, 2.5rem));
+  }
+  .hud-room-row {
+    bottom: auto;
+    top: calc(max(2.5rem, env(safe-area-inset-top, 2.5rem)) + 2vmin);
   }
 }
 
@@ -2148,15 +2172,15 @@ body.lbar-active .mobile-action-bar .mbar-turn-section {
   left: calc(50% + 60vmin);
   right: auto;
 }
-/* v118: tablet inset bumped from 20vmin (which placed the leader
-   panel ON the table) back outward to 35vmin. Tablet breakpoint
-   stays at max-width: 1366px (covers all common iPad sizes). */
+/* v119: tablet inset bumped 35vmin -> 42vmin. 35vmin overlapped
+   the LEFT/RIGHT table characters; 42vmin sits cleanly outside
+   them. */
 @media (orientation: landscape) and (max-width: 1366px) {
   body.lbar-active .mobile-action-bar .mbar-leader-section {
-    right: calc(50% + 35vmin);
+    right: calc(50% + 42vmin);
   }
   body.lbar-active .mobile-action-bar .mbar-turn-section {
-    left: calc(50% + 35vmin);
+    left: calc(50% + 42vmin);
   }
 }
 @media (orientation: landscape) and (max-height: 500px) {
@@ -2720,6 +2744,40 @@ body.mbar-turn-active .mobile-action-bar .mbar-turn-section {
   .scoreboard-table td { padding: 0.2em 0.4em; }
   .results-buttons { gap: 0.6em; }
   .results-buttons .btn { font-size: 0.75rem; padding: 0.35em 1em; }
+}
+
+/* v119: tablet/laptop landscape (and other moderate-height
+   viewports) — compact results screen to fit 8 hands + scoreboard
+   + buttons without vertical scrolling. Less aggressive than the
+   phone-landscape block (max-height: 500) — moderate font/avatar
+   shrink only. Triggers on any viewport up to 1100px tall, which
+   covers most laptops (1080-tall) and tablet landscape (768-1024).
+   Wider desktop monitors (>1100px tall) keep the original sizes. */
+@media (max-height: 1100px) and (min-height: 501px) {
+  .results-content { padding: 1em; max-width: 480px; }
+  .results-winner { margin-bottom: 0.6em; }
+  .winner-avatar { width: 3.6rem; height: 3.6rem; margin-bottom: 0.35em; }
+  .winner-name { font-size: 1.55rem; }
+  .winner-detail { font-size: 0.85rem; margin-top: 0.2em; }
+  .all-busted-msg { font-size: 1.35rem; margin-bottom: 0.35em; }
+  .results-hands { row-gap: 0.3em; margin-bottom: 0.6em; }
+  .result-hand { padding: 0.3em 0.6em; column-gap: 0.5em; }
+  .result-hand-name { font-size: 0.82rem; }
+  .result-hand-cards { gap: 0.08em; }
+  .result-mini-card {
+    width: calc(1rem * var(--card-scale, 1));
+    height: calc(1.42rem * var(--card-scale, 1));
+    font-size: calc(0.62rem * var(--card-scale, 1));
+    border-radius: 0.13rem;
+  }
+  .result-hand-total { font-size: 1rem; }
+  .results-scoreboard { margin-bottom: 0.6em; }
+  .scoreboard-title { font-size: 1rem; margin-bottom: 0.3em; }
+  .scoreboard-table { font-size: 0.82rem; }
+  .scoreboard-table th { font-size: 0.65rem; padding: 0.18em 0.4em; }
+  .scoreboard-table td { padding: 0.2em 0.4em; }
+  .results-buttons { gap: 0.6em; }
+  .results-buttons .btn { font-size: 0.85rem; padding: 0.4em 1.1em; }
 }
 
 /* Landscape phone: tight vertical space — shrink everything so the results
