@@ -2149,7 +2149,11 @@ body.lbar-active .mobile-action-bar .mbar-turn-section {
   left: calc(50% + 60vmin);
   right: auto;
 }
-@media (orientation: landscape) and (max-width: 1024px) {
+/* v117: bumped from max-width: 1024px to max-width: 1366px so the
+   rule covers larger iPads (iPad Pro 11" 1194x834, iPad Air 1180,
+   iPad Pro 12.9" 1366x1024). Most tablets in landscape are wider
+   than 1024px, so the previous rule wasn't matching them. */
+@media (orientation: landscape) and (max-width: 1366px) {
   body.lbar-active .mobile-action-bar .mbar-leader-section {
     right: calc(50% + 20vmin);
   }
@@ -2375,13 +2379,18 @@ body.mbar-turn-active .mobile-action-bar .mbar-turn-section {
 }
 .mobile-action-bar .mbar-cards {
   position: absolute;
-  right: 50%;
-  /* avatar half-width (1.7rem) + small gap */
-  margin-right: 2rem;
-  display: flex;
+  /* v117: cards now sit to the RIGHT of the avatar, matching the
+     landscape side-panel layout. avatar half-width (1.7rem) + a
+     small gap = 2rem offset from the row center. Cards stack in a
+     3-column grid (mirroring on-table fan: 3 per row, then a 2nd
+     row, etc.) so 4+ cards don't push horizontally off-screen. */
+  left: 50%;
+  margin-left: 2rem;
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  grid-auto-flow: row;
   gap: 0.18rem;
-  flex-wrap: nowrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 .mobile-action-bar .mbar-card {
   width: 1.7rem;

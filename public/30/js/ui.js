@@ -845,13 +845,15 @@ var UI = (function () {
         // v112: also wire onHostTakeover on the HOST side. This is
         // critical for VOLUNTARY handoff — when the original host
         // hands off via CHANGE HOST, the migration completes and
-        // we (now a guest) need to refresh HUD/buttons. Without
-        // this listener, the outgoing host's CHANGE HOST button
-        // stayed visible after handoff (Online.isHost() returned
-        // false but updateHUD was never called).
+        // we (now a guest) need to refresh HUD/buttons.
+        // v117: gated the seat re-render on lobby phase. Calling
+        // renderOnlineLobbySeats during GAMEPLAY wiped the game
+        // seats (game-seat / score / status) and replaced them
+        // with setup-style seats (dotted-D, controller badge,
+        // remove X). User reported this exactly after migrating.
         Online.onHostTakeover(function (opts) {
           opts = opts || {};
-          renderOnlineLobbySeats();
+          if (gamePhase === 'online-lobby') renderOnlineLobbySeats();
           updateHUD();
           if (opts.becameHost && gamePhase === 'playing') {
             gameFlowLocked = false;
@@ -918,7 +920,11 @@ var UI = (function () {
           //     AI-converted seat plays right away
           Online.onHostTakeover(function (opts) {
             opts = opts || {};
-            renderOnlineLobbySeats();
+            // v117: only re-render lobby seats during the lobby
+            // phase. Calling renderOnlineLobbySeats during
+            // GAMEPLAY wipes the game seats and replaces them
+            // with setup-style seats (dotted-D, controller info).
+            if (gamePhase === 'online-lobby') renderOnlineLobbySeats();
             updateHUD();
             if (opts.becameHost && gamePhase === 'playing') {
               gameFlowLocked = false;
