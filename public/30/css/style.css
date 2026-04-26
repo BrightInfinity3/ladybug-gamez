@@ -1139,13 +1139,14 @@ html, body {
   text-align: center;
 }
 
-/* v109: 2x size and bolder, with tighter ': #' spacing so the
-   label and number sit at the same letter-pitch as 'SR' / 'AR'
-   inside the label. The label's 0.1em letter-spacing was
-   previously larger than the 0.4vmin gap before the value, which
-   made ': 24' look detached from the label. */
+/* v110: halved from v109's 2.8vmin back to 1.4vmin, but keep the
+   bolder weights (700 on the label, 900 on the value) for clear
+   readability at the smaller size. ': #' spacing stays tied to
+   the label's letter-spacing (0.1em of 1.4vmin = 0.14vmin) so the
+   gap between the colon and the digit matches the gap between
+   adjacent letters in 'CARDS REMAINING'. */
 .deck-info-label {
-  font-size: 2.8vmin;
+  font-size: 1.4vmin;
   color: var(--gold);
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -1153,12 +1154,9 @@ html, body {
 }
 
 .deck-info-value {
-  font-size: 2.8vmin;
+  font-size: 1.4vmin;
   color: var(--gold-light);
-  /* Match the label's letter-spacing (0.1em of 2.8vmin = 0.28vmin)
-     so the gap between the colon and the digit is the same as the
-     gap between consecutive letters in 'CARDS REMAINING'. */
-  margin-left: 0.28vmin;
+  margin-left: 0.14vmin;
   font-weight: 900;
 }
 
@@ -1196,15 +1194,20 @@ html, body {
   gap: 0.4vmin;
 }
 
-/* v109: right-side action group — Change Host + Leave Room
-   sit together on the right edge of the HUD. justify-self: end
-   pushes the whole group right; gap between buttons is small so
-   they read as a group. */
+/* v110: right-side action group — Change Host stacks BELOW Leave
+   Room (Leave on top). Both buttons stretch to the same width via
+   align-items: stretch, so they look like a matched pair. The
+   group as a whole still sits at the right edge of the HUD. */
 .hud-right {
   justify-self: end;
   display: flex;
-  align-items: center;
-  gap: 0.6vmin;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.4vmin;
+}
+.hud-right .btn-action-menu {
+  width: 100%;
+  text-align: center;
 }
 
 /* Room-code row — separate absolutely-positioned element. Sits
@@ -1390,9 +1393,14 @@ html, body {
     font-size: 1.25vmin;
     padding: 0.4vmin 1vmin;
   }
+  /* v110: ROOM text matches ROUND text size on mobile landscape
+     (per request: same size on portrait + landscape). The base
+     room-row's left value (calc(50% - 30vmin + 1.6vmin)) already
+     aligns the "Room:" R under "Round:" R since both are anchored
+     to the HUD's centered max-width box at the same left padding. */
   .hud-room-row .hud-label,
   .hud-room-row .lobby-code {
-    font-size: 1.3vmin;
+    font-size: 1.6vmin;
   }
   .lobby-label,
   .lobby-player-count { font-size: 1.3vmin; }
@@ -2040,13 +2048,71 @@ body.lbar-active .mobile-action-bar .mbar-turn-section {
   padding: 0 1vmin;
   z-index: 30;
 }
+/* v110: panels sit just OUTSIDE the left/right table characters
+   (instead of being pinned to the viewport edges). The left
+   character's avatar center is at 38.4vmin from table center; its
+   left edge is at ~42.3vmin. We anchor the leader panel's RIGHT
+   EDGE at 50%-43vmin (just past the left character's left edge)
+   and let the panel grow leftward toward the viewport edge as
+   content needs. Same on the right for the active player. */
 body.lbar-active .mobile-action-bar .mbar-leader-section {
-  left: 1vmin;
-  right: auto;
+  left: auto;
+  right: calc(50% + 43vmin);
 }
 body.lbar-active .mobile-action-bar .mbar-turn-section {
-  right: 1vmin;
-  left: auto;
+  left: calc(50% + 43vmin);
+  right: auto;
+}
+
+/* v110: mobile-landscape boost — bring the landscape side panels
+   up to the same physical size as the mobile-portrait panels
+   (which are rem-based and read large on phones). The default
+   lbar-active sizing above is vmin-based (looks great on tablets/
+   desktops where vmin is large) but renders too small on phone
+   landscape (vmin ~3.93px on a 1080×393 viewport, so 5.5vmin =
+   21.6px avatar). Mobile landscape uses the same rem values as
+   mobile portrait so the panels are immediately readable. */
+@media (orientation: landscape) and (max-height: 500px) {
+  body.lbar-active .mobile-action-bar .mbar-avatar {
+    width: 3.4rem;
+    height: 3.4rem;
+  }
+  body.lbar-active .mobile-action-bar .mbar-score {
+    font-size: 1.7rem;
+  }
+  body.lbar-active .mobile-action-bar .mbar-name {
+    font-size: 0.9rem;
+    max-width: 9rem;
+  }
+  body.lbar-active .mobile-action-bar .mbar-leader-label {
+    font-size: 0.78rem;
+    margin-bottom: 0.05rem;
+  }
+  body.lbar-active .mobile-action-bar .mbar-card {
+    width: 1.7rem;
+    height: 2.4rem;
+    font-size: 0.95rem;
+    border-radius: 0.2rem;
+  }
+  body.lbar-active .mobile-action-bar .mbar-card .mbar-card-suit {
+    font-size: 0.85rem;
+  }
+  body.lbar-active .mobile-action-bar .mbar-row {
+    min-height: 3.4rem;
+    gap: 0.6rem;
+  }
+  body.lbar-active .mobile-action-bar .mbar-cards {
+    gap: 0.18rem;
+    margin-right: 2rem;
+  }
+  body.lbar-active .mobile-action-bar .mbar-top {
+    height: 1.7rem;
+    max-width: 9rem;
+  }
+  body.lbar-active .mobile-action-bar .mbar-badges .mbar-badge {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.45rem;
+  }
 }
 /* No Draw/Stay buttons in landscape side-panels — the on-table
    .game-actions stay visible and serve as the input. */
@@ -2190,19 +2256,26 @@ body.mbar-turn-active .mobile-action-bar .mbar-turn-section {
   animation: leaderGlowPulse 2s ease-in-out infinite;
 }
 
-/* v109: cards-and-avatar row inside the active-player section.
-   The cards stack to the LEFT of the avatar at roughly 2x the
-   on-table mini-card size so the active player can read their
-   hand without looking up at the table. The leader-section's
-   layout doesn't include this row — leader-section's avatar is
-   still its own immediate child. */
+/* v110: cards-and-avatar row inside the active-player section.
+   The AVATAR stays centered in the row (so its column lines up
+   with the score above and the name below — matching the table
+   seat layout). The CARDS sit absolutely to the avatar's left,
+   anchored at the row's center via right: 50% + an offset of
+   half the avatar width + a small gap. As cards are added they
+   extend further leftward without affecting the avatar's
+   centered position. */
 .mobile-action-bar .mbar-row {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.6rem;
+  min-height: 3.4rem;
 }
 .mobile-action-bar .mbar-cards {
+  position: absolute;
+  right: 50%;
+  /* avatar half-width (1.7rem) + small gap */
+  margin-right: 2rem;
   display: flex;
   gap: 0.18rem;
   flex-wrap: nowrap;
@@ -2319,15 +2392,18 @@ body.mbar-turn-active .mobile-action-bar .mbar-turn-section {
      downward (preserving the top edge), per request. Anchored at
      the calculated previous top position: old bottom 50%+40.2vmin
      + old height ~1.8vmin = old top at 50%+42vmin above center =
-     50%-42vmin from viewport top. */
+     50%-42vmin from viewport top.
+     v110: matched ROOM font size to ROUND (3.45vmin) and aligned
+     the LEFT edge of "Room:" with "Round:" by setting the same
+     left padding (2vmin, the HUD's horizontal padding). */
   .hud-room-row {
     bottom: auto;
     top: calc(50% - 42vmin);
-    left: 1.5vmin;
+    left: 2vmin;
   }
   .hud-room-row .hud-label,
   .hud-room-row .lobby-code {
-    font-size: 2.4vmin;
+    font-size: 3.45vmin;
   }
   .hud-room-row .lobby-code {
     padding: 0.15vmin 0.7vmin;
@@ -2728,11 +2804,18 @@ body.mbar-turn-active .mobile-action-bar .mbar-turn-section {
   font-variant-numeric: lining-nums tabular-nums;
   font-feature-settings: "lnum" 1, "tnum" 1;
   text-rendering: geometricPrecision;
-  /* Single baseline regardless of vertical-align defaults of
-     children (the room code is wrapped in a span and lives next
-     to "Room:" labels on both the lobby and the in-game HUD). */
-  display: inline-block;
-  vertical-align: baseline;
+  /* v110: switched from inline-block + line-height: 1 to
+     inline-flex with align-items: center so the chip vertically
+     centers its text regardless of the active font's ascent /
+     descent metrics. The previous baseline-aligned layout shifted
+     the text high inside the chip on mobile Android (Roboto/
+     Helvetica's metrics put the baseline closer to the bottom
+     than the visual middle). The flex centering ignores font
+     metrics and just centers the rendered glyph box. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
   line-height: 1;
 }
 
