@@ -1433,11 +1433,16 @@ html, body {
   .setup-header,
   #online-lobby-header {
     bottom: auto;
-    top: max(2.5rem, env(safe-area-inset-top, 2.5rem));
+    /* v120: was 2.5rem (too far below tabs row, leaving empty
+       space above the top character). Pulled up to 1rem so the
+       HUD sits just below the URL bar / tabs. env(safe-area-
+       inset-top) is 0 on iPad without notch even with tabs
+       showing, so we use a fixed offset. */
+    top: max(1rem, env(safe-area-inset-top, 1rem));
   }
   .hud-room-row {
     bottom: auto;
-    top: calc(max(2.5rem, env(safe-area-inset-top, 2.5rem)) + 2vmin);
+    top: calc(max(1rem, env(safe-area-inset-top, 1rem)) + 2vmin);
   }
 }
 
@@ -2126,11 +2131,25 @@ body.mbar-active .mobile-action-bar .mbar-leader-section {
        a 3-column grid (3 per row, then a 2nd row, etc. — same as
        the on-table fan), vertically centered against the avatar.
 */
+/* v120: vertical alignment with table characters.
+   Table center is at H/2 + 1.5vmin (the table is shifted 1.5vmin
+   below viewport center). LEFT/RIGHT table characters' avatars
+   sit at exactly that y-coordinate. The side-panel section
+   contains [score / avatar / name] (mbar-top, mbar-row, mbar-name).
+   Score is 1.7rem tall; name is 0.9rem tall. So the avatar's
+   center inside the section is OFFSET from the section's box
+   center by (1.7 - 0.9) / 2 = 0.4rem (the avatar is 0.4rem BELOW
+   the section center).
+   To align the avatar with table characters' avatars at H/2 +
+   1.5vmin, we want the section's center at H/2 + 1.5vmin - 0.4rem
+   so that the avatar (0.4rem below center) lands at H/2 + 1.5vmin.
+   That's `top: calc(50% + 1.5vmin)` with translateY adjusted by
+   -0.4rem from the standard -50%. */
 body.lbar-active .mobile-action-bar .mbar-leader-section {
   display: flex;
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
+  top: calc(50% + 1.5vmin);
+  transform: translateY(calc(-50% - 0.4rem));
   bottom: auto;
   width: auto;
   max-width: 26vmin;
@@ -2140,8 +2159,8 @@ body.lbar-active .mobile-action-bar .mbar-leader-section {
 body.lbar-active .mobile-action-bar .mbar-turn-section {
   display: none;
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
+  top: calc(50% + 1.5vmin);
+  transform: translateY(calc(-50% - 0.4rem));
   bottom: auto;
   width: auto;
   max-width: 26vmin;
@@ -2172,15 +2191,15 @@ body.lbar-active .mobile-action-bar .mbar-turn-section {
   left: calc(50% + 60vmin);
   right: auto;
 }
-/* v119: tablet inset bumped 35vmin -> 42vmin. 35vmin overlapped
-   the LEFT/RIGHT table characters; 42vmin sits cleanly outside
-   them. */
+/* v120: tablet inset 42vmin -> 50vmin. There's plenty of empty
+   space outside the table on iPad landscape; pushing the panels
+   further out makes the layout breathe. */
 @media (orientation: landscape) and (max-width: 1366px) {
   body.lbar-active .mobile-action-bar .mbar-leader-section {
-    right: calc(50% + 42vmin);
+    right: calc(50% + 50vmin);
   }
   body.lbar-active .mobile-action-bar .mbar-turn-section {
-    left: calc(50% + 42vmin);
+    left: calc(50% + 50vmin);
   }
 }
 @media (orientation: landscape) and (max-height: 500px) {
@@ -2190,13 +2209,14 @@ body.lbar-active .mobile-action-bar .mbar-turn-section {
   body.lbar-active .mobile-action-bar .mbar-turn-section {
     left: calc(50% + 55vmin);
   }
-  /* v115: mobile landscape avatar override — 7.8vmin on phone
-     landscape (vmin ~3.93) is only ~30px which is too small.
-     Keep rem-based avatar so it matches the rest of the
-     rem-based mobile-landscape panel. */
+  /* v120: mobile-landscape side-panel avatar = 2× the table
+     character avatar size. Table avatar is 7.8vmin everywhere;
+     2× = 15.6vmin. On phone landscape (vmin ~3.75), this is
+     ~58px — close to the mobile-portrait panel's 3.4rem (~54px)
+     but expressed in vmin so it scales with the table. */
   body.lbar-active .mobile-action-bar .mbar-avatar {
-    width: 3.4rem;
-    height: 3.4rem;
+    width: 15.6vmin;
+    height: 15.6vmin;
   }
 }
 
