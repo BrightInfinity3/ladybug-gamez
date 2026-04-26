@@ -1196,13 +1196,13 @@ html, body {
   gap: 0.4vmin;
 }
 
-/* v114: unified default-tier styling for Leave Room + Change
-   Host. They share width, padding, font-size, line-height, and
-   text-align so they render identical. Without the unified rule
-   the buttons rendered different widths (Leave Room got the .btn
-   class's default padding, Change Host got the explicit
-   .hud-change-host padding). */
+/* v118: CHANGE HOST feature scrapped (will revisit). Force-hide
+   the button across all phases / device tiers so the underlying
+   voluntary handoff logic stays in place but isn't reachable
+   from the UI. To re-enable: drop the `display: none !important`
+   line below and the feature comes back. */
 .hud-change-host {
+  display: none !important;
   position: absolute;
   bottom: calc(50% + 40vmin);
   /* Right edge aligns with the HUD's right padding edge (HUD
@@ -1399,16 +1399,12 @@ html, body {
   }
 }
 
-/* Mobile / short landscape: switch HUD anchoring from bottom-based
-   to TOP-based with a safe-area inset so the row sits inside the
-   visible viewport even when the browser URL bar is showing.
-   bottom-based positioning at 40vmin still placed the HUD around
-   y=29px on a typical mobile-landscape inner viewport (290px
-   tall) — barely below the URL bar. Top-anchored with safe-area
-   guarantees a small gap regardless of chrome state. The HUD line
-   is the lowest absolute-positioned element here, so leaving it
-   anchored to the top doesn't conflict with anything else. */
-@media (orientation: landscape) and (max-height: 500px) {
+/* v118: top-anchor the HUD for ANY landscape under 900px tall —
+   covers tablets in non-fullscreen mode (URL bar showing) where
+   the bottom-anchored HUD at calc(50% + 40vmin) ended up under
+   the URL bar and got clipped. Phone landscape (max-height: 500px)
+   gets additional font-shrink rules in the next media block. */
+@media (orientation: landscape) and (max-height: 900px) {
   .game-hud,
   .setup-header,
   #online-lobby-header {
@@ -1417,10 +1413,13 @@ html, body {
   }
   .hud-room-row {
     bottom: auto;
-    /* Fixed offset below the HUD line — we no longer rely on
-       viewport-percentage math for these. */
     top: calc(max(0.45rem, env(safe-area-inset-top, 0.45rem)) + 1.6rem);
   }
+}
+
+/* Phone-landscape only — additional font shrink + Change Host
+   placement. */
+@media (orientation: landscape) and (max-height: 500px) {
   /* v111: 50% bigger fonts on mobile landscape — same scale-up as
      mobile portrait got in v109. The HUD stays top-anchored (per
      request: top edge fixed, text grows downward and outward).
@@ -2149,16 +2148,15 @@ body.lbar-active .mobile-action-bar .mbar-turn-section {
   left: calc(50% + 60vmin);
   right: auto;
 }
-/* v117: bumped from max-width: 1024px to max-width: 1366px so the
-   rule covers larger iPads (iPad Pro 11" 1194x834, iPad Air 1180,
-   iPad Pro 12.9" 1366x1024). Most tablets in landscape are wider
-   than 1024px, so the previous rule wasn't matching them. */
+/* v118: tablet inset bumped from 20vmin (which placed the leader
+   panel ON the table) back outward to 35vmin. Tablet breakpoint
+   stays at max-width: 1366px (covers all common iPad sizes). */
 @media (orientation: landscape) and (max-width: 1366px) {
   body.lbar-active .mobile-action-bar .mbar-leader-section {
-    right: calc(50% + 20vmin);
+    right: calc(50% + 35vmin);
   }
   body.lbar-active .mobile-action-bar .mbar-turn-section {
-    left: calc(50% + 20vmin);
+    left: calc(50% + 35vmin);
   }
 }
 @media (orientation: landscape) and (max-height: 500px) {
