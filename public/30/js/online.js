@@ -419,6 +419,33 @@ var Online = (function () {
         // handoff. Network's _isHost was already flipped by network.js;
         // we mirror that here.
         _isHost = false;
+        // v114 critical fix: re-bind Network.onMessage from
+        // handleHostMessage (which we registered as host) to
+        // handleGuestMessage so we now receive guest-side messages
+        // (lobby_state, game_starting, game_action, game_state_sync,
+        // host_handoff_request, room_disbanded, toast). Without this,
+        // the OLD host stays bound to handleHostMessage and silently
+        // drops every broadcast from the new host — symptoms:
+        //  * The old host doesn't see seat deletes / renames the
+        //    new host makes.
+        //  * Deal! on the new host doesn't reach the old host (the
+        //    'game_starting' message is dropped) — old host stays
+        //    on "Waiting for host to start the game...".
+        //  * If the new host CHANGE HOSTs back to the original, the
+        //    'host_handoff_request' is dropped — popup never appears.
+        Network.onMessage(handleGuestMessage);
+        // Force-hide host-only lobby UI immediately (PCC, Deal,
+        // Change Host) instead of relying on the renderOnlineLobby
+        // cascade — defensive against any race or rerun.
+        var pccEl = document.getElementById('player-count-control');
+        if (pccEl) pccEl.style.display = 'none';
+        var dealBtnEl = document.getElementById('btn-online-deal');
+        if (dealBtnEl) dealBtnEl.style.display = 'none';
+        var chgEl = document.getElementById('btn-change-host');
+        if (chgEl) chgEl.style.display = 'none';
+        // Show waiting message in lobby phase
+        var waitEl = document.getElementById('lobby-waiting');
+        if (waitEl && gamePhase === 'lobby') waitEl.style.display = '';
       }
       if (lobbyState && lobbyState.devices) {
         // Only delete the old host from devices when they actually

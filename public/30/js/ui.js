@@ -102,6 +102,11 @@ var UI = (function () {
   // ---- Canvas State ----
   var canvasReady = false;
   var handDisplay = {};  // playerId -> [{card, faceUp, flipProgress}]
+  // v114: when a lobby seat rename input is open, defer any
+  // renderOnlineLobbySeats request that comes in (a lobby_state
+  // broadcast etc.) until the input loses focus. Without this, the
+  // input gets destroyed mid-type and the user's name change is lost.
+  var _pendingLobbySeatsRender = false;
   var glowingPlayerId = null;  // playerId to highlight cards with golden glow
   var glowStartTime = 0;      // timestamp for pulsing animation
   var resizeListenerAdded = false;
@@ -1054,6 +1059,22 @@ var UI = (function () {
 
   function renderOnlineLobbySeats() {
     var ring = document.getElementById('seats-ring');
+    // v114: if a rename input is currently focused, defer the
+    // rebuild. Wiping the seats-ring while the user is typing
+    // destroys the input element AND the synthetic onblur logic
+    // that triggers Online.sendChangeName — meaning the user's
+    // typed name never actually broadcasts. The user reported
+    // names "resetting" and "subsequent renames not propagating"
+    // — both symptoms of the input being killed by an incoming
+    // lobby_state broadcast (which calls renderOnlineLobby ->
+    // renderLobbyCallback -> renderOnlineLobbySeats). We replay
+    // the render once the input loses focus.
+    var activeEl = document.activeElement;
+    if (activeEl && activeEl.classList && activeEl.classList.contains('seat-name-input')) {
+      _pendingLobbySeatsRender = true;
+      return;
+    }
+    _pendingLobbySeatsRender = false;
     ring.innerHTML = '';
 
     var positions;
@@ -1366,6 +1387,15 @@ var UI = (function () {
     function finishEdit() {
       var newName = input.value.trim() || lobbyState.seats[seatIdx].name;
       Online.sendChangeName(seatIdx, newName);
+      // v114: replay any deferred re-render that came in while
+      // we had focus. Defer to the next tick so sendChangeName's
+      // own renderOnlineLobby call (host case) finishes first.
+      setTimeout(function () {
+        if (_pendingLobbySeatsRender) {
+          _pendingLobbySeatsRender = false;
+          renderOnlineLobbySeats();
+        }
+      }, 0);
     }
 
     input.addEventListener('blur', finishEdit);

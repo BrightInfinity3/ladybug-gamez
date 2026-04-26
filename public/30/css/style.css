@@ -1196,13 +1196,12 @@ html, body {
   gap: 0.4vmin;
 }
 
-/* v111: Change Host as a SEPARATE absolutely-positioned button
-   below the HUD's right side (or the online-lobby-header's right
-   side — both have the same anchor at calc(50% + 43.7vmin)).
-   v113 — width is now FIXED (not just min-width) so both buttons
-   render identical width regardless of grid cell sizing or text
-   content. Position moved up by 2vmin (38 -> 40) so the button
-   sits closer to Leave Room. */
+/* v114: unified default-tier styling for Leave Room + Change
+   Host. They share width, padding, font-size, line-height, and
+   text-align so they render identical. Without the unified rule
+   the buttons rendered different widths (Leave Room got the .btn
+   class's default padding, Change Host got the explicit
+   .hud-change-host padding). */
 .hud-change-host {
   position: absolute;
   bottom: calc(50% + 40vmin);
@@ -1210,19 +1209,16 @@ html, body {
      centered with max-width 60vmin, padding 1.6vmin). */
   right: calc(50% - 30vmin + 1.6vmin);
   z-index: 21;
-  font-size: 1.6vmin;
-  padding: 0.6vmin 0;
-  width: 14vmin;
-  text-align: center;
 }
 .game-hud .btn-action-menu,
-#online-lobby-header .btn-action-menu {
-  /* Force matching width so Change Host (wider text) and Leave
-     Room (narrower text) render as the same visual button.
-     Also ensures the button doesn't stretch to fill the HUD's
-     grid 1fr cell. */
+#online-lobby-header .btn-action-menu,
+.hud-change-host {
   justify-self: end;
   width: 14vmin;
+  font-size: 1.6vmin;
+  padding: 0.6vmin 0;
+  line-height: 1.2;
+  box-sizing: border-box;
   text-align: center;
 }
 
@@ -1452,21 +1448,22 @@ html, body {
   .setup-header .btn,
   #online-lobby-header .btn { font-size: 1.875vmin; padding: 0.4vmin 1vmin; }
 
-  /* v113: Change Host on mobile landscape. Top edge moved up
-     (2.5rem -> 2.1rem) so it sits closer to Leave Room. Width
-     fixed at 18vmin to fit "Change Host" at 1.875vmin font.
-     Both buttons share the same explicit width. */
+  /* v114: mobile-landscape Leave Room + Change Host unified for
+     identical rendering. */
   .hud-change-host {
     bottom: auto;
     top: calc(max(0.45rem, env(safe-area-inset-top, 0.45rem)) + 2.1rem);
     right: calc(50% - 30vmin + 1.6vmin);
-    font-size: 1.875vmin;
-    padding: 0.4vmin 0;
-    width: 18vmin;
   }
   .game-hud .btn-action-menu,
-  #online-lobby-header .btn-action-menu {
+  #online-lobby-header .btn-action-menu,
+  .hud-change-host {
     width: 18vmin;
+    font-size: 1.875vmin;
+    padding: 0.4vmin 0;
+    line-height: 1.2;
+    box-sizing: border-box;
+    text-align: center;
   }
 }
 
@@ -2531,20 +2528,27 @@ body.mbar-turn-active .mobile-action-bar .mbar-turn-section {
     padding: 0.15vmin 0.7vmin;
   }
 
-  /* v113: Change Host on mobile portrait. Moved up (35 -> 38vmin)
-     to sit closer to Leave Room. Width fixed at 24vmin to fit
-     "Change Host" at 2.4vmin font size (~11 chars × ~1.4vmin per
-     char + padding) and exactly match Leave Room's width. */
+  /* v114: mobile portrait CHANGE HOST + LEAVE ROOM share a single
+     unified rule so the buttons render IDENTICAL — same width,
+     padding, font, line-height, border. Previously Change Host's
+     padding was 0.55vmin 0 (no horizontal) while Leave Room's was
+     0.55vmin 1.3vmin (horizontal padding from the .game-hud .btn
+     override) which made Change Host visually narrower despite
+     having the same explicit width. Position moved up to 40vmin
+     (was 38) so the gap below Leave Room is small. */
+  .game-hud .btn-action-menu,
+  #online-lobby-header .btn-action-menu,
   .hud-change-host {
-    bottom: calc(50% + 38vmin);
-    right: 2vmin;
+    width: 26vmin;
     font-size: 2.4vmin;
     padding: 0.55vmin 0;
-    width: 24vmin;
+    line-height: 1.2;
+    box-sizing: border-box;
+    text-align: center;
   }
-  .game-hud .btn-action-menu,
-  #online-lobby-header .btn-action-menu {
-    width: 24vmin;
+  .hud-change-host {
+    bottom: calc(50% + 40vmin);
+    right: 2vmin;
   }
 }
 
