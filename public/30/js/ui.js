@@ -809,6 +809,26 @@ var UI = (function () {
         Online.onAction(function (data) {
           onlineHandleRemoteAction(data);
         });
+        // v115: GUEST-side callbacks too. The original host might
+        // hand off (voluntary CHANGE HOST) or get migrated (timeout
+        // cascade) and become a guest. After that, broadcasts from
+        // the new host arrive as `game_action` (deal_round /
+        // action_draw / action_stay / play_again) and
+        // `game_state_sync` — but if these callbacks weren't
+        // registered, the messages were silently dropped, leaving
+        // the former host with empty hands and a "Everyone Busted"
+        // results screen. Registering them upfront covers the
+        // become-guest-after-handoff case without needing extra
+        // wiring at handoff time.
+        Online.onGameAction(function (data) {
+          onlineHandleGameAction(data);
+        });
+        Online.onGameStateSync(function (data) {
+          onlineHandleStateSync(data);
+        });
+        Online.onMidGameEntry(function (players) {
+          enterGameInProgress(players);
+        });
         Online.onRenderLobby(function () {
           renderOnlineLobbySeats();
         });

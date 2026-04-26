@@ -2151,10 +2151,10 @@ body.lbar-active .mobile-action-bar .mbar-turn-section {
 }
 @media (orientation: landscape) and (max-width: 1024px) {
   body.lbar-active .mobile-action-bar .mbar-leader-section {
-    right: calc(50% + 45vmin);
+    right: calc(50% + 35vmin);
   }
   body.lbar-active .mobile-action-bar .mbar-turn-section {
-    left: calc(50% + 45vmin);
+    left: calc(50% + 35vmin);
   }
 }
 @media (orientation: landscape) and (max-height: 500px) {
@@ -2164,6 +2164,14 @@ body.lbar-active .mobile-action-bar .mbar-turn-section {
   body.lbar-active .mobile-action-bar .mbar-turn-section {
     left: calc(50% + 55vmin);
   }
+  /* v115: mobile landscape avatar override — 7.8vmin on phone
+     landscape (vmin ~3.93) is only ~30px which is too small.
+     Keep rem-based avatar so it matches the rest of the
+     rem-based mobile-landscape panel. */
+  body.lbar-active .mobile-action-bar .mbar-avatar {
+    width: 3.4rem;
+    height: 3.4rem;
+  }
 }
 
 /* No Draw/Stay buttons in landscape side-panels — the on-table
@@ -2171,14 +2179,16 @@ body.lbar-active .mobile-action-bar .mbar-turn-section {
 body.lbar-active .mobile-action-bar .mbar-buttons {
   display: none;
 }
-/* v111: ALL landscape devices get the rem-based portrait-style
-   sizing (was previously only mobile landscape). The vmin-based
-   sizing rendered tiny on phone landscape and weirdly small on
-   high-DPI tablets; rem is consistent across devices. The user
-   explicitly asked for the 2× size on every landscape viewport. */
+/* v115: side-panel avatars match the table characters' avatar
+   size (7.8vmin) on desktop / laptop / tablet landscape so they
+   read as visually consistent with the LEFT/RIGHT table seats
+   they sit beside. Score / name / cards stay rem-based for
+   readability. Mobile-landscape override (further down) keeps
+   the rem-based avatar since 7.8vmin on phone landscape (~30px)
+   is too small. */
 body.lbar-active .mobile-action-bar .mbar-avatar {
-  width: 3.4rem;
-  height: 3.4rem;
+  width: 7.8vmin;
+  height: 7.8vmin;
 }
 body.lbar-active .mobile-action-bar .mbar-score {
   font-size: 1.7rem;
