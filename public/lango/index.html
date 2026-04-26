@@ -72,6 +72,28 @@
         body.font-calligraphy .links-name-input,
         body.font-calligraphy .font-swatch,
         body.font-calligraphy .ex-cell{text-transform:uppercase}
+        /* Title-case (capitalize each word) for elements where the user
+           wants every word's first letter capitalized — menu modes, the
+           top message above the grid, win/lose messages, the share-link
+           row, hide-toggle labels, etc. Capitalize keeps existing caps
+           (proper nouns like "Lango") and just upper-cases the first
+           letter of each word. */
+        body.font-calligraphy .menu-btn,
+        body.font-calligraphy .game-title-center,
+        body.font-calligraphy #linksTitle,
+        body.font-calligraphy .links-name-label,
+        body.font-calligraphy .links-sender-row,
+        body.font-calligraphy .links-share-help,
+        body.font-calligraphy .links-copy-status,
+        body.font-calligraphy .hide-toggle label,
+        body.font-calligraphy .message{text-transform:capitalize}
+        /* Textareas (Links share textarea) keep the source text as-is so
+           the URL and the user's name appear exactly as typed. */
+        body.font-calligraphy textarea{text-transform:none}
+        /* Selectively-capitalized words inside Rules (first word after
+           "=" in the legend, first word after ":" in modes). Wrapped in
+           <span class="cap"> in the HTML. */
+        body.font-calligraphy .cap{text-transform:capitalize}
         /* First-letter caps per text container — gives sentence case. */
         body.font-calligraphy .logo::first-letter,
         body.font-calligraphy .menu-btn::first-letter,
@@ -593,13 +615,13 @@
                         <div class="ex-cell ex-correct">H</div>
                     </div>
                 </div>
-                <div class="rule legend-line"><strong style="color:var(--accent-primary)">Solid</strong> = correct letter in right place.</div>
-                <div class="rule legend-line"><strong style="color:var(--accent-primary)">Rings</strong> = correct letter in wrong place.</div>
-                <div class="rule legend-line"><strong style="color:var(--accent-primary)">Blank</strong> = letter is not in the word.</div>
+                <div class="rule legend-line"><strong style="color:var(--accent-primary)">Solid</strong> = <span class="cap">correct</span> letter in right place.</div>
+                <div class="rule legend-line"><strong style="color:var(--accent-primary)">Rings</strong> = <span class="cap">correct</span> letter in wrong place.</div>
+                <div class="rule legend-line"><strong style="color:var(--accent-primary)">Blank</strong> = <span class="cap">letter</span> is not in the word.</div>
                 <h2 style="margin-top:2.4rem">Modes</h2>
-                <div class="rule"><strong>Solos:</strong> Lango picks a word.</div>
-                <div class="rule"><strong>Multi:</strong> Friends choose the word.</div>
-                <div class="rule"><strong>Links:</strong> Share words with others.</div>
+                <div class="rule"><strong>Solos:</strong> <span class="cap">Lango</span> picks a word.</div>
+                <div class="rule"><strong>Multi:</strong> <span class="cap">Friends</span> choose the word.</div>
+                <div class="rule"><strong>Links:</strong> <span class="cap">Share</span> words with others.</div>
                 <div style="text-align:center;margin-top:18px">
                     <button class="btn btn-primary" onclick="backFromSub()">Got It</button>
                 </div>
@@ -633,6 +655,10 @@
                             <div class="style-swatch sh-orange" onclick="changeSheet('orange')"></div>
                         </div>
                     </div>
+                </div>
+
+                <div class="style-section">
+                    <div class="style-section-title">Theme</div>
                     <div class="style-row">
                         <label>Shade:</label>
                         <div class="style-swatches">
@@ -643,22 +669,14 @@
                             <div class="style-swatch s-5" onclick="changeShade('5')"></div>
                         </div>
                     </div>
-                </div>
-
-                <div class="style-section">
-                    <div class="style-section-title">Hints</div>
                     <div class="style-row">
-                        <label>Known:</label>
+                        <label>?????:</label>
                         <div class="style-swatches">
-                            <button class="toggle-btn" id="helpKnownOn" onclick="setHelpDefault('known',true)">On</button>
-                            <button class="toggle-btn active" id="helpKnownOff" onclick="setHelpDefault('known',false)">Off</button>
-                        </div>
-                    </div>
-                    <div class="style-row">
-                        <label>Keyes:</label>
-                        <div class="style-swatches">
-                            <button class="toggle-btn" id="helpKeyesOn" onclick="setHelpDefault('keyes',true)">On</button>
-                            <button class="toggle-btn active" id="helpKeyesOff" onclick="setHelpDefault('keyes',false)">Off</button>
+                            <div class="style-swatch placeholder-swatch active" onclick=""></div>
+                            <div class="style-swatch placeholder-swatch" onclick="showSoonMsg('????? coming soon!')"></div>
+                            <div class="style-swatch placeholder-swatch" onclick="showSoonMsg('????? coming soon!')"></div>
+                            <div class="style-swatch placeholder-swatch" onclick="showSoonMsg('????? coming soon!')"></div>
+                            <div class="style-swatch placeholder-swatch" onclick="showSoonMsg('????? coming soon!')"></div>
                         </div>
                     </div>
                 </div>
@@ -673,46 +691,6 @@
                             <div class="style-swatch font-swatch f-cursive" onclick="changeFont('cursive')">L</div>
                             <div class="style-swatch font-swatch f-outfit" onclick="changeFont('outfit')">L</div>
                             <div class="style-swatch font-swatch f-calligraphy" onclick="changeFont('calligraphy')">L</div>
-                        </div>
-                    </div>
-                    <div class="style-row">
-                        <label>Theme:</label>
-                        <div class="style-swatches">
-                            <div class="style-swatch t-light active" onclick="changeTheme('light')"></div>
-                            <div class="style-swatch t-dark" onclick="changeTheme('dark')"></div>
-                            <div class="style-swatch t-pink" onclick="changeTheme('pink')"></div>
-                            <div class="style-swatch t-green" onclick="changeTheme('green')"></div>
-                            <div class="style-swatch t-sunset" onclick="changeTheme('sunset')"></div>
-                        </div>
-                    </div>
-                    <div class="style-row">
-                        <label>Bonus:</label>
-                        <div class="style-swatches">
-                            <div class="style-swatch placeholder-swatch active" onclick="">1</div>
-                            <div class="style-swatch placeholder-swatch" onclick="showSoonMsg('Bonus coming soon!')">2</div>
-                            <div class="style-swatch placeholder-swatch" onclick="showSoonMsg('Bonus coming soon!')">3</div>
-                            <div class="style-swatch placeholder-swatch" onclick="showSoonMsg('Bonus coming soon!')">4</div>
-                            <div class="style-swatch placeholder-swatch" onclick="showSoonMsg('Bonus coming soon!')">5</div>
-                        </div>
-                    </div>
-                    <div class="style-row">
-                        <label>?????:</label>
-                        <div class="style-swatches">
-                            <div class="style-swatch placeholder-swatch active" onclick=""></div>
-                            <div class="style-swatch placeholder-swatch" onclick="showSoonMsg('????? coming soon!')"></div>
-                            <div class="style-swatch placeholder-swatch" onclick="showSoonMsg('????? coming soon!')"></div>
-                            <div class="style-swatch placeholder-swatch" onclick="showSoonMsg('????? coming soon!')"></div>
-                            <div class="style-swatch placeholder-swatch" onclick="showSoonMsg('????? coming soon!')"></div>
-                        </div>
-                    </div>
-                    <div class="style-row">
-                        <label>?????:</label>
-                        <div class="style-swatches">
-                            <div class="style-swatch placeholder-swatch active" onclick=""></div>
-                            <div class="style-swatch placeholder-swatch" onclick="showSoonMsg('????? coming soon!')"></div>
-                            <div class="style-swatch placeholder-swatch" onclick="showSoonMsg('????? coming soon!')"></div>
-                            <div class="style-swatch placeholder-swatch" onclick="showSoonMsg('????? coming soon!')"></div>
-                            <div class="style-swatch placeholder-swatch" onclick="showSoonMsg('????? coming soon!')"></div>
                         </div>
                     </div>
                 </div>
@@ -1030,8 +1008,10 @@ function showSoonMsg(msg) {
 // ── Helps Defaults ──
 function setHelpDefault(which, val) {
     var cap = which.charAt(0).toUpperCase() + which.slice(1);
-    document.getElementById('help' + cap + 'On').classList.toggle('active', val);
-    document.getElementById('help' + cap + 'Off').classList.toggle('active', !val);
+    var on  = document.getElementById('help' + cap + 'On');
+    var off = document.getElementById('help' + cap + 'Off');
+    if (on)  on.classList.toggle('active', val);
+    if (off) off.classList.toggle('active', !val);
     try { localStorage.setItem('lango-default-' + which, val ? '1' : '0'); } catch(e) {}
 }
 function getHelpDefault(which) {
@@ -2800,12 +2780,19 @@ window.addEventListener('load', function() {
     // back from localStorage across loads.
     try {
         updateClashFix();
+        // Hints UI was removed from the Style screen; the toggles still
+        // exist as in-game controls and read from getHelpDefault, so we
+        // just guard against the missing #helpKnown* / #helpKeyes* nodes.
         var knownDef = getHelpDefault('known');
         var keyesDef = getHelpDefault('keyes');
-        document.getElementById('helpKnownOn').classList.toggle('active', knownDef);
-        document.getElementById('helpKnownOff').classList.toggle('active', !knownDef);
-        document.getElementById('helpKeyesOn').classList.toggle('active', keyesDef);
-        document.getElementById('helpKeyesOff').classList.toggle('active', !keyesDef);
+        var hkOn  = document.getElementById('helpKnownOn');
+        var hkOff = document.getElementById('helpKnownOff');
+        var hyOn  = document.getElementById('helpKeyesOn');
+        var hyOff = document.getElementById('helpKeyesOff');
+        if (hkOn)  hkOn.classList.toggle('active', knownDef);
+        if (hkOff) hkOff.classList.toggle('active', !knownDef);
+        if (hyOn)  hyOn.classList.toggle('active', keyesDef);
+        if (hyOff) hyOff.classList.toggle('active', !keyesDef);
     } catch(e) {}
 
     buildKeyboard();
