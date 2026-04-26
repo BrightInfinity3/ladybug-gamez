@@ -115,10 +115,19 @@ var UI = (function () {
     if (!canvasReady) return;
     if (!document.getElementById('screen-game').classList.contains('active')) return;
     Renderer.resize();
+    // iPad keyboard fix (v109): when an INPUT inside a setup seat
+    // has focus, the visualViewport.resize fired by the keyboard
+    // opening triggers this handler. Re-rendering setup seats here
+    // destroys the input element mid-typing — input loses focus,
+    // keyboard immediately closes, screen jumps. Skip the seat
+    // rebuild while an input is focused so the user can type. We
+    // still resize the canvas; only the DOM seat-tree is preserved.
+    var activeEl = document.activeElement;
+    var inputFocused = activeEl && activeEl.tagName === 'INPUT';
     if (gamePhase === 'setup') {
-      renderSetupSeats();
+      if (!inputFocused) renderSetupSeats();
     } else if (gamePhase === 'online-lobby') {
-      renderOnlineLobbySeats();
+      if (!inputFocused) renderOnlineLobbySeats();
     } else {
       positionGameOverlays();
     }
@@ -188,9 +197,31 @@ var UI = (function () {
     createFloatingSuits();
     blockPinchZoom();
     showScreen('screen-title');
-    // Warm up card-texture canvases in the background so Local Play starts fast.
+    // v109: warm up card-texture canvases AND eagerly initialise
+    // PIXI in the background so Local Play / Online Play / Deal
+    // clicks aren't blocked by WebGL context creation. On a slow
+    // desktop the first PIXI init can spend 200-500ms compiling
+    // shaders and uploading textures; doing that work BEFORE the
+    // first user click takes the latency off the critical path.
+    // The canvas element is hidden behind the title screen, so the
+    // user doesn't see the early init.
     if (typeof Renderer !== 'undefined' && Renderer.precacheCardCanvases) {
       try { Renderer.precacheCardCanvases(); } catch (e) { /* non-fatal */ }
+    }
+    // Use requestIdleCallback (or a small setTimeout fallback) so
+    // the early init doesn't block the title screen's paint.
+    var warmRenderer = function () {
+      if (canvasReady) return;
+      var canvasEl = document.getElementById('game-canvas');
+      if (!canvasEl || !Renderer || !Renderer.init) return;
+      try {
+        Renderer.init(canvasEl).then(function () { canvasReady = true; });
+      } catch (e) { /* non-fatal — first click will retry */ }
+    };
+    if (window.requestIdleCallback) {
+      window.requestIdleCallback(warmRenderer, { timeout: 1500 });
+    } else {
+      setTimeout(warmRenderer, 600);
     }
   }
 
@@ -254,6 +285,158 @@ var UI = (function () {
       Renderer.stopLoop();
     }
   }
+
+  // ============= Host-handoff UI helpers (v109) =============
+  // openLeaveRoomConfirm — central entry for any "Leave Room" UI.
+  // Sets the title and sub copy based on host vs guest, applies the
+  // .is-host class so the 3rd "Yes, Exit (Choose New Host)" button
+  // appears for hosts only, and shows the popup.
+  var _hostSelectMode = null;     // { thenLeave: true|false } or null
+  var _hostSelectPendingPeer = null; // peerId currently being asked
+  var _hostRequestSource = null;     // 'voluntary' | 'cascade'
+
+  function openLeaveRoomConfirm() {
+    var panel = document.querySelector('#confirm-leave-room .confirm-panel');
+    var title = document.getElementById('leave-room-title');
+    var sub   = document.getElementById('leave-room-sub');
+    title.textContent = 'Leave Room?';
+    if (Online.isHost()) {
+      panel.classList.add('is-host');
+      sub.textContent = "You're the host — if you leave a new host will need to be chosen.";
+    } else {
+      panel.classList.remove('is-host');
+      sub.textContent = 'Your players will leave. The game keeps going for everyone else.';
+    }
+    document.getElementById('confirm-leave-room').style.display = 'flex';
+  }
+
+  function openHostSelect(mode) {
+    _hostSelectMode = mode || { thenLeave: false };
+    _hostSelectPendingPeer = null;
+    var overlay = document.getElementById('host-select-overlay');
+    document.getElementById('host-select-title').textContent =
+      _hostSelectMode.thenLeave ? 'Choose a New Host' : 'Change Host';
+    document.getElementById('host-select-sub').textContent =
+      _hostSelectMode.thenLeave
+        ? 'Pick a connected player to take over hosting before you leave.'
+        : 'Pick a connected player to take over hosting.';
+    renderHostSelectList(new Set());
+    overlay.style.display = 'flex';
+  }
+  function closeHostSelect() {
+    document.getElementById('host-select-overlay').style.display = 'none';
+  }
+
+  // Render the list of candidates inside the host-select popup.
+  // `declined` is a Set of peerIds the host has already asked who
+  // declined — they're shown greyed out so the host knows not to
+  // try them again this cycle.
+  function renderHostSelectList(declined) {
+    var list = document.getElementById('host-select-list');
+    list.innerHTML = '';
+    var candidates = Online.listHandoffCandidates();
+    if (!candidates.length) {
+      var none = document.createElement('div');
+      none.className = 'host-select-row declined';
+      none.innerHTML = '<span class="hs-name">No connected players to hand off to.</span>';
+      list.appendChild(none);
+      return;
+    }
+    for (var i = 0; i < candidates.length; i++) {
+      var c = candidates[i];
+      var row = document.createElement('div');
+      row.className = 'host-select-row';
+      if (declined.has(c.peerId)) row.classList.add('declined');
+      if (_hostSelectPendingPeer === c.peerId) row.classList.add('pending');
+      var name = document.createElement('span');
+      name.className = 'hs-name';
+      name.textContent = c.username;
+      row.appendChild(name);
+      var tag = document.createElement('span');
+      tag.className = 'hs-tag';
+      if (declined.has(c.peerId))      tag.textContent = 'Declined';
+      else if (_hostSelectPendingPeer === c.peerId) tag.textContent = 'Asking…';
+      else                              tag.textContent = 'Tap to ask';
+      row.appendChild(tag);
+      if (!declined.has(c.peerId) && _hostSelectPendingPeer !== c.peerId) {
+        row.addEventListener('click', (function (peerId) {
+          return function () { askCandidateToHost(peerId, declined); };
+        })(c.peerId));
+      }
+      list.appendChild(row);
+    }
+  }
+
+  function askCandidateToHost(peerId, declined) {
+    _hostSelectPendingPeer = peerId;
+    Online.requestHandoff(peerId);
+    renderHostSelectList(declined);
+  }
+
+  // Set up the response listener once. Online.onHostHandoffResponse
+  // fires when the candidate accepts or declines the handoff
+  // request.
+  function installHostHandoffListeners() {
+    Online.onHostHandoffResponse(function (response) {
+      var declined = new Set();
+      if (!response.accepted) {
+        declined.add(response.fromPeerId);
+        _hostSelectPendingPeer = null;
+        renderHostSelectList(declined);
+      } else {
+        // Candidate accepted — finalize via the server. The server
+        // updates room.hostPeerId and broadcasts host_migrated; the
+        // existing handleHostMigration handler runs on every device
+        // (including us). We close the host-select popup; if this
+        // came from the leave-room flow, we also leave the room.
+        var peerId = response.fromPeerId;
+        Online.finalizeHandoff(peerId);
+        closeHostSelect();
+        if (_hostSelectMode && _hostSelectMode.thenLeave) {
+          // Tiny delay so the migration has a chance to fan out
+          // before our own socket closes; not strictly necessary
+          // (server completes the migration before processing our
+          // leave) but feels cleaner UX-wise.
+          setTimeout(function () {
+            Online.leaveRoom();
+            gamePhase = 'none';
+            Renderer.stopLoop();
+            clearGameDisplay();
+            showScreen('screen-title');
+          }, 200);
+        }
+        _hostSelectMode = null;
+      }
+    });
+
+    // Candidate side: we got asked to take over.
+    Online.onHostHandoffRequest(function (data) {
+      _hostRequestSource = 'voluntary';
+      var who = (data && data.fromHostName) || 'The current host';
+      document.getElementById('host-request-title').textContent = 'Become the New Host?';
+      document.getElementById('host-request-sub').textContent =
+        who + ' wants to hand off the room to you. Accept to take over hosting; decline to keep them as host.';
+      document.getElementById('host-request-overlay').style.display = 'flex';
+    });
+
+    // Cascade-migration proposal: server picked us as the candidate
+    // after the previous host timed out. Show the same accept/deny
+    // popup, but route the response through the cascade channel.
+    Online.onMigrationProposal(function (data) {
+      if (!data.isMe) {
+        // Not me — render a transient toast on others so they know
+        // something is happening. (No popup; they just wait.)
+        return;
+      }
+      _hostRequestSource = 'cascade';
+      document.getElementById('host-request-title').textContent = 'Become the New Host?';
+      document.getElementById('host-request-sub').textContent =
+        'The previous host disconnected. Accept to take over the room; decline to pass to the next player.';
+      document.getElementById('host-request-overlay').style.display = 'flex';
+    });
+  }
+  // Install at module init time.
+  installHostHandoffListeners();
 
   // Wipe transient per-game display state — call when leaving a room
   // or returning to the title so the next session doesn't briefly
@@ -398,19 +581,16 @@ var UI = (function () {
     // Menu button (in-game) — shows confirm dialog
     document.getElementById('btn-menu').addEventListener('click', function () {
       if (Online.isActive()) {
-        var title = document.getElementById('exit-title');
-        var sub = document.getElementById('exit-sub');
-        title.textContent = 'Leave Room?';
-        sub.textContent = Online.isHost()
-          ? 'You\u2019re the host \u2014 leaving will end the game for everyone.'
-          : 'Your players will leave. The game keeps going for everyone else.';
+        // v109: route online sessions through the unified 3-option
+        // leave-room popup. Local play still uses confirm-exit.
+        openLeaveRoomConfirm();
       } else {
         var title2 = document.getElementById('exit-title');
         var sub2 = document.getElementById('exit-sub');
         title2.textContent = 'Return to Main Menu?';
         sub2.textContent = 'Your current game will be lost.';
+        document.getElementById('confirm-exit').style.display = 'flex';
       }
-      document.getElementById('confirm-exit').style.display = 'flex';
     });
 
     // Confirm exit dialog
@@ -685,26 +865,50 @@ var UI = (function () {
     // the game for everyone (the server tears the room down the moment
     // the host's socket closes).
     document.getElementById('btn-leave-room').addEventListener('click', function () {
-      var title = document.getElementById('leave-room-title');
-      var sub = document.getElementById('leave-room-sub');
-      if (Online.isHost()) {
-        title.textContent = 'Leave Room?';
-        sub.textContent = 'You\u2019re the host \u2014 leaving will end the game for everyone.';
-      } else {
-        title.textContent = 'Leave Room?';
-        sub.textContent = 'Your players will leave. The game keeps going for everyone else.';
-      }
-      document.getElementById('confirm-leave-room').style.display = 'flex';
+      openLeaveRoomConfirm();
     });
     document.getElementById('btn-confirm-leave-yes').addEventListener('click', function () {
       document.getElementById('confirm-leave-room').style.display = 'none';
       Online.leaveRoom();
       gamePhase = 'none';
       Renderer.stopLoop();
+      clearGameDisplay();
       showScreen('screen-title');
     });
     document.getElementById('btn-confirm-leave-no').addEventListener('click', function () {
       document.getElementById('confirm-leave-room').style.display = 'none';
+    });
+    // v109: 3-option host leave path. "Yes, Exit (Choose New Host)"
+    // closes the leave-room popup and opens the host-select popup
+    // with a thenLeave flag set. On a successful handoff we leave;
+    // on cancel/all-deny the host is brought back to leave-room.
+    document.getElementById('btn-leave-choose-host').addEventListener('click', function () {
+      document.getElementById('confirm-leave-room').style.display = 'none';
+      openHostSelect({ thenLeave: true });
+    });
+    // CHANGE HOST button (host-only, in-game HUD).
+    document.getElementById('btn-change-host').addEventListener('click', function () {
+      openHostSelect({ thenLeave: false });
+    });
+    // Host-select popup buttons
+    document.getElementById('btn-host-select-cancel').addEventListener('click', function () {
+      var thenLeave = !!(_hostSelectMode && _hostSelectMode.thenLeave);
+      closeHostSelect();
+      _hostSelectMode = null;
+      if (thenLeave) document.getElementById('confirm-leave-room').style.display = 'flex';
+    });
+    // Host-handoff request popup buttons (shown to candidate)
+    document.getElementById('btn-host-request-accept').addEventListener('click', function () {
+      document.getElementById('host-request-overlay').style.display = 'none';
+      if (_hostRequestSource === 'voluntary') Online.respondHandoff(true);
+      else if (_hostRequestSource === 'cascade') Network.acceptMigrationProposal();
+      _hostRequestSource = null;
+    });
+    document.getElementById('btn-host-request-deny').addEventListener('click', function () {
+      document.getElementById('host-request-overlay').style.display = 'none';
+      if (_hostRequestSource === 'voluntary') Online.respondHandoff(false);
+      else if (_hostRequestSource === 'cascade') Network.declineMigrationProposal();
+      _hostRequestSource = null;
     });
 
     // Back button on online screen — clean up any lingering session so
@@ -2709,6 +2913,13 @@ var UI = (function () {
         roomRow.style.display = 'none';
       }
     }
+    // v109: Change Host button — host-only, online-only. Updated
+    // here so it tracks live across migrations (a guest who got
+    // promoted picks up the button without a manual refresh).
+    var changeHostBtn = document.getElementById('btn-change-host');
+    if (changeHostBtn) {
+      changeHostBtn.style.display = (Online.isActive() && Online.isHost()) ? '' : 'none';
+    }
   }
 
   function setMessage(msg) {
@@ -2735,6 +2946,14 @@ var UI = (function () {
     return window.matchMedia('(orientation: portrait) and (max-width: 480px)').matches;
   }
 
+  // Detect any landscape viewport (phone, tablet, desktop). v109
+  // shows the leader/active-player side panels in landscape across
+  // every device class — there's plenty of horizontal space on
+  // either side of the centered card table.
+  function isLandscapeView() {
+    return window.matchMedia('(orientation: landscape)').matches;
+  }
+
   // Track the latest "is it my turn" state so updatePlayerTotal can
   // re-render the bar without changing visibility.
   var _mbarTurnActive = false;
@@ -2754,13 +2973,16 @@ var UI = (function () {
     if (visible !== undefined) _mbarTurnActive = !!visible;
     var phaseOk = (gamePhase === 'playing');
     var portrait = isMobilePortrait();
-    var shouldShow = phaseOk && portrait;
-    document.body.classList.toggle('mbar-active', shouldShow);
-    document.body.classList.toggle('mbar-turn-active', shouldShow && _mbarTurnActive);
-    // Section visibility is now handled by the body.mbar-active /
-    // body.mbar-turn-active CSS rules — JS no longer sets inline
-    // display on the wrapper. Bail early when not visible to avoid
-    // unnecessary fillMbarPlayer work.
+    var landscape = isLandscapeView();
+    var portraitShow = phaseOk && portrait;
+    var landscapeShow = phaseOk && landscape;
+    var shouldShow = portraitShow || landscapeShow;
+    document.body.classList.toggle('mbar-active', portraitShow);
+    document.body.classList.toggle('mbar-turn-active', portraitShow && _mbarTurnActive);
+    document.body.classList.toggle('lbar-active', landscapeShow);
+    // Section visibility is handled by body.{mbar,lbar}-active /
+    // body.mbar-turn-active CSS rules. Bail early when not visible
+    // to avoid unnecessary fillMbarPlayer work.
     if (!shouldShow) return;
 
     var gs = Game.getState && Game.getState();
@@ -2771,10 +2993,12 @@ var UI = (function () {
     var leader = findCurrentLeader();
     fillMbarPlayer(document.getElementById('mbar-leader'), leader);
 
-    // Turn section: current active player + buttons. Only fill the
-    // current-player display when the section is visible — otherwise
-    // skip work since it's hidden anyway.
-    if (_mbarTurnActive) {
+    // Turn section: current active player + (in mobile portrait)
+    // Draw/Stay buttons. Fill it whenever it's actually visible:
+    //   * mobile portrait: only on local turn (mbar-turn-active)
+    //   * landscape: always during gameplay (informational side panel)
+    var turnSectionVisible = _mbarTurnActive || landscape;
+    if (turnSectionVisible) {
       var current = (typeof Game.getCurrentPlayer === 'function') ? Game.getCurrentPlayer() : null;
       fillMbarPlayer(document.getElementById('mbar-current'), current);
       var drawBtn = document.getElementById('mbar-btn-draw');
@@ -2818,13 +3042,17 @@ var UI = (function () {
     // LEFT badges slot, stay/bust pill goes in the RIGHT slot —
     // mirroring .game-seat-top-row, where dealer-chip justify-end
     // (left of score) and status pill justify-start (right of score).
+    // v109 also populates an optional .mbar-cards element for the
+    // active-player section (cards stack to the LEFT of the avatar).
     var avatarEl   = container.querySelector('.mbar-avatar');
+    var cardsEl    = container.querySelector('.mbar-cards');
     var badgesLeft = container.querySelector('.mbar-top .mbar-badges-left');
     var badgesRight= container.querySelector('.mbar-top .mbar-badges-right');
     var scoreEl    = container.querySelector('.mbar-top .mbar-score');
     var nameEl     = container.querySelector('.mbar-name');
     if (!player) {
       if (avatarEl) avatarEl.innerHTML = '';
+      if (cardsEl) cardsEl.innerHTML = '';
       if (badgesLeft) badgesLeft.innerHTML = '';
       if (badgesRight) badgesRight.innerHTML = '';
       if (scoreEl) scoreEl.textContent = '';
@@ -2855,6 +3083,39 @@ var UI = (function () {
       s.className = 'mbar-badge stay'; s.textContent = 'Stay';
       badgesRight.appendChild(s);
     }
+    // v109: render the player's cards next to the avatar in the
+    // active-player section. Only the .mbar-current container has
+    // a .mbar-cards element; the leader card omits it so the
+    // leader-section stays compact at the top of the screen.
+    if (cardsEl) {
+      cardsEl.innerHTML = '';
+      var cards = (hand && hand.cards) ? hand.cards : [];
+      for (var ci = 0; ci < cards.length; ci++) {
+        var c = cards[ci];
+        var ce = document.createElement('div');
+        ce.className = 'mbar-card suit-' + c.color;
+        var rankSpan = document.createElement('span');
+        rankSpan.className = 'mbar-card-rank';
+        rankSpan.textContent = c.rank;
+        var suitSpan = document.createElement('span');
+        suitSpan.className = 'mbar-card-suit';
+        suitSpan.textContent = suitSymbol(c.suit);
+        ce.appendChild(rankSpan);
+        ce.appendChild(suitSpan);
+        cardsEl.appendChild(ce);
+      }
+    }
+  }
+
+  // Tiny helper for suit -> unicode symbol. Mirrors CardSystem's
+  // internal mapping but is safe to call without depending on
+  // module internals.
+  function suitSymbol(suit) {
+    if (suit === 'hearts')   return '♥';
+    if (suit === 'diamonds') return '♦';
+    if (suit === 'clubs')    return '♣';
+    if (suit === 'spades')   return '♠';
+    return '';
   }
 
   // Wire mobile bar's Draw / Stay once at init to the same handlers.

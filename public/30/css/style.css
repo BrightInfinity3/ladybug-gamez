@@ -1139,18 +1139,27 @@ html, body {
   text-align: center;
 }
 
+/* v109: 2x size and bolder, with tighter ': #' spacing so the
+   label and number sit at the same letter-pitch as 'SR' / 'AR'
+   inside the label. The label's 0.1em letter-spacing was
+   previously larger than the 0.4vmin gap before the value, which
+   made ': 24' look detached from the label. */
 .deck-info-label {
-  font-size: 1.4vmin;
+  font-size: 2.8vmin;
   color: var(--gold);
   text-transform: uppercase;
   letter-spacing: 0.1em;
+  font-weight: 700;
 }
 
 .deck-info-value {
-  font-size: 1.4vmin;
+  font-size: 2.8vmin;
   color: var(--gold-light);
-  margin-left: 0.4vmin;
-  font-weight: 700;
+  /* Match the label's letter-spacing (0.1em of 2.8vmin = 0.28vmin)
+     so the gap between the colon and the digit is the same as the
+     gap between consecutive letters in 'CARDS REMAINING'. */
+  margin-left: 0.28vmin;
+  font-weight: 900;
 }
 
 /* ---------- Game HUD (floating, no background bar) ---------- */
@@ -1185,6 +1194,17 @@ html, body {
   display: flex;
   align-items: center;
   gap: 0.4vmin;
+}
+
+/* v109: right-side action group — Change Host + Leave Room
+   sit together on the right edge of the HUD. justify-self: end
+   pushes the whole group right; gap between buttons is small so
+   they read as a group. */
+.hud-right {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 0.6vmin;
 }
 
 /* Room-code row — separate absolutely-positioned element. Sits
@@ -1260,6 +1280,26 @@ html, body {
   text-align: center;
   max-width: min(90vw, 22rem);
 }
+
+/* v109: leave-room popup is wider so the longer host copy
+   ("You're the host - if you leave a new host will need to be
+   chosen.") fits on a single line at desktop sizes. The 3-button
+   host variant also benefits from the extra width — the longest
+   button label is "Yes, Exit (Choose New Host)". */
+.confirm-panel-leave {
+  max-width: min(95vw, 32rem);
+}
+.confirm-panel-leave .confirm-buttons .btn {
+  width: auto;
+  min-width: 12rem;
+  max-width: 100%;
+  white-space: nowrap;
+}
+/* When the leave-confirm is shown to a HOST, the JS adds .is-host
+   to the panel which reveals the extra "Yes, Exit (Choose New
+   Host)" button. Guests see only "Yes, Leave" + Cancel. */
+.confirm-panel-leave .leave-host-only { display: none; }
+.confirm-panel-leave.is-host .leave-host-only { display: inline-flex; }
 
 .confirm-title {
   font-family: var(--font-display);
@@ -1695,6 +1735,85 @@ html, body {
   .character-picker .btn-sm { font-size: 0.85rem; padding: 0.45em 1.3em; min-width: 5.5rem; }
 }
 
+/* v109: mobile landscape popups must fit on ONE screen with no
+   vertical scroll. The 6-row character grid is the dominant
+   constraint — at 6 columns the avatars are wider than they
+   are tall in landscape; we limit panel max-height and let the
+   grid auto-fit. The exact threshold (max-height: 500px)
+   matches the existing landscape-phone band. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .picker-panel {
+    max-height: 95vh;
+    padding: 0.55rem 0.8rem;
+    max-width: min(92vw, 22rem);
+  }
+  .picker-panel h3 {
+    font-size: 0.85rem;
+    margin: 0 0 0.3rem 0;
+  }
+  .picker-grid {
+    gap: 0.25rem;
+    margin-bottom: 0.4rem;
+    grid-template-columns: repeat(8, 1fr);
+  }
+  .picker-animal { border-width: 1px; }
+  .picker-animal-name { font-size: 0.4rem; }
+  .picker-panel .btn-sm,
+  .character-picker .btn-sm { font-size: 0.78rem; padding: 0.3em 1em; min-width: 4.5rem; }
+
+  .reassign-panel {
+    max-height: 95vh;
+    padding: 0.65rem 0.85rem;
+    max-width: min(92vw, 26rem);
+  }
+  .reassign-panel h3 { font-size: 0.85rem; margin-bottom: 0.3rem; }
+  .reassign-player-card {
+    padding: 0.32rem 0.5rem;
+    margin-bottom: 0.4rem;
+    gap: 0.5rem;
+  }
+  .reassign-player-card .ra-avatar { width: 1.7rem; height: 1.7rem; }
+  .reassign-player-card .ra-name { font-size: 0.75rem; }
+  .reassign-options { gap: 0.25rem; margin-bottom: 0.4rem; }
+  .reassign-option { font-size: 0.72rem; padding: 0.3rem 0.5rem; gap: 0.45rem; }
+  .reassign-option .ra-tag { font-size: 0.55rem; min-width: 1.7rem; padding: 0.08rem 0.32rem; }
+  .reassign-actions .btn { font-size: 0.72rem; padding: 0.3em 1em; }
+
+  .device-leave-panel {
+    max-height: 95vh;
+    padding: 0.65rem 0.85rem;
+    max-width: min(92vw, 28rem);
+  }
+  .device-leave-panel h3 { font-size: 0.9rem; margin-bottom: 0.25rem; }
+  .device-leave-subtitle { font-size: 0.7rem; margin-bottom: 0.45rem; }
+  .device-leave-players { gap: 0.3rem; margin-bottom: 0.45rem; }
+  .device-leave-player { padding: 0.32rem 0.45rem; gap: 0.5rem; }
+  .device-leave-player-avatar { width: 1.6rem; height: 1.6rem; }
+  .device-leave-player-name { font-size: 0.72rem; }
+  .device-leave-toggle button { font-size: 0.62rem; padding: 0.22em 0.6em; }
+  .device-leave-actions .btn { font-size: 0.72rem; padding: 0.3em 1em; }
+
+  .reconnect-gate-panel {
+    max-height: 95vh;
+    padding: 0.7rem 0.95rem;
+    max-width: min(92vw, 22rem);
+  }
+  .reconnect-gate-panel h3 { font-size: 0.9rem; }
+  .reconnect-gate-sub { font-size: 0.7rem; margin-bottom: 0.5rem; }
+  .reconnect-gate-actions .btn { font-size: 0.72rem; padding: 0.3em 1em; }
+
+  .join-requests-panel {
+    max-height: 95vh;
+    padding: 0.7rem 0.85rem;
+    max-width: min(92vw, 24rem);
+  }
+  .join-requests-panel h3 { font-size: 0.85rem; margin-bottom: 0.4rem; }
+  .join-request-item { padding: 0.45rem 0.55rem; margin-bottom: 0.35rem; }
+  .join-request-info { font-size: 0.78rem; }
+  .join-request-warning { font-size: 0.65rem; }
+  .join-request-buttons .btn { font-size: 0.7rem; padding: 0.3em 0.85em; }
+}
+
 /* ---------- Confetti ---------- */
 .confetti-container {
   position: fixed;
@@ -1889,24 +2008,101 @@ html, body {
    bottom-positioning. The HUD's BOTTOM edge sits at
    calc(50% + 43.7vmin) from the bottom of the viewport, and the
    HUD content itself is roughly 4vmin tall, so the HUD's TOP edge
-   is at ~calc(50% + 47.7vmin). v105 places the leader section's
-   BOTTOM at calc(50% + 53vmin) — about 5vmin above the HUD top
-   edge — so the leader NAME (the bottom child) and HUD round line
-   have a comfortable gap rather than nearly touching. The empty
-   space above the leader card on tall phones is intentional (and
-   clears notches / front cameras automatically since we're not
-   anchored to the top edge anymore). */
+   is at ~calc(50% + 47.7vmin). v109 raises the leader section's
+   BOTTOM to calc(50% + 55vmin) so the gap above the new
+   1.5x-enlarged HUD top stays the same as it was when the HUD was
+   the smaller default size. Empty space above the leader card on
+   tall phones is intentional (and clears notches / front cameras
+   automatically since we're not anchored to the top edge anymore). */
 .mobile-action-bar .mbar-leader-section {
-  bottom: calc(50% + 53vmin);
+  bottom: calc(50% + 55vmin);
 }
 body.mbar-active .mobile-action-bar .mbar-leader-section {
   display: flex;
 }
+
+/* ---------- Landscape side panels (v109) ----------
+   On any landscape viewport, with the table centered and ~50vmin
+   of unused space on each side, show the leader card on the LEFT
+   side of the screen and the active-player card on the RIGHT.
+   Both sections always visible during gameplay (informational —
+   the on-table Draw/Stay buttons remain the input mechanism, so
+   we hide the bar's own buttons in this layout). */
+body.lbar-active .mobile-action-bar .mbar-leader-section,
+body.lbar-active .mobile-action-bar .mbar-turn-section {
+  display: flex;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  bottom: auto;
+  width: auto;
+  max-width: 26vmin;
+  padding: 0 1vmin;
+  z-index: 30;
+}
+body.lbar-active .mobile-action-bar .mbar-leader-section {
+  left: 1vmin;
+  right: auto;
+}
+body.lbar-active .mobile-action-bar .mbar-turn-section {
+  right: 1vmin;
+  left: auto;
+}
+/* No Draw/Stay buttons in landscape side-panels — the on-table
+   .game-actions stay visible and serve as the input. */
+body.lbar-active .mobile-action-bar .mbar-buttons {
+  display: none;
+}
+/* Landscape side panels reuse the same .mbar-* element styles for
+   avatar / score / name / cards. Slightly larger card size so
+   they're readable at the side. */
+body.lbar-active .mobile-action-bar .mbar-avatar {
+  width: 5.5vmin;
+  height: 5.5vmin;
+}
+body.lbar-active .mobile-action-bar .mbar-score {
+  font-size: 3.2vmin;
+}
+body.lbar-active .mobile-action-bar .mbar-name {
+  font-size: 1.7vmin;
+  max-width: 22vmin;
+}
+body.lbar-active .mobile-action-bar .mbar-leader-label {
+  font-size: 1.6vmin;
+  margin-bottom: 0.5vmin;
+}
+body.lbar-active .mobile-action-bar .mbar-card {
+  width: 2.4vmin;
+  height: 3.4vmin;
+  font-size: 1.4vmin;
+  border-radius: 0.3vmin;
+}
+body.lbar-active .mobile-action-bar .mbar-card .mbar-card-suit {
+  font-size: 1.2vmin;
+}
+body.lbar-active .mobile-action-bar .mbar-row {
+  gap: 0.6vmin;
+}
+body.lbar-active .mobile-action-bar .mbar-cards {
+  gap: 0.25vmin;
+}
+body.lbar-active .mobile-action-bar .mbar-top {
+  height: 2.8vmin;
+  max-width: 22vmin;
+}
+body.lbar-active .mobile-action-bar .mbar-badges .mbar-badge {
+  font-size: 1.1vmin;
+  padding: 0.15vmin 0.55vmin;
+}
+/* Active-player gets a subtle gold tint on the avatar border in
+   landscape too, so the side panel matches the table-seat
+   leader treatment without competing with the table itself. */
 /* Turn section anchored BELOW the bottom seat's name (~44vmin
-   below center) with a few vmin of breathing room — score 14,
-   avatar etc. used to brush up against the bottom seat's name. */
+   below center). v109 doubles the breathing room (from ~3vmin to
+   ~6vmin) so the active player's score doesn't crowd the bottom
+   seat's name; turn-section start moved 47vmin -> 50vmin. */
 .mobile-action-bar .mbar-turn-section {
-  top: calc(50% + 47vmin);
+  top: calc(50% + 50vmin);
   gap: 0.45rem;
 }
 body.mbar-turn-active .mobile-action-bar .mbar-turn-section {
@@ -1994,6 +2190,52 @@ body.mbar-turn-active .mobile-action-bar .mbar-turn-section {
   animation: leaderGlowPulse 2s ease-in-out infinite;
 }
 
+/* v109: cards-and-avatar row inside the active-player section.
+   The cards stack to the LEFT of the avatar at roughly 2x the
+   on-table mini-card size so the active player can read their
+   hand without looking up at the table. The leader-section's
+   layout doesn't include this row — leader-section's avatar is
+   still its own immediate child. */
+.mobile-action-bar .mbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+}
+.mobile-action-bar .mbar-cards {
+  display: flex;
+  gap: 0.18rem;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+.mobile-action-bar .mbar-card {
+  width: 1.7rem;
+  height: 2.4rem;
+  border-radius: 0.2rem;
+  background: var(--card-white);
+  border: 1px solid #ccc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  box-shadow: 0 0.05rem 0.2rem rgba(0,0,0,0.4);
+}
+.mobile-action-bar .mbar-card.suit-red { color: var(--suit-red); }
+.mobile-action-bar .mbar-card.suit-black { color: var(--suit-black); }
+.mobile-action-bar .mbar-card .mbar-card-rank,
+.mobile-action-bar .mbar-card .mbar-card-suit {
+  display: block;
+  text-align: center;
+}
+.mobile-action-bar .mbar-card .mbar-card-suit {
+  font-size: 0.85rem;
+  margin-top: 0.05rem;
+}
 .mobile-action-bar .mbar-avatar {
   width: 3.4rem;
   height: 3.4rem;
@@ -2049,30 +2291,79 @@ body.mbar-turn-active .mobile-action-bar .mbar-turn-section {
   body.mbar-active.mbar-turn-active #game-actions {
     display: none !important;
   }
+
+  /* v109: HUD enlargement on mobile portrait. 1.5x text on every
+     element of the top line so the round/turn/leave info reads
+     cleanly on a small phone. The HUD stays bottom-anchored so the
+     bottom of the text doesn't move — the larger glyphs grow upward
+     into space that was previously empty. Grid widened to full
+     viewport width and the items pinned to LEFT/RIGHT edges. */
+  .game-hud {
+    max-width: 100%;
+    padding: 0.8vmin 2vmin;
+    grid-template-columns: 1fr auto 1fr;
+  }
+  .game-hud .hud-label,
+  .game-hud .hud-value,
+  .hud-left {
+    font-size: 3.45vmin;
+  }
+  .game-hud .btn {
+    font-size: 2.4vmin;
+    padding: 0.55vmin 1.3vmin;
+  }
+  .game-hud .hud-round { justify-self: start; }
+  .game-hud .btn-action-menu { justify-self: end; }
+
+  /* Room row: switched to TOP-anchor so growing the font expands
+     downward (preserving the top edge), per request. Anchored at
+     the calculated previous top position: old bottom 50%+40.2vmin
+     + old height ~1.8vmin = old top at 50%+42vmin above center =
+     50%-42vmin from viewport top. */
+  .hud-room-row {
+    bottom: auto;
+    top: calc(50% - 42vmin);
+    left: 1.5vmin;
+  }
+  .hud-room-row .hud-label,
+  .hud-room-row .lobby-code {
+    font-size: 2.4vmin;
+  }
+  .hud-room-row .lobby-code {
+    padding: 0.15vmin 0.7vmin;
+  }
 }
 
 /* Shrink Draw/Stay buttons (ONLY them — the rest of the leader
    and turn sections stay the same size) when the portrait viewport
    is shorter than ~800px. This is the typical state of a phone in
-   portrait WITHOUT fullscreen mode (URL bar visible eats ~80-150px),
-   where the default 1.15rem buttons on top of the avatar+name+score
-   stack would push the buttons off the bottom of the screen. */
-@media (orientation: portrait) and (max-height: 800px) {
+   portrait WITHOUT fullscreen mode (URL bar visible eats ~80-150px).
+   v109 tightened the tiers because the active-player section is
+   taller now (cards next to the avatar) AND the section starts
+   3vmin lower (50vmin -> 47vmin moved to 50vmin) so there's less
+   vertical room left for the buttons before they clip. */
+@media (orientation: portrait) and (max-height: 850px) {
   .mobile-action-bar .mbar-buttons .btn {
-    font-size: 0.95rem;
-    padding: 0.5em 0;
+    font-size: 1rem;
+    padding: 0.52em 0;
   }
 }
-@media (orientation: portrait) and (max-height: 700px) {
+@media (orientation: portrait) and (max-height: 750px) {
   .mobile-action-bar .mbar-buttons .btn {
-    font-size: 0.85rem;
-    padding: 0.42em 0;
+    font-size: 0.88rem;
+    padding: 0.45em 0;
   }
 }
-@media (orientation: portrait) and (max-height: 600px) {
+@media (orientation: portrait) and (max-height: 650px) {
   .mobile-action-bar .mbar-buttons .btn {
     font-size: 0.78rem;
     padding: 0.36em 0;
+  }
+}
+@media (orientation: portrait) and (max-height: 550px) {
+  .mobile-action-bar .mbar-buttons .btn {
+    font-size: 0.7rem;
+    padding: 0.3em 0;
   }
 }
 
@@ -2996,4 +3287,151 @@ body.mbar-turn-active .mobile-action-bar .mbar-turn-section {
   .disband-panel { max-width: 300px; padding: 1.1rem 1.3rem; }
   .disband-message { font-size: 0.88rem; margin-bottom: 1rem; line-height: 1.45; }
   .disband-panel .btn { font-size: 0.85rem; padding: 0.5em 1.4em; }
+}
+
+/* ---------- Host-select & Host-request popups (v109) ----------
+   The host-select popup is opened by the new CHANGE HOST button in
+   the HUD AND by the host's "Yes, Exit (Choose New Host)" path on
+   Leave Room. It lists every connected guest and clicking one
+   sends a host-handoff request. The host-request popup is shown to
+   the requested guest (or the cascading-migration candidate) — the
+   guest accepts to become host or declines so the requester moves
+   on. Both popups follow the same rem-based sizing pattern as the
+   disband popup with full 1024 / 768 / 480 tiers. */
+
+.host-select-overlay,
+.host-request-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 130;
+}
+
+.host-select-panel,
+.host-request-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--gold-dim);
+  border-radius: 0.9rem;
+  padding: 1.7rem 1.9rem;
+  max-width: min(95vw, 30rem);
+  width: 92%;
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: 0 0.5rem 2rem rgba(255, 200, 60, 0.2);
+}
+
+.host-select-panel h3,
+.host-request-panel h3 {
+  font-family: var(--font-display);
+  color: var(--gold-light);
+  margin: 0 0 0.7rem 0;
+  text-align: center;
+  font-size: 1.45rem;
+}
+
+.host-select-sub,
+.host-request-sub {
+  font-size: 1rem;
+  color: var(--text-dim);
+  text-align: center;
+  margin: 0 0 1rem 0;
+  line-height: 1.4;
+}
+
+.host-select-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.host-select-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.7rem 0.9rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.host-select-row:hover { border-color: var(--gold); background: rgba(212,160,23,0.08); }
+.host-select-row.declined {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
+}
+.host-select-row.pending {
+  border-color: var(--gold);
+  background: rgba(212,160,23,0.12);
+}
+.host-select-row .hs-name {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: var(--text-light);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.host-select-row .hs-tag {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.host-select-row.declined .hs-tag { color: var(--bust-red); }
+
+.host-select-actions,
+.host-request-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.7rem;
+}
+.host-select-actions .btn,
+.host-request-actions .btn {
+  font-size: 1.05rem;
+  padding: 0.55em 1.7em;
+}
+
+@media (max-width: 1024px) {
+  .host-select-panel, .host-request-panel { padding: 1.4rem 1.6rem; max-width: min(94vw, 28rem); }
+  .host-select-panel h3, .host-request-panel h3 { font-size: 1.3rem; }
+  .host-select-sub, .host-request-sub { font-size: 0.95rem; }
+  .host-select-row .hs-name { font-size: 1rem; }
+  .host-select-actions .btn, .host-request-actions .btn { font-size: 0.98rem; }
+}
+@media (max-width: 768px) {
+  .host-select-panel, .host-request-panel { padding: 1.15rem 1.3rem; border-radius: 0.7rem; }
+  .host-select-panel h3, .host-request-panel h3 { font-size: 1.18rem; }
+  .host-select-sub, .host-request-sub { font-size: 0.85rem; }
+  .host-select-row { padding: 0.55rem 0.7rem; gap: 0.7rem; }
+  .host-select-row .hs-name { font-size: 0.92rem; }
+  .host-select-row .hs-tag { font-size: 0.7rem; }
+  .host-select-actions .btn, .host-request-actions .btn { font-size: 0.9rem; padding: 0.5em 1.5em; }
+}
+@media (max-width: 480px) {
+  .host-select-panel, .host-request-panel { padding: 0.95rem 1rem; }
+  .host-select-panel h3, .host-request-panel h3 { font-size: 1.05rem; margin-bottom: 0.5rem; }
+  .host-select-sub, .host-request-sub { font-size: 0.78rem; margin-bottom: 0.7rem; }
+  .host-select-row { padding: 0.45rem 0.55rem; gap: 0.55rem; }
+  .host-select-row .hs-name { font-size: 0.85rem; }
+  .host-select-row .hs-tag { font-size: 0.62rem; }
+  .host-select-actions { gap: 0.55rem; }
+  .host-select-actions .btn, .host-request-actions .btn { font-size: 0.82rem; padding: 0.45em 1.3em; }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .host-select-panel, .host-request-panel {
+    max-height: 95vh;
+    padding: 0.65rem 0.85rem;
+    max-width: min(92vw, 26rem);
+  }
+  .host-select-panel h3, .host-request-panel h3 { font-size: 0.9rem; margin-bottom: 0.3rem; }
+  .host-select-sub, .host-request-sub { font-size: 0.7rem; margin-bottom: 0.5rem; }
+  .host-select-row { padding: 0.32rem 0.45rem; gap: 0.5rem; }
+  .host-select-row .hs-name { font-size: 0.75rem; }
+  .host-select-actions .btn, .host-request-actions .btn { font-size: 0.72rem; padding: 0.3em 1em; }
 }

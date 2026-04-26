@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=108">
+  <link rel="stylesheet" href="css/style.css?v=109">
 </head>
 <body>
 
@@ -123,7 +123,10 @@
   <div id="screen-game" class="screen">
     <!-- Game HUD (floating elements, no background bar) -->
     <div class="game-hud" id="game-hud" style="display:none">
-      <!-- Top row: Round | message | Leave Room (original layout). -->
+      <!-- Top row: Round | message | [Change Host] Leave Room.
+           v109: Change Host appears for online HOSTS only — toggled
+           via JS (hidden for guests, hidden in local play). Sized
+           identically to Leave Room and sits to its left. -->
       <div class="hud-round">
         <span class="hud-label">Round:</span>
         <span class="hud-value" id="hud-round">1</span>
@@ -131,7 +134,10 @@
       <div class="hud-left">
         <span id="hud-message"></span>
       </div>
-      <button class="btn btn-outline btn-action-menu" id="btn-menu">Main Menu</button>
+      <div class="hud-right">
+        <button class="btn btn-outline btn-action-menu" id="btn-change-host" style="display:none">Change Host</button>
+        <button class="btn btn-outline btn-action-menu" id="btn-menu">Main Menu</button>
+      </div>
     </div>
 
     <!-- Room-code row — absolutely positioned as its own element just
@@ -208,7 +214,14 @@
             <span class="mbar-score"></span>
             <span class="mbar-badges mbar-badges-right"></span>
           </div>
-          <div class="mbar-avatar"></div>
+          <!-- v109: cards stack to the LEFT of the avatar so the
+               active player sees their hand at ~2x the on-table
+               size. Cards + avatar share a horizontal row; name
+               sits below as before. -->
+          <div class="mbar-row">
+            <div class="mbar-cards"></div>
+            <div class="mbar-avatar"></div>
+          </div>
           <div class="mbar-name"></div>
         </div>
         <div class="mbar-buttons" id="mbar-buttons">
@@ -308,14 +321,53 @@
       </div>
     </div>
 
-    <!-- Leave room confirm -->
+    <!-- Leave room confirm. v109: GUEST sees the simple two-button
+         dialog as before; HOST sees a 3-button variant with an extra
+         "Yes, Exit (Choose New Host)" path that opens the host-select
+         popup. The .leave-host-only buttons are toggled on by
+         .confirm-panel.is-host wrapper class set in JS. -->
     <div class="confirm-overlay" id="confirm-leave-room" style="display:none">
-      <div class="confirm-panel">
+      <div class="confirm-panel confirm-panel-leave">
         <p class="confirm-title" id="leave-room-title">Leave Room?</p>
         <p class="confirm-sub" id="leave-room-sub">Your players will leave. The game keeps going for everyone else.</p>
         <div class="confirm-buttons">
+          <button class="btn btn-gold leave-host-only" id="btn-leave-choose-host">Yes, Exit (Choose New Host)</button>
           <button class="btn btn-gold" id="btn-confirm-leave-yes">Yes, Leave</button>
           <button class="btn btn-outline" id="btn-confirm-leave-no">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Host-select popup (v109). Opened by the new CHANGE HOST
+         button OR by the host's "Yes, Exit (Choose New Host)" path
+         on Leave Room. Lists every connected guest as a tappable
+         row; clicking sends them a host_handoff_request. The
+         requested device sees a separate accept/deny popup and
+         either accepts (host migration completes) or declines
+         (this popup re-opens with that device greyed out so the
+         host can pick someone else). -->
+    <div class="host-select-overlay" id="host-select-overlay" style="display:none">
+      <div class="host-select-panel">
+        <h3 id="host-select-title">Choose a New Host</h3>
+        <p class="host-select-sub" id="host-select-sub">Pick a connected player to take over hosting.</p>
+        <div class="host-select-list" id="host-select-list"></div>
+        <div class="host-select-actions">
+          <button class="btn btn-outline" id="btn-host-select-cancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Host-handoff request popup (v109). Shown to the candidate
+         that the current host (or server, on cascade migration)
+         picked. They accept to become the new host or decline; on
+         decline the requester moves on to the next candidate. -->
+    <div class="host-request-overlay" id="host-request-overlay" style="display:none">
+      <div class="host-request-panel">
+        <h3 id="host-request-title">Become the New Host?</h3>
+        <p class="host-request-sub" id="host-request-sub">The current host wants to hand off the room to you.</p>
+        <div class="host-request-actions">
+          <button class="btn btn-gold" id="btn-host-request-accept">Accept</button>
+          <button class="btn btn-outline" id="btn-host-request-deny">Decline</button>
         </div>
       </div>
     </div>
@@ -379,16 +431,16 @@
        now uses a plain WebSocket client (js/network.js) talking to the
        central Ladybug Gamez relay server. -->
   <script src="https://cdn.jsdelivr.net/npm/pixi.js@8/dist/pixi.min.js"></script>
-  <script src="js/sprites.js?v=108"></script>
-  <script src="js/cards.js?v=108"></script>
-  <script src="js/game.js?v=108"></script>
-  <script src="js/animations.js?v=108"></script>
-  <script src="js/textures.js?v=108"></script>
-  <script src="js/renderer.js?v=108"></script>
-  <script src="js/save.js?v=108"></script>
-  <script src="js/network.js?v=108"></script>
-  <script src="js/online.js?v=108"></script>
-  <script src="js/ui.js?v=108"></script>
+  <script src="js/sprites.js?v=109"></script>
+  <script src="js/cards.js?v=109"></script>
+  <script src="js/game.js?v=109"></script>
+  <script src="js/animations.js?v=109"></script>
+  <script src="js/textures.js?v=109"></script>
+  <script src="js/renderer.js?v=109"></script>
+  <script src="js/save.js?v=109"></script>
+  <script src="js/network.js?v=109"></script>
+  <script src="js/online.js?v=109"></script>
+  <script src="js/ui.js?v=109"></script>
 
 </body>
 </html>

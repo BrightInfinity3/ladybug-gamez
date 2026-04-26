@@ -261,6 +261,24 @@ var Network = (function () {
     wsSend({ type: 'kick', data: { peerId: peerId, reason: reason || 'Host removed this player.' } });
   }
 
+  // v109 voluntary host handoff. Only the current host should call
+  // this; the server validates the sender is actually the host
+  // before accepting the handoff. After server-side migration the
+  // server broadcasts host_migrated and the existing handler chain
+  // takes over.
+  function handoffHost(newHostPeerId) {
+    wsSend({ type: 'host_handoff', data: { newHostPeerId: newHostPeerId } });
+  }
+
+  // v109 cascade-migration responses. The candidate sends one of
+  // these in response to a host_migration_proposal from the server.
+  function acceptMigrationProposal() {
+    wsSend({ type: 'host_migration_accept' });
+  }
+  function declineMigrationProposal() {
+    wsSend({ type: 'host_migration_decline' });
+  }
+
   // ---- Incoming message dispatch ----
   function onSocketMessage(evt) {
     // Record liveness on EVERY inbound message — `_pong`, peer relays,
@@ -328,9 +346,40 @@ var Network = (function () {
         if (disconnectHandler) disconnectHandler(data.peerId);
         break;
 
+      case 'host_migration_proposal':
+        // Server has proposed a candidate to take over hosting after
+        // the current host's grace expired. ALL peers receive this
+        // (they update their own state to reflect the in-progress
+        // proposal); the chosen candidate's client shows the
+        // accept/deny popup. If the candidate declines, the server
+        // moves on to the next candidate via cascade.
+        if (migrationHandler) {
+          migrationHandler({
+            type: 'proposal',
+            candidatePeerId: data.candidatePeerId,
+            isMe: data.candidatePeerId === myPeerId,
+            oldHostPeerId: data.oldHostPeerId,
+            declinedPeers: data.declinedPeers || [],
+            reason: data.reason
+          });
+        }
+        break;
+
+      case 'host_migration_disbanded':
+        // Cascade exhausted — every candidate declined (or there
+        // were none). The server is tearing the room down. Surface
+        // as a normal disband event.
+        console.warn('[Network] All candidates declined host migration');
+        userInitiatedClose = true;
+        if (disconnectHandler) disconnectHandler('host');
+        connectedToRoom = false;
+        break;
+
       case 'host_migrated':
-        // Server promoted a different peer to host because the
-        // previous host's grace window expired. If WE are the new
+        // Server promoted a different peer to host. Triggered by
+        // either the timeout-cascade (after a candidate accepted
+        // the proposal) OR a voluntary handoff initiated by the
+        // current host via Network.handoffHost. If WE are the new
         // host, set the local _isHost flag so subsequent send/
         // broadcast paths route correctly. Application-layer
         // takeover (broadcasting lobby state, approving join
@@ -339,9 +388,20 @@ var Network = (function () {
           _isHost = true;
           console.log('[Network] Host migrated TO us — taking over host role');
         } else {
+          // We're no longer host (if we were). Defensive — handles
+          // the voluntary case where the OUTGOING host's _isHost
+          // flag needs to flip off.
+          if (data.oldHostPeerId === myPeerId) _isHost = false;
           console.log('[Network] Host migrated to', data.newHostPeerId);
         }
-        if (migrationHandler) migrationHandler(data);
+        if (migrationHandler) {
+          migrationHandler({
+            type: 'completed',
+            newHostPeerId: data.newHostPeerId,
+            oldHostPeerId: data.oldHostPeerId,
+            reason: data.reason
+          });
+        }
         break;
 
       case 'room_disbanded':
@@ -546,6 +606,9 @@ var Network = (function () {
     broadcast: broadcast,
     disconnect: disconnect,
     kickGuest: kickGuest,
+    handoffHost: handoffHost,
+    acceptMigrationProposal: acceptMigrationProposal,
+    declineMigrationProposal: declineMigrationProposal,
     onMessage: onMessage,
     onConnect: onConnect,
     onDisconnect: onDisconnect,

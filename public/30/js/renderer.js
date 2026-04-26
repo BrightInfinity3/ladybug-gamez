@@ -1028,8 +1028,12 @@ var Renderer = (function () {
 
   function drawDeck(x, y, count) {
     var stackHeight = Math.min(count, 10);
-    // Deck scales proportionally with viewport (matches card scale)
-    var deckScale = 1.1 * (Math.min(W, H) / 1080);
+    // Deck scales proportionally with viewport. v109 bumps the deck
+    // multiplier from 1.1 (matching dealt cards) to 1.32 so the
+    // central stack reads as clearly as the dealt cards. The user
+    // perceived the stack as smaller than the fanned face-up hands;
+    // visually balancing them required a ~20% bump on the deck.
+    var deckScale = 1.32 * (Math.min(W, H) / 1080);
     var texScale = deckScale / TEX_SCALE;
     var stepPx = 0.8 * deckScale; // offset between stacked cards
     // The TOP (visible) card is rendered last; lay out the stack so THAT

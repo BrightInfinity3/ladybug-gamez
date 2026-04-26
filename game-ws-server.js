@@ -122,14 +122,12 @@ function attachGameWebSocketServer(httpServer, options) {
       // Host departed. If they EXPLICITLY left (clicked Leave Room),
       // disband — they confirmed "this ends the game for everyone".
       // If they timed out (network drop, screen lock past grace),
-      // and there's at least one other peer connected, migrate the
-      // host role to them so the game can continue.
+      // start the proposal-cascade so a remaining peer can opt-in
+      // as the new host. Each candidate gets accept/deny; on deny
+      // the next candidate is proposed; if all decline (or there
+      // are no candidates), the room disbands.
       if (reason === 'timed_out') {
-        const newHost = pickNewHost(room);
-        if (newHost) {
-          migrateHost(room, peerId, newHost, reason);
-          return;
-        }
+        if (startMigrationCascade(room, peerId)) return;
       }
       const friendly = (reason === 'left') ? 'Host left.' : 'Host disconnected.';
       disbandRoom(room.code, friendly);
@@ -139,17 +137,117 @@ function attachGameWebSocketServer(httpServer, options) {
     }
   }
 
+  // ---- Voluntary host handoff (current host hands off) ----
+  // The host-side requestHandoff/respondHandoff dance happens
+  // peer-to-peer (we just relay the messages); when the candidate
+  // accepts, the current host calls Network.handoffHost which
+  // sends `host_handoff` to the server. We validate, update room
+  // state, and broadcast host_migrated so every device runs the
+  // migration takeover.
+  function onHostHandoff(ws, peerId, data) {
+    const room = roomOf(peerId);
+    if (!room) return;
+    if (peerId !== room.hostPeerId) {
+      safeSend(ws, { type: 'error', data: { message: 'only host can hand off' } });
+      return;
+    }
+    const newHostId = data && data.newHostPeerId;
+    if (!newHostId || !room.peers[newHostId]) {
+      safeSend(ws, { type: 'error', data: { message: 'invalid candidate' } });
+      return;
+    }
+    log(`voluntary host handoff in ${room.code}: ${peerId} -> ${newHostId}`);
+    migrateHost(room, peerId, newHostId, 'voluntary');
+  }
+
+  // ---- Cascade migration on host timeout ----
+  // Starts a proposal-cascade: pick the first candidate, broadcast
+  // `host_migration_proposal` to everyone (so the candidate's UI
+  // can show accept/deny and other peers can show a waiting state).
+  // When the candidate responds via host_migration_accept or
+  // host_migration_decline, we either finalize (broadcast
+  // host_migrated) or move to the next candidate. When the
+  // candidate list is exhausted, broadcast host_migration_disbanded
+  // and tear the room down.
+  function startMigrationCascade(room, oldHostPeerId) {
+    room._migrationCascade = {
+      oldHostPeerId,
+      declined: new Set(),
+      pendingCandidate: null,
+      reason: 'timed_out'
+    };
+    return proposeNextCandidate(room);
+  }
+
+  function proposeNextCandidate(room) {
+    const cascade = room._migrationCascade;
+    if (!cascade) return false;
+    const declined = cascade.declined;
+    const candidate = pickNewHost(room, declined);
+    if (!candidate) {
+      // Nobody is eligible — every candidate already declined or
+      // none exist at all. Broadcast a final notice and disband.
+      log(`room ${room.code} migration cascade exhausted — disbanding`);
+      broadcastToRoom(room, { type: 'host_migration_disbanded', data: { reason: 'all_declined' } });
+      delete room._migrationCascade;
+      disbandRoom(room.code, 'No host could be found.');
+      return false;
+    }
+    cascade.pendingCandidate = candidate;
+    log(`room ${room.code} proposing host migration to ${candidate}`);
+    broadcastToRoom(room, {
+      type: 'host_migration_proposal',
+      data: {
+        candidatePeerId: candidate,
+        oldHostPeerId: cascade.oldHostPeerId,
+        declinedPeers: Array.from(declined),
+        reason: cascade.reason
+      }
+    });
+    return true;
+  }
+
+  function onHostMigrationAccept(ws, peerId) {
+    const room = roomOf(peerId);
+    if (!room || !room._migrationCascade) return;
+    const cascade = room._migrationCascade;
+    if (cascade.pendingCandidate !== peerId) {
+      log(`ignoring host_migration_accept from ${peerId} (not the pending candidate)`);
+      return;
+    }
+    log(`peer ${peerId} accepted host migration in ${room.code}`);
+    delete room._migrationCascade;
+    migrateHost(room, cascade.oldHostPeerId, peerId, 'cascade_accept');
+  }
+
+  function onHostMigrationDecline(ws, peerId) {
+    const room = roomOf(peerId);
+    if (!room || !room._migrationCascade) return;
+    const cascade = room._migrationCascade;
+    if (cascade.pendingCandidate !== peerId) {
+      log(`ignoring host_migration_decline from ${peerId} (not the pending candidate)`);
+      return;
+    }
+    log(`peer ${peerId} declined host migration in ${room.code}`);
+    cascade.declined.add(peerId);
+    cascade.pendingCandidate = null;
+    proposeNextCandidate(room);
+  }
+
   // Pick a peer to promote to host when the current host has timed
   // out. Preference order:
   //   1. Any peer with an OPEN socket — they can take over right
   //      now and start broadcasting state.
   //   2. Any peer still inside their own grace window (paused but
   //      not yet timed out). They'll take over once they reclaim.
+  // The optional `excluded` Set skips peers that have already
+  // declined a proposal during the current migration cascade.
   // Returns null if no candidates exist (room should disband).
-  function pickNewHost(room) {
+  function pickNewHost(room, excluded) {
     let openCandidate = null;
     let pausedCandidate = null;
     for (const pid in room.peers) {
+      if (excluded && excluded.has(pid)) continue;
       const p = room.peers[pid];
       if (p.socket && p.socket.readyState === WebSocket.OPEN) {
         if (!openCandidate) openCandidate = pid;
@@ -383,6 +481,19 @@ function attachGameWebSocketServer(httpServer, options) {
             break;
           case 'send':
             if (room) onSend(room, peerId, data);
+            break;
+          case 'host_handoff':
+            // Voluntary handoff initiated by current host (CHANGE
+            // HOST or "Yes, Exit (Choose New Host)" on Leave Room).
+            if (room) onHostHandoff(ws, peerId, data);
+            break;
+          case 'host_migration_accept':
+            // Cascade migration: candidate accepted the proposal.
+            if (room) onHostMigrationAccept(ws, peerId);
+            break;
+          case 'host_migration_decline':
+            // Cascade migration: candidate declined; propose next.
+            if (room) onHostMigrationDecline(ws, peerId);
             break;
           default:
             safeSend(ws, { type: 'error', data: { message: 'unknown type: ' + type } });

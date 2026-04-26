@@ -295,12 +295,23 @@ var Online = (function () {
     });
   }
 
-  // Host migration. Fired when the server picks a new host because the
-  // previous host's grace window expired. ALL peers in the room (the
-  // new host AND remaining guests) receive `host_migrated`; this
-  // handler runs on every device and decides what to do based on
-  // whether THIS device is the new host or just a remaining guest.
+  // Host migration. Fires for two distinct events on every device:
+  //   * type: 'proposal'  — server has proposed a candidate (the
+  //     timeout-cascade path). The candidate's UI shows accept/deny;
+  //     other peers can show a "waiting for X to accept..." indicator.
+  //   * type: 'completed' — migration is finalized. New host takes
+  //     over locally; other peers update their host reference.
+  // Forwards proposals to the dedicated migration-proposal callback
+  // (so ui.js can show the candidate the popup) and runs the
+  // existing takeover logic on completed events.
   function handleHostMigration(data) {
+    if (data && data.type === 'proposal') {
+      if (typeof onMigrationProposalCallback === 'function') {
+        onMigrationProposalCallback(data);
+      }
+      return;
+    }
+    // Completed event (default for legacy / direct callers).
     var newHostPeerId = data && data.newHostPeerId;
     var oldHostPeerId = data && data.oldHostPeerId;
     if (!newHostPeerId) return;
@@ -410,6 +421,21 @@ var Online = (function () {
         break;
       case 'rejoin':
         handleGuestRejoin(fromPeerId, message.data);
+        break;
+      // v109 voluntary host handoff: a candidate guest accepted or
+      // declined the host's request. The host orchestrates the
+      // outcome — on accept, fire the actual server-side migration;
+      // on deny, surface the rejection so the host can pick someone
+      // else (or fall back to disbanding on Leave Room).
+      case 'host_handoff_accept':
+        if (typeof onHostHandoffResponseCallback === 'function') {
+          onHostHandoffResponseCallback({ accepted: true, fromPeerId: fromPeerId });
+        }
+        break;
+      case 'host_handoff_decline':
+        if (typeof onHostHandoffResponseCallback === 'function') {
+          onHostHandoffResponseCallback({ accepted: false, fromPeerId: fromPeerId });
+        }
         break;
     }
   }
@@ -1143,6 +1169,13 @@ var Online = (function () {
       case 'toast':
         showLocalToast(message.data.message);
         break;
+      // v109: host wants to hand off the room to me. ui.js owns the
+      // accept/deny popup. We forward via the registered callback.
+      case 'host_handoff_request':
+        if (typeof onHostHandoffRequestCallback === 'function') {
+          onHostHandoffRequestCallback(message.data || {});
+        }
+        break;
     }
   }
 
@@ -1369,6 +1402,11 @@ var Online = (function () {
   var onGameStateSyncCallback = null;
   var onMidGameEntryCallback = null;
   var onHostTakeoverCallback = null;
+  // v109 voluntary handoff callbacks
+  var onHostHandoffRequestCallback = null;
+  var onHostHandoffResponseCallback = null;
+  // v109 cascade-migration proposal callback
+  var onMigrationProposalCallback = null;
 
   function onGameStart(cb) { onGameStartCallback = cb; }
   function onAction(cb) { onActionCallback = cb; }
@@ -1381,6 +1419,51 @@ var Online = (function () {
   // next-to-act seat (the new host wasn't running the turn loop
   // when they were a guest).
   function onHostTakeover(cb) { onHostTakeoverCallback = cb; }
+  function onHostHandoffRequest(cb) { onHostHandoffRequestCallback = cb; }
+  function onHostHandoffResponse(cb) { onHostHandoffResponseCallback = cb; }
+  function onMigrationProposal(cb) { onMigrationProposalCallback = cb; }
+
+  // ---- Voluntary host handoff helpers (v109) ----
+  // The host (or the leave-room "Choose New Host" path) picks a
+  // candidate from the connected peers and asks them to take over.
+  // The candidate's UI shows accept/deny; the result comes back via
+  // host_handoff_accept / host_handoff_decline routed through
+  // handleHostMessage.
+  function requestHandoff(candidatePeerId, message) {
+    Network.send(candidatePeerId, {
+      type: 'host_handoff_request',
+      data: { fromHostName: myUsername, message: message || '' }
+    });
+  }
+  function respondHandoff(accepted) {
+    Network.send('host', {
+      type: accepted ? 'host_handoff_accept' : 'host_handoff_decline'
+    });
+  }
+  // Once the candidate has accepted, the host calls this to actually
+  // migrate via the server. Server updates room.hostPeerId and
+  // broadcasts host_migrated, which triggers handleHostMigration on
+  // every device. After this completes the local UI is no longer the
+  // host; the new host runs the room.
+  function finalizeHandoff(newHostPeerId) {
+    if (typeof Network.handoffHost === 'function') {
+      Network.handoffHost(newHostPeerId);
+    }
+  }
+  // List candidate peers — connected guest devices the host can ask
+  // to take over. Excludes the host themselves and any peer marked
+  // as paused (they're not currently reachable).
+  function listHandoffCandidates() {
+    var out = [];
+    if (!lobbyState || !lobbyState.devices) return out;
+    for (var pid in lobbyState.devices) {
+      if (pid === myDeviceId) continue;
+      var dev = lobbyState.devices[pid];
+      if (!dev || dev.paused) continue;
+      out.push({ peerId: pid, username: dev.username || 'Player' });
+    }
+    return out;
+  }
 
   // ======== HOST: Game Flow Helpers ========
 
@@ -1489,6 +1572,13 @@ var Online = (function () {
     onGameStateSync: onGameStateSync,
     onMidGameEntry: onMidGameEntry,
     onHostTakeover: onHostTakeover,
+    onHostHandoffRequest: onHostHandoffRequest,
+    onHostHandoffResponse: onHostHandoffResponse,
+    onMigrationProposal: onMigrationProposal,
+    requestHandoff: requestHandoff,
+    respondHandoff: respondHandoff,
+    finalizeHandoff: finalizeHandoff,
+    listHandoffCandidates: listHandoffCandidates,
     onRenderLobby: onRenderLobby,
     broadcastGameAction: broadcastGameAction,
     broadcastGameStateSync: broadcastGameStateSync,
