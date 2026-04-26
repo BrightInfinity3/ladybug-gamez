@@ -1139,12 +1139,14 @@ html, body {
   text-align: center;
 }
 
-/* v110: halved from v109's 2.8vmin back to 1.4vmin, but keep the
-   bolder weights (700 on the label, 900 on the value) for clear
-   readability at the smaller size. ': #' spacing stays tied to
-   the label's letter-spacing (0.1em of 1.4vmin = 0.14vmin) so the
-   gap between the colon and the digit matches the gap between
-   adjacent letters in 'CARDS REMAINING'. */
+/* v111: ": #" gap now matches the visible WORD gap inside
+   "CARDS REMAINING" — i.e. the space between "CARDS" and
+   "REMAINING". With letter-spacing: 0.1em the visible word-gap
+   is approximately one space-character (~0.25em) PLUS the
+   letter-spacing applied on either side of the space (2 × 0.1em),
+   so the total is ~0.45em. We translate that to a margin-left on
+   the value. (Previously the gap was just 0.14vmin = 0.1em which
+   was much smaller than the word-gap.) */
 .deck-info-label {
   font-size: 1.4vmin;
   color: var(--gold);
@@ -1156,7 +1158,7 @@ html, body {
 .deck-info-value {
   font-size: 1.4vmin;
   color: var(--gold-light);
-  margin-left: 0.14vmin;
+  margin-left: 0.45em;
   font-weight: 900;
 }
 
@@ -1194,20 +1196,31 @@ html, body {
   gap: 0.4vmin;
 }
 
-/* v110: right-side action group — Change Host stacks BELOW Leave
-   Room (Leave on top). Both buttons stretch to the same width via
-   align-items: stretch, so they look like a matched pair. The
-   group as a whole still sits at the right edge of the HUD. */
-.hud-right {
-  justify-self: end;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0.4vmin;
-}
-.hud-right .btn-action-menu {
-  width: 100%;
+/* v111: Change Host as a SEPARATE absolutely-positioned button
+   below the HUD's right side (or the online-lobby-header's right
+   side — both have the same anchor at calc(50% + 43.7vmin)). It
+   appears with visible breathing room below Leave Room. Same
+   width is achieved by setting both Leave Room and Change Host
+   to a shared min-width — Leave Room's natural width drives the
+   pair (since "Change Host" is slightly wider; min-width forces
+   them to match). */
+.hud-change-host {
+  position: absolute;
+  bottom: calc(50% + 38vmin);
+  /* Right edge aligns with the HUD's right padding edge (HUD
+     centered with max-width 60vmin, padding 1.6vmin). */
+  right: calc(50% - 30vmin + 1.6vmin);
+  z-index: 21;
+  font-size: 1.6vmin;
+  padding: 0.6vmin 1.4vmin;
+  min-width: 12vmin;
   text-align: center;
+}
+.game-hud .btn-action-menu,
+#online-lobby-header .btn-action-menu {
+  /* Force matching width so Change Host (wider text) and Leave
+     Room (narrower text) read as the same visual button. */
+  min-width: 12vmin;
 }
 
 /* Room-code row — separate absolutely-positioned element. Sits
@@ -1284,25 +1297,51 @@ html, body {
   max-width: min(90vw, 22rem);
 }
 
-/* v109: leave-room popup is wider so the longer host copy
-   ("You're the host - if you leave a new host will need to be
-   chosen.") fits on a single line at desktop sizes. The 3-button
-   host variant also benefits from the extra width — the longest
-   button label is "Yes, Exit (Choose New Host)". */
+/* v111: leave-room popup widened so the subtitle (host or guest
+   variant) fits on a single line at all device sizes. The longer
+   guest copy ("Your players will leave. The game keeps going for
+   everyone else.") needs ~50 chars; the panel widens up to 42rem
+   on desktop. */
 .confirm-panel-leave {
-  max-width: min(95vw, 32rem);
+  max-width: min(95vw, 42rem);
+}
+.confirm-panel-leave .confirm-sub {
+  white-space: nowrap;
 }
 .confirm-panel-leave .confirm-buttons .btn {
   width: auto;
-  min-width: 12rem;
+  min-width: 8rem;
   max-width: 100%;
   white-space: nowrap;
 }
-/* When the leave-confirm is shown to a HOST, the JS adds .is-host
-   to the panel which reveals the extra "Yes, Exit (Choose New
-   Host)" button. Guests see only "Yes, Leave" + Cancel. */
-.confirm-panel-leave .leave-host-only { display: none; }
-.confirm-panel-leave.is-host .leave-host-only { display: inline-flex; }
+
+/* v111: popup subtitles (under the title) fit on a single line
+   across all popups. The default `white-space: normal` would
+   wrap the subtitle over 2-3 lines on narrower panels, which the
+   user wants to avoid. Where the text doesn't fit at the default
+   font, mobile portrait shrinks via the @media block below. */
+.confirm-sub,
+.device-leave-subtitle,
+.reconnect-gate-sub,
+.host-select-sub,
+.host-request-sub,
+.disband-message {
+  white-space: nowrap;
+}
+
+/* Mobile portrait subtitle shrink — necessary for the longer
+   leave-room copy ("Your players will leave...") to fit in a
+   ~25rem-wide popup at 480px-wide viewport width. Other subtitles
+   are short enough that they don't strictly need this, but
+   shrinking uniformly keeps the look consistent. */
+@media (max-width: 480px) {
+  .confirm-sub { font-size: 0.78rem; }
+  .device-leave-subtitle { font-size: 0.72rem; }
+  .reconnect-gate-sub { font-size: 0.78rem; }
+  .host-select-sub,
+  .host-request-sub { font-size: 0.78rem; }
+  .disband-message { font-size: 0.82rem; }
+}
 
 .confirm-title {
   font-family: var(--font-display);
@@ -1383,29 +1422,47 @@ html, body {
        viewport-percentage math for these. */
     top: calc(max(0.45rem, env(safe-area-inset-top, 0.45rem)) + 1.6rem);
   }
-  /* Fonts are also shrunk to keep the line compact horizontally. */
+  /* v111: 50% bigger fonts on mobile landscape — same scale-up as
+     mobile portrait got in v109. The HUD stays top-anchored (per
+     request: top edge fixed, text grows downward and outward).
+     Top character info is at calc(50% + 38.4vmin) below center;
+     on a 500px-tall landscape that's ~210px down. The enlarged HUD
+     ends at top + ~25px, so there's a clear gap. */
   .game-hud .hud-label,
   .game-hud .hud-value,
   .game-hud .hud-left {
-    font-size: 1.6vmin;
+    font-size: 2.4vmin;
   }
   .game-hud .btn {
-    font-size: 1.25vmin;
+    font-size: 1.875vmin;
     padding: 0.4vmin 1vmin;
   }
-  /* v110: ROOM text matches ROUND text size on mobile landscape
-     (per request: same size on portrait + landscape). The base
-     room-row's left value (calc(50% - 30vmin + 1.6vmin)) already
-     aligns the "Room:" R under "Round:" R since both are anchored
-     to the HUD's centered max-width box at the same left padding. */
+  /* v111: ROOM line tracks the larger ROUND text size (same scale,
+     same baseline alignment). */
   .hud-room-row .hud-label,
   .hud-room-row .lobby-code {
-    font-size: 1.6vmin;
+    font-size: 2.4vmin;
   }
   .lobby-label,
-  .lobby-player-count { font-size: 1.3vmin; }
-  .lobby-code { font-size: 1.3vmin; }
-  #online-lobby-header .btn { font-size: 1.25vmin; padding: 0.4vmin 1vmin; }
+  .lobby-player-count { font-size: 1.95vmin; }
+  .lobby-info > .lobby-code { font-size: 1.95vmin; }
+  .setup-header .btn,
+  #online-lobby-header .btn { font-size: 1.875vmin; padding: 0.4vmin 1vmin; }
+
+  /* Change Host button on mobile landscape — top-anchored under
+     the room-row. */
+  .hud-change-host {
+    bottom: auto;
+    top: calc(max(0.45rem, env(safe-area-inset-top, 0.45rem)) + 3.4rem);
+    right: 1vmin;
+    font-size: 1.875vmin;
+    padding: 0.4vmin 1vmin;
+    min-width: 14vmin;
+  }
+  .game-hud .btn-action-menu,
+  #online-lobby-header .btn-action-menu {
+    min-width: 14vmin;
+  }
 }
 
 /* ---------- Results Screen ---------- */
@@ -1743,31 +1800,32 @@ html, body {
   .character-picker .btn-sm { font-size: 0.85rem; padding: 0.45em 1.3em; min-width: 5.5rem; }
 }
 
-/* v109: mobile landscape popups must fit on ONE screen with no
-   vertical scroll. The 6-row character grid is the dominant
-   constraint — at 6 columns the avatars are wider than they
-   are tall in landscape; we limit panel max-height and let the
-   grid auto-fit. The exact threshold (max-height: 500px)
-   matches the existing landscape-phone band. */
+/* v111: mobile landscape character picker matches the portrait
+   sizing — same 6-column grid, same cell dimensions, same h3 +
+   cancel sizing — so the circles read identically across
+   orientations. The panel max-height: 95vh allows a small
+   scroll on the very shortest landscape viewports if needed. */
 @media (orientation: landscape) and (max-height: 500px) {
   .picker-panel {
     max-height: 95vh;
-    padding: 0.55rem 0.8rem;
-    max-width: min(92vw, 22rem);
+    /* Match the portrait base (`min(95vw, 26rem)`) but with the
+       95vw cap relaxed to 92vw so there's a tiny side margin. */
+    padding: 0.85rem 0.95rem;
+    max-width: min(92vw, 26rem);
   }
   .picker-panel h3 {
-    font-size: 0.85rem;
-    margin: 0 0 0.3rem 0;
+    font-size: 1rem;
+    margin: 0 0 0.7rem 0;
   }
   .picker-grid {
-    gap: 0.25rem;
-    margin-bottom: 0.4rem;
-    grid-template-columns: repeat(8, 1fr);
+    gap: 0.4rem;
+    margin-bottom: 0.8rem;
+    grid-template-columns: repeat(6, 1fr);
   }
-  .picker-animal { border-width: 1px; }
-  .picker-animal-name { font-size: 0.4rem; }
+  .picker-animal { border-width: 1.5px; }
+  .picker-animal-name { font-size: 0.46rem; }
   .picker-panel .btn-sm,
-  .character-picker .btn-sm { font-size: 0.78rem; padding: 0.3em 1em; min-width: 4.5rem; }
+  .character-picker .btn-sm { font-size: 0.85rem; padding: 0.45em 1.3em; min-width: 5.5rem; }
 
   .reassign-panel {
     max-height: 95vh;
@@ -2029,15 +2087,21 @@ body.mbar-active .mobile-action-bar .mbar-leader-section {
   display: flex;
 }
 
-/* ---------- Landscape side panels (v109) ----------
-   On any landscape viewport, with the table centered and ~50vmin
-   of unused space on each side, show the leader card on the LEFT
-   side of the screen and the active-player card on the RIGHT.
-   Both sections always visible during gameplay (informational —
-   the on-table Draw/Stay buttons remain the input mechanism, so
-   we hide the bar's own buttons in this layout). */
-body.lbar-active .mobile-action-bar .mbar-leader-section,
-body.lbar-active .mobile-action-bar .mbar-turn-section {
+/* ---------- Landscape side panels (v109, refined v111) ----------
+   On any landscape viewport, with the table centered and unused
+   space on each side, show the leader card on the LEFT and the
+   active-player card on the RIGHT. v111 changes:
+     * Leader section is ALWAYS visible during gameplay; the turn
+       section is gated on the local-turn flag (mbar-turn-active)
+       on every device — matching mobile portrait behaviour.
+     * 2x size on ALL landscape devices (extending the v109 mobile-
+       landscape boost); panels use rem-based sizing so they read
+       large on phones, tablets, and desktops alike.
+     * Active player's cards stack on the RIGHT of the avatar in
+       a 3-column grid (3 per row, then a 2nd row, etc. — same as
+       the on-table fan), vertically centered against the avatar.
+*/
+body.lbar-active .mobile-action-bar .mbar-leader-section {
   display: flex;
   position: absolute;
   top: 50%;
@@ -2048,121 +2112,115 @@ body.lbar-active .mobile-action-bar .mbar-turn-section {
   padding: 0 1vmin;
   z-index: 30;
 }
-/* v110: panels sit just OUTSIDE the left/right table characters
-   (instead of being pinned to the viewport edges). The left
-   character's avatar center is at 38.4vmin from table center; its
-   left edge is at ~42.3vmin. We anchor the leader panel's RIGHT
-   EDGE at 50%-43vmin (just past the left character's left edge)
-   and let the panel grow leftward toward the viewport edge as
-   content needs. Same on the right for the active player. */
+body.lbar-active .mobile-action-bar .mbar-turn-section {
+  display: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  bottom: auto;
+  width: auto;
+  max-width: 26vmin;
+  padding: 0 1vmin;
+  z-index: 30;
+}
+/* Turn section in landscape is gated on local-turn just like
+   mobile portrait — only the device whose player is on turn sees
+   the active-player card. */
+body.lbar-active.mbar-turn-active .mobile-action-bar .mbar-turn-section {
+  display: flex;
+}
+/* v111: panels pushed FURTHER outward — from 43vmin (just past
+   the left/right characters) to 50vmin. The user requested
+   "100vmin and go from there", but a literal 100vmin would put
+   panels off-screen on every device smaller than ~16:9 desktop;
+   50vmin is a moderate "more out" that works on every viewport
+   while still creating a clearer separation from the table.
+   We can dial up further if desktop wants more. */
 body.lbar-active .mobile-action-bar .mbar-leader-section {
   left: auto;
-  right: calc(50% + 43vmin);
+  right: calc(50% + 50vmin);
 }
 body.lbar-active .mobile-action-bar .mbar-turn-section {
-  left: calc(50% + 43vmin);
+  left: calc(50% + 50vmin);
   right: auto;
 }
 
-/* v110: mobile-landscape boost — bring the landscape side panels
-   up to the same physical size as the mobile-portrait panels
-   (which are rem-based and read large on phones). The default
-   lbar-active sizing above is vmin-based (looks great on tablets/
-   desktops where vmin is large) but renders too small on phone
-   landscape (vmin ~3.93px on a 1080×393 viewport, so 5.5vmin =
-   21.6px avatar). Mobile landscape uses the same rem values as
-   mobile portrait so the panels are immediately readable. */
-@media (orientation: landscape) and (max-height: 500px) {
-  body.lbar-active .mobile-action-bar .mbar-avatar {
-    width: 3.4rem;
-    height: 3.4rem;
-  }
-  body.lbar-active .mobile-action-bar .mbar-score {
-    font-size: 1.7rem;
-  }
-  body.lbar-active .mobile-action-bar .mbar-name {
-    font-size: 0.9rem;
-    max-width: 9rem;
-  }
-  body.lbar-active .mobile-action-bar .mbar-leader-label {
-    font-size: 0.78rem;
-    margin-bottom: 0.05rem;
-  }
-  body.lbar-active .mobile-action-bar .mbar-card {
-    width: 1.7rem;
-    height: 2.4rem;
-    font-size: 0.95rem;
-    border-radius: 0.2rem;
-  }
-  body.lbar-active .mobile-action-bar .mbar-card .mbar-card-suit {
-    font-size: 0.85rem;
-  }
-  body.lbar-active .mobile-action-bar .mbar-row {
-    min-height: 3.4rem;
-    gap: 0.6rem;
-  }
-  body.lbar-active .mobile-action-bar .mbar-cards {
-    gap: 0.18rem;
-    margin-right: 2rem;
-  }
-  body.lbar-active .mobile-action-bar .mbar-top {
-    height: 1.7rem;
-    max-width: 9rem;
-  }
-  body.lbar-active .mobile-action-bar .mbar-badges .mbar-badge {
-    font-size: 0.7rem;
-    padding: 0.15rem 0.45rem;
-  }
-}
 /* No Draw/Stay buttons in landscape side-panels — the on-table
    .game-actions stay visible and serve as the input. */
 body.lbar-active .mobile-action-bar .mbar-buttons {
   display: none;
 }
-/* Landscape side panels reuse the same .mbar-* element styles for
-   avatar / score / name / cards. Slightly larger card size so
-   they're readable at the side. */
+/* v111: ALL landscape devices get the rem-based portrait-style
+   sizing (was previously only mobile landscape). The vmin-based
+   sizing rendered tiny on phone landscape and weirdly small on
+   high-DPI tablets; rem is consistent across devices. The user
+   explicitly asked for the 2× size on every landscape viewport. */
 body.lbar-active .mobile-action-bar .mbar-avatar {
-  width: 5.5vmin;
-  height: 5.5vmin;
+  width: 3.4rem;
+  height: 3.4rem;
 }
 body.lbar-active .mobile-action-bar .mbar-score {
-  font-size: 3.2vmin;
+  font-size: 1.7rem;
 }
 body.lbar-active .mobile-action-bar .mbar-name {
-  font-size: 1.7vmin;
-  max-width: 22vmin;
+  font-size: 0.9rem;
+  max-width: 9rem;
 }
 body.lbar-active .mobile-action-bar .mbar-leader-label {
-  font-size: 1.6vmin;
-  margin-bottom: 0.5vmin;
+  font-size: 0.78rem;
+  margin-bottom: 0.05rem;
 }
 body.lbar-active .mobile-action-bar .mbar-card {
-  width: 2.4vmin;
-  height: 3.4vmin;
-  font-size: 1.4vmin;
-  border-radius: 0.3vmin;
+  width: 1.7rem;
+  height: 2.4rem;
+  font-size: 0.95rem;
+  border-radius: 0.2rem;
 }
 body.lbar-active .mobile-action-bar .mbar-card .mbar-card-suit {
-  font-size: 1.2vmin;
-}
-body.lbar-active .mobile-action-bar .mbar-row {
-  gap: 0.6vmin;
-}
-body.lbar-active .mobile-action-bar .mbar-cards {
-  gap: 0.25vmin;
+  font-size: 0.85rem;
 }
 body.lbar-active .mobile-action-bar .mbar-top {
-  height: 2.8vmin;
-  max-width: 22vmin;
+  height: 1.7rem;
+  max-width: 9rem;
 }
 body.lbar-active .mobile-action-bar .mbar-badges .mbar-badge {
-  font-size: 1.1vmin;
-  padding: 0.15vmin 0.55vmin;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.45rem;
 }
-/* Active-player gets a subtle gold tint on the avatar border in
-   landscape too, so the side panel matches the table-seat
-   leader treatment without competing with the table itself. */
+
+/* v111 cards layout in the LANDSCAPE turn-section (active player
+   panel on the RIGHT of the table). Cards stack to the RIGHT of
+   the avatar in a 3-column grid (mirror of the on-table fan: 3
+   cards per row, then a 2nd row, etc.). The whole row stays
+   vertically CENTERED relative to the avatar — as more cards
+   appear and rows grow, both the avatar and the cards group
+   move toward each other's center.
+     mbar-row uses position: relative + flex with the avatar in
+     normal flow (centered horizontally inside the panel) and
+     mbar-cards absolute-positioned to the avatar's RIGHT (left:
+     50% with a margin-left to clear the avatar). The grid wraps
+     after every 3 cards. */
+body.lbar-active .mobile-action-bar .mbar-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.4rem;
+}
+body.lbar-active .mobile-action-bar .mbar-cards {
+  position: absolute;
+  /* RIGHT side of avatar (opposite of mobile portrait, where
+     cards sit on the LEFT). avatar half-width 1.7rem + small gap. */
+  left: 50%;
+  right: auto;
+  margin-left: 2rem;
+  margin-right: 0;
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  grid-auto-flow: row;
+  gap: 0.18rem;
+  justify-content: flex-start;
+}
 /* Turn section anchored BELOW the bottom seat's name (~44vmin
    below center). v109 doubles the breathing room (from ~3vmin to
    ~6vmin) so the active player's score doesn't crowd the bottom
@@ -2407,6 +2465,49 @@ body.mbar-turn-active .mobile-action-bar .mbar-turn-section {
   }
   .hud-room-row .lobby-code {
     padding: 0.15vmin 0.7vmin;
+  }
+
+  /* v111: SETUP/lobby HEADER doubled to match the game HUD so the
+     room/code/players line and Leave Room button read at the same
+     scale across phases. Stays bottom-anchored on mobile portrait
+     so the BOTTOM of the text is pinned and the larger glyphs grow
+     upward (per request). */
+  .setup-header,
+  #online-lobby-header {
+    max-width: 100%;
+    padding: 0.4vmin 2vmin;
+  }
+  .setup-header .btn,
+  #online-lobby-header .btn {
+    font-size: 3.2vmin;
+    padding: 0.55vmin 1.3vmin;
+  }
+  .setup-header h2 {
+    font-size: 4.6vmin;
+  }
+  .lobby-label,
+  .lobby-player-count {
+    font-size: 3.6vmin;
+  }
+  .lobby-info > .lobby-code {
+    font-size: 3.4vmin;
+    padding: 0.15vmin 0.7vmin;
+  }
+
+  /* v111: Change Host button on mobile portrait — sized to match
+     the doubled HUD/lobby Leave Room button, positioned with extra
+     breathing room since the HUD is now 1.5x bigger. Right-aligned
+     to the same 2vmin viewport edge as Leave Room. */
+  .hud-change-host {
+    bottom: calc(50% + 35vmin);
+    right: 2vmin;
+    font-size: 2.4vmin;
+    padding: 0.55vmin 1.3vmin;
+    min-width: 22vmin;
+  }
+  .game-hud .btn-action-menu,
+  #online-lobby-header .btn-action-menu {
+    min-width: 22vmin;
   }
 }
 

@@ -384,19 +384,54 @@ var Online = (function () {
       // round: we may have an AI-converted seat that needs to play.
       if (typeof onHostTakeoverCallback === 'function') onHostTakeoverCallback();
     } else {
-      // Stay as a guest, but update our local view so the badge /
-      // avatar treatment in the lobby reflects the migration. The
-      // new host will broadcast a fresh lobby_state shortly which
-      // overwrites this view, but updating now avoids a brief
-      // flicker where two devices both look like the host.
-      console.log('[Online] Host migrated to ' + newHostPeerId + ' (we remain a guest)');
+      // We're not the new host. Two sub-cases:
+      //   (a) we WERE the host (voluntary handoff path) — we need
+      //       to flip OUR _isHost flag to false. Without this both
+      //       the old and new host think they're host, broadcasting
+      //       conflicting lobby/game state.
+      //   (b) we were never the host — just update our view of who
+      //       the host is.
+      var iWasOldHost = (oldHostPeerId === myDeviceId);
+      console.log('[Online] Host migrated to ' + newHostPeerId + (iWasOldHost ? ' (we WERE the host, stepping down)' : ' (we remain a guest)'));
+      if (iWasOldHost) {
+        // v111 bug fix: explicitly relinquish host role on voluntary
+        // handoff. Network's _isHost was already flipped by network.js;
+        // we mirror that here.
+        _isHost = false;
+      }
       if (lobbyState && lobbyState.devices) {
-        if (lobbyState.devices[oldHostPeerId]) delete lobbyState.devices[oldHostPeerId];
+        // Only delete the old host from devices when they actually
+        // DISCONNECTED (cascade migration after timeout) — for a
+        // voluntary handoff the old host is still in the room and
+        // should remain in the devices list, just without the
+        // isHost flag.
+        var reason = data.reason;
+        var voluntaryHandoff = (reason === 'voluntary');
+        if (lobbyState.devices[oldHostPeerId]) {
+          if (voluntaryHandoff) {
+            lobbyState.devices[oldHostPeerId].isHost = false;
+          } else {
+            delete lobbyState.devices[oldHostPeerId];
+          }
+        }
         if (lobbyState.devices[newHostPeerId]) lobbyState.devices[newHostPeerId].isHost = true;
       }
-      showLocalToast(oldHostName + ' disconnected. ' + newHostName + ' is the new host.');
+      var msg = voluntaryHandoffMsg(reason, oldHostName, newHostName, iWasOldHost);
+      showLocalToast(msg);
       renderOnlineLobby();
     }
+  }
+
+  // Compose a user-facing message for migrations. The wording
+  // depends on whether this was a voluntary handoff or a timeout
+  // cascade, AND whether we were the outgoing host.
+  function voluntaryHandoffMsg(reason, oldHostName, newHostName, wasOldHost) {
+    if (reason === 'voluntary') {
+      return wasOldHost
+        ? 'You handed the room to ' + newHostName + '.'
+        : oldHostName + ' handed the room to ' + newHostName + '.';
+    }
+    return oldHostName + ' disconnected. ' + newHostName + ' is the new host.';
   }
 
   function handleHostMessage(fromPeerId, message) {
@@ -815,6 +850,29 @@ var Online = (function () {
     var peers = Object.keys(pendingLeaves);
     if (!_isHost || peers.length === 0) {
       overlay.style.display = 'none';
+      return;
+    }
+    // v111 popup priority: if the host is currently in the
+    // CHANGE HOST flow (host-select popup open OR a candidate
+    // accept/deny request pending), DEFER opening the device-
+    // leave modal until that flow completes. Without this, the
+    // device-leave modal could pop in front of (or beside, on
+    // some stacking contexts) the host-select, leaving the host
+    // juggling two popups while the migration was mid-flight —
+    // the original bug that produced two hosts at once.
+    var hostSelectOpen = (function () {
+      var sel = document.getElementById('host-select-overlay');
+      var req = document.getElementById('host-request-overlay');
+      return (sel && sel.style.display === 'flex') ||
+             (req && req.style.display === 'flex');
+    })();
+    if (hostSelectOpen) {
+      overlay.style.display = 'none';
+      // Re-poll once the host-select closes. The simplest way to
+      // hook that without coupling to ui.js internals is a tiny
+      // poll — host-select closes are user-triggered so 500ms
+      // latency is fine.
+      setTimeout(renderDeviceLeaveModal, 500);
       return;
     }
     var peerId = peers[0];

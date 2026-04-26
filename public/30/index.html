@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=110">
+  <link rel="stylesheet" href="css/style.css?v=111">
 </head>
 <body>
 
@@ -123,10 +123,12 @@
   <div id="screen-game" class="screen">
     <!-- Game HUD (floating elements, no background bar) -->
     <div class="game-hud" id="game-hud" style="display:none">
-      <!-- Top row: Round | message | [Change Host] Leave Room.
-           v109: Change Host appears for online HOSTS only — toggled
-           via JS (hidden for guests, hidden in local play). Sized
-           identically to Leave Room and sits to its left. -->
+      <!-- Top row: Round | message | Leave Room. v111: Change Host
+           is no longer inside the HUD — it lives as a separate
+           absolutely-positioned button below the HUD/lobby-header
+           (see #btn-change-host element further down). This keeps
+           the Leave Room button in its original top-row position
+           and gives Change Host visual breathing room. -->
       <div class="hud-round">
         <span class="hud-label">Round:</span>
         <span class="hud-value" id="hud-round">1</span>
@@ -134,14 +136,15 @@
       <div class="hud-left">
         <span id="hud-message"></span>
       </div>
-      <div class="hud-right">
-        <!-- v110: vertically stacked, Leave Room on top, Change Host
-             directly below. Same width via align-items: stretch on
-             the .hud-right column-flex container. -->
-        <button class="btn btn-outline btn-action-menu" id="btn-menu">Main Menu</button>
-        <button class="btn btn-outline btn-action-menu" id="btn-change-host" style="display:none">Change Host</button>
-      </div>
+      <button class="btn btn-outline btn-action-menu" id="btn-menu">Main Menu</button>
     </div>
+
+    <!-- Change Host button (v111) — separate top-level element so
+         it can appear under either the game HUD or the online
+         lobby header. Positioned absolutely below whichever Leave
+         Room button is currently visible. Host-online-only;
+         visibility toggled in updateHUD() and renderOnlineLobby. -->
+    <button class="btn btn-outline btn-action-menu hud-change-host" id="btn-change-host" style="display:none">Change Host</button>
 
     <!-- Room-code row — absolutely positioned as its own element just
          below the HUD top row. Online-only. Kept outside .game-hud so
@@ -324,18 +327,20 @@
       </div>
     </div>
 
-    <!-- Leave room confirm. v109: GUEST sees the simple two-button
-         dialog as before; HOST sees a 3-button variant with an extra
-         "Yes, Exit (Choose New Host)" path that opens the host-select
-         popup. The .leave-host-only buttons are toggled on by
-         .confirm-panel.is-host wrapper class set in JS. -->
+    <!-- Leave room confirm. v111: simplified to a two-button
+         dialog (Yes, Exit / Cancel) for both host and guest. Hosts
+         use the dedicated CHANGE HOST button BEFORE leaving if
+         they want to hand off; clicking Leave Room is now an
+         unambiguous "exit + disband (or just exit if you've
+         already handed off)" action. The subtitle is sized to fit
+         on a single line; the panel widens on devices with extra
+         horizontal space. -->
     <div class="confirm-overlay" id="confirm-leave-room" style="display:none">
       <div class="confirm-panel confirm-panel-leave">
         <p class="confirm-title" id="leave-room-title">Leave Room?</p>
         <p class="confirm-sub" id="leave-room-sub">Your players will leave. The game keeps going for everyone else.</p>
         <div class="confirm-buttons">
-          <button class="btn btn-gold leave-host-only" id="btn-leave-choose-host">Yes, Exit (Choose New Host)</button>
-          <button class="btn btn-gold" id="btn-confirm-leave-yes">Yes, Leave</button>
+          <button class="btn btn-gold" id="btn-confirm-leave-yes">Yes, Exit</button>
           <button class="btn btn-outline" id="btn-confirm-leave-no">Cancel</button>
         </div>
       </div>
@@ -367,7 +372,7 @@
     <div class="host-request-overlay" id="host-request-overlay" style="display:none">
       <div class="host-request-panel">
         <h3 id="host-request-title">Become the New Host?</h3>
-        <p class="host-request-sub" id="host-request-sub">The current host wants to hand off the room to you.</p>
+        <p class="host-request-sub" id="host-request-sub">The host wants you to take over.</p>
         <div class="host-request-actions">
           <button class="btn btn-gold" id="btn-host-request-accept">Accept</button>
           <button class="btn btn-outline" id="btn-host-request-deny">Decline</button>
@@ -434,16 +439,16 @@
        now uses a plain WebSocket client (js/network.js) talking to the
        central Ladybug Gamez relay server. -->
   <script src="https://cdn.jsdelivr.net/npm/pixi.js@8/dist/pixi.min.js"></script>
-  <script src="js/sprites.js?v=110"></script>
-  <script src="js/cards.js?v=110"></script>
-  <script src="js/game.js?v=110"></script>
-  <script src="js/animations.js?v=110"></script>
-  <script src="js/textures.js?v=110"></script>
-  <script src="js/renderer.js?v=110"></script>
-  <script src="js/save.js?v=110"></script>
-  <script src="js/network.js?v=110"></script>
-  <script src="js/online.js?v=110"></script>
-  <script src="js/ui.js?v=110"></script>
+  <script src="js/sprites.js?v=111"></script>
+  <script src="js/cards.js?v=111"></script>
+  <script src="js/game.js?v=111"></script>
+  <script src="js/animations.js?v=111"></script>
+  <script src="js/textures.js?v=111"></script>
+  <script src="js/renderer.js?v=111"></script>
+  <script src="js/save.js?v=111"></script>
+  <script src="js/network.js?v=111"></script>
+  <script src="js/online.js?v=111"></script>
+  <script src="js/ui.js?v=111"></script>
 
 </body>
 </html>

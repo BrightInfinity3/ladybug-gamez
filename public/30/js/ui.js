@@ -296,15 +296,16 @@ var UI = (function () {
   var _hostRequestSource = null;     // 'voluntary' | 'cascade'
 
   function openLeaveRoomConfirm() {
-    var panel = document.querySelector('#confirm-leave-room .confirm-panel');
     var title = document.getElementById('leave-room-title');
     var sub   = document.getElementById('leave-room-sub');
     title.textContent = 'Leave Room?';
     if (Online.isHost()) {
-      panel.classList.add('is-host');
-      sub.textContent = "You're the host — if you leave a new host will need to be chosen.";
+      // v111: simplified copy now that CHANGE HOST is a separate
+      // dedicated button. If the host wants to hand off they use
+      // CHANGE HOST first; clicking Leave Room is unambiguously
+      // "leave AND disband the room (if I'm still host)".
+      sub.textContent = 'Leaving will end the game for everyone.';
     } else {
-      panel.classList.remove('is-host');
       sub.textContent = 'Your players will leave. The game keeps going for everyone else.';
     }
     document.getElementById('confirm-leave-room').style.display = 'flex';
@@ -412,10 +413,11 @@ var UI = (function () {
     // Candidate side: we got asked to take over.
     Online.onHostHandoffRequest(function (data) {
       _hostRequestSource = 'voluntary';
-      var who = (data && data.fromHostName) || 'The current host';
+      var who = (data && data.fromHostName) || 'The host';
       document.getElementById('host-request-title').textContent = 'Become the New Host?';
+      // v111: shortened to one line.
       document.getElementById('host-request-sub').textContent =
-        who + ' wants to hand off the room to you. Accept to take over hosting; decline to keep them as host.';
+        who + ' wants you to take over.';
       document.getElementById('host-request-overlay').style.display = 'flex';
     });
 
@@ -430,8 +432,9 @@ var UI = (function () {
       }
       _hostRequestSource = 'cascade';
       document.getElementById('host-request-title').textContent = 'Become the New Host?';
+      // v111: shortened to one line.
       document.getElementById('host-request-sub').textContent =
-        'The previous host disconnected. Accept to take over the room; decline to pass to the next player.';
+        'Previous host disconnected. Take over?';
       document.getElementById('host-request-overlay').style.display = 'flex';
     });
   }
@@ -878,24 +881,20 @@ var UI = (function () {
     document.getElementById('btn-confirm-leave-no').addEventListener('click', function () {
       document.getElementById('confirm-leave-room').style.display = 'none';
     });
-    // v109: 3-option host leave path. "Yes, Exit (Choose New Host)"
-    // closes the leave-room popup and opens the host-select popup
-    // with a thenLeave flag set. On a successful handoff we leave;
-    // on cancel/all-deny the host is brought back to leave-room.
-    document.getElementById('btn-leave-choose-host').addEventListener('click', function () {
-      document.getElementById('confirm-leave-room').style.display = 'none';
-      openHostSelect({ thenLeave: true });
-    });
-    // CHANGE HOST button (host-only, in-game HUD).
+    // CHANGE HOST button — host-only; sits below Leave Room as a
+    // separate absolutely-positioned button (visible during both
+    // setup and gameplay). v111: this is now the ONLY entry point
+    // for voluntary host handoffs (the in-popup "Choose New Host"
+    // option was removed for clarity).
     document.getElementById('btn-change-host').addEventListener('click', function () {
       openHostSelect({ thenLeave: false });
     });
-    // Host-select popup buttons
+    // Host-select popup Cancel button. v111: thenLeave flag is no
+    // longer set (the leave-room "choose host" option was removed),
+    // so cancel just closes the popup without re-opening leave-room.
     document.getElementById('btn-host-select-cancel').addEventListener('click', function () {
-      var thenLeave = !!(_hostSelectMode && _hostSelectMode.thenLeave);
       closeHostSelect();
       _hostSelectMode = null;
-      if (thenLeave) document.getElementById('confirm-leave-room').style.display = 'flex';
     });
     // Host-handoff request popup buttons (shown to candidate)
     document.getElementById('btn-host-request-accept').addEventListener('click', function () {
@@ -2994,11 +2993,13 @@ var UI = (function () {
     fillMbarPlayer(document.getElementById('mbar-leader'), leader);
 
     // Turn section: current active player + (in mobile portrait)
-    // Draw/Stay buttons. Fill it whenever it's actually visible:
-    //   * mobile portrait: only on local turn (mbar-turn-active)
-    //   * landscape: always during gameplay (informational side panel)
-    var turnSectionVisible = _mbarTurnActive || landscape;
-    if (turnSectionVisible) {
+    // Draw/Stay buttons. v111 — gate the section on the local-turn
+    // flag for ALL device classes (was previously only mobile
+    // portrait; landscape used to show it always). The user wants
+    // the active-player display to appear ONLY on the device
+    // controlling that character, matching the mbar-turn-active
+    // CSS gate that already exists for both portrait + landscape.
+    if (_mbarTurnActive) {
       var current = (typeof Game.getCurrentPlayer === 'function') ? Game.getCurrentPlayer() : null;
       fillMbarPlayer(document.getElementById('mbar-current'), current);
       var drawBtn = document.getElementById('mbar-btn-draw');
