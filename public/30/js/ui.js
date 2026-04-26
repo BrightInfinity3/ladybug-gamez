@@ -196,6 +196,7 @@ var UI = (function () {
     bindOnlineEvents();
     createFloatingSuits();
     blockPinchZoom();
+    installKeyboardScrollReset();
     showScreen('screen-title');
     // v109: warm up card-texture canvases AND eagerly initialise
     // PIXI in the background so Local Play / Online Play / Deal
@@ -253,6 +254,48 @@ var UI = (function () {
     document.addEventListener('wheel', function (e) {
       if (e.ctrlKey) e.preventDefault();
     }, { passive: false });
+  }
+
+  // v112: iPad keyboard scroll-persistence fix. iOS Safari, when an
+  // <input> gets focus, scrolls the document up to bring the input
+  // ABOVE the keyboard. The page has overflow: hidden, but iOS does
+  // this scroll at the WINDOW level (not via document scroll), so
+  // it ignores our overflow setting. After the keyboard closes the
+  // window.scrollY can stay non-zero, leaving everything shifted
+  // up permanently. We reset window scroll + the document/body
+  // scroll positions whenever an input loses focus, AND on every
+  // visualViewport.resize as a defensive measure (catches the
+  // keyboard-just-closed event sequence).
+  function installKeyboardScrollReset() {
+    var reset = function () {
+      try {
+        window.scrollTo(0, 0);
+        if (document.body) document.body.scrollTop = 0;
+        if (document.documentElement) document.documentElement.scrollTop = 0;
+      } catch (e) { /* non-fatal */ }
+    };
+    document.addEventListener('focusout', function (e) {
+      if (e.target && e.target.tagName === 'INPUT') {
+        // Run twice — once immediately (catches the synchronous
+        // blur) and once after a short tick (catches any delayed
+        // iOS keyboard-closing scroll adjustment).
+        reset();
+        setTimeout(reset, 50);
+        setTimeout(reset, 200);
+      }
+    });
+    // visualViewport.resize fires on keyboard show AND keyboard
+    // hide. We can't easily distinguish, but resetting scroll on
+    // both is harmless because the active input wants the keyboard
+    // open anyway.
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', function () {
+        // Only reset when no input is focused — i.e. keyboard
+        // has fully closed.
+        var ae = document.activeElement;
+        if (!ae || ae.tagName !== 'INPUT') reset();
+      });
+    }
   }
 
   function initSetupSeats() {
@@ -774,6 +817,22 @@ var UI = (function () {
             nextTurn();
           }
         });
+        // v112: also wire onHostTakeover on the HOST side. This is
+        // critical for VOLUNTARY handoff — when the original host
+        // hands off via CHANGE HOST, the migration completes and
+        // we (now a guest) need to refresh HUD/buttons. Without
+        // this listener, the outgoing host's CHANGE HOST button
+        // stayed visible after handoff (Online.isHost() returned
+        // false but updateHUD was never called).
+        Online.onHostTakeover(function (opts) {
+          opts = opts || {};
+          renderOnlineLobbySeats();
+          updateHUD();
+          if (opts.becameHost && gamePhase === 'playing') {
+            gameFlowLocked = false;
+            nextTurn();
+          }
+        });
         enterOnlineLobby();
         Online.renderOnlineLobby();
         document.getElementById('btn-create-room').disabled = false;
@@ -822,18 +881,21 @@ var UI = (function () {
           Online.onRenderLobby(function () {
             renderOnlineLobbySeats();
           });
-          // Host migration: if the original host's grace expires
-          // and the server promotes US to host, this fires after
-          // online.js has flipped _isHost on, re-bound network
-          // handlers, and broadcast the updated lobby/state. We
-          // need to (a) re-render seats so they pick up the host-
-          // only treatments (clickable avatars for reassignment,
-          // dotted-D dealer marker, etc.), and (b) kick the turn
-          // loop if a round is in progress so the next-to-act
-          // seat plays.
-          Online.onHostTakeover(function () {
+          // Host migration: fired on EVERY device after migration
+          // completes (v112). The opts arg has `becameHost: true`
+          // when WE took over, otherwise we're either the outgoing
+          // host (lostHost: true) or just another guest. In all
+          // cases we want to refresh:
+          //   - the in-game HUD's CHANGE HOST button visibility
+          //     (Online.isHost() now reflects the new state)
+          //   - the lobby's host-only seat treatments
+          //   - if WE are the new host: kick the turn loop so any
+          //     AI-converted seat plays right away
+          Online.onHostTakeover(function (opts) {
+            opts = opts || {};
             renderOnlineLobbySeats();
-            if (gamePhase === 'playing') {
+            updateHUD();
+            if (opts.becameHost && gamePhase === 'playing') {
               gameFlowLocked = false;
               nextTurn();
             }
@@ -2977,8 +3039,14 @@ var UI = (function () {
     var landscapeShow = phaseOk && landscape;
     var shouldShow = portraitShow || landscapeShow;
     document.body.classList.toggle('mbar-active', portraitShow);
-    document.body.classList.toggle('mbar-turn-active', portraitShow && _mbarTurnActive);
     document.body.classList.toggle('lbar-active', landscapeShow);
+    // v112: mbar-turn-active is now toggled regardless of orientation
+    // (was previously gated on portraitShow only, which meant the
+    // landscape turn-section never received the class and stayed
+    // hidden — bug from v111). The CSS rules already gate the
+    // turn-section on (mbar-active OR lbar-active) AND mbar-turn-
+    // active, so this single toggle covers both.
+    document.body.classList.toggle('mbar-turn-active', shouldShow && _mbarTurnActive);
     // Section visibility is handled by body.{mbar,lbar}-active /
     // body.mbar-turn-active CSS rules. Bail early when not visible
     // to avoid unnecessary fillMbarPlayer work.

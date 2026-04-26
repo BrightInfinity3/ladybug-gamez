@@ -382,7 +382,9 @@ var Online = (function () {
       // Tell ui.js we just took over so it can call nextTurn() and
       // resume the game loop. Critical when migration happens mid-
       // round: we may have an AI-converted seat that needs to play.
-      if (typeof onHostTakeoverCallback === 'function') onHostTakeoverCallback();
+      if (typeof onHostTakeoverCallback === 'function') {
+        onHostTakeoverCallback({ becameHost: true });
+      }
     } else {
       // We're not the new host. Two sub-cases:
       //   (a) we WERE the host (voluntary handoff path) — we need
@@ -419,6 +421,14 @@ var Online = (function () {
       var msg = voluntaryHandoffMsg(reason, oldHostName, newHostName, iWasOldHost);
       showLocalToast(msg);
       renderOnlineLobby();
+      // v112: also fire the takeover callback in the OTHER direction —
+      // ui.js needs to refresh HUD/button visibility on every device
+      // after migration completes (e.g. hide the CHANGE HOST button on
+      // the outgoing host, show it on the new host). The `becameHost`
+      // flag distinguishes the new-host-takeover path from the rest.
+      if (typeof onHostTakeoverCallback === 'function') {
+        onHostTakeoverCallback({ becameHost: false, lostHost: iWasOldHost });
+      }
     }
   }
 
@@ -1377,6 +1387,13 @@ var Online = (function () {
       var inLobby = (gamePhase === 'lobby');
       dealBtn.style.display = (_isHost && inLobby) ? '' : 'none';
       dealBtn.disabled = totalPlayerCount() < 2;
+    }
+    // v112: also drive the Change Host button visibility from here
+    // so the lobby phase (where updateHUD doesn't run) tracks
+    // _isHost changes from voluntary handoff.
+    var changeHostBtn = document.getElementById('btn-change-host');
+    if (changeHostBtn) {
+      changeHostBtn.style.display = _isHost ? '' : 'none';
     }
     // Similarly, the lobby-waiting message for guests should ONLY be
     // visible during the lobby phase — not during gameplay.

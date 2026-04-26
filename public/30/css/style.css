@@ -1449,19 +1449,25 @@ html, body {
   .setup-header .btn,
   #online-lobby-header .btn { font-size: 1.875vmin; padding: 0.4vmin 1vmin; }
 
-  /* Change Host button on mobile landscape — top-anchored under
-     the room-row. */
+  /* v112: Change Host on mobile landscape — top-anchored DIRECTLY
+     below Leave Room. The HUD is at top: max(0.45rem, …safe-
+     inset). Leave Room sits inside the HUD's right cell at HUD's
+     right padding edge (max-width: 60vmin centered, padding 1.6vmin).
+     Change Host's right edge aligns with that edge: viewport_right -
+     calc((100% - 60vmin)/2 + 1.6vmin) = right: calc(50% - 30vmin
+     + 1.6vmin). Top edge sits ~2.5rem below HUD top to clear the
+     Leave Room button + a small gap. */
   .hud-change-host {
     bottom: auto;
-    top: calc(max(0.45rem, env(safe-area-inset-top, 0.45rem)) + 3.4rem);
-    right: 1vmin;
+    top: calc(max(0.45rem, env(safe-area-inset-top, 0.45rem)) + 2.5rem);
+    right: calc(50% - 30vmin + 1.6vmin);
     font-size: 1.875vmin;
     padding: 0.4vmin 1vmin;
-    min-width: 14vmin;
+    min-width: 16vmin;
   }
   .game-hud .btn-action-menu,
   #online-lobby-header .btn-action-menu {
-    min-width: 14vmin;
+    min-width: 16vmin;
   }
 }
 
@@ -2129,20 +2135,39 @@ body.lbar-active .mobile-action-bar .mbar-turn-section {
 body.lbar-active.mbar-turn-active .mobile-action-bar .mbar-turn-section {
   display: flex;
 }
-/* v111: panels pushed FURTHER outward — from 43vmin (just past
-   the left/right characters) to 50vmin. The user requested
-   "100vmin and go from there", but a literal 100vmin would put
-   panels off-screen on every device smaller than ~16:9 desktop;
-   50vmin is a moderate "more out" that works on every viewport
-   while still creating a clearer separation from the table.
-   We can dial up further if desktop wants more. */
+/* v112: device-specific push-out per request:
+     - Mobile landscape (max-height: 500px):  55vmin
+     - Tablet landscape (max-width: 1024px):  45vmin
+     - Laptop / desktop landscape (default):  60vmin
+   The mobile push-out (55vmin) is larger than tablet (45vmin) on
+   purpose: with mobile's smaller vmin, 55vmin is a smaller
+   physical distance than tablet's 45vmin, so the panels still
+   sit a reasonable distance from the table without flying off
+   to the viewport edges on phones.
+   The default rule below covers laptops + desktop monitors. */
 body.lbar-active .mobile-action-bar .mbar-leader-section {
   left: auto;
-  right: calc(50% + 50vmin);
+  right: calc(50% + 60vmin);
 }
 body.lbar-active .mobile-action-bar .mbar-turn-section {
-  left: calc(50% + 50vmin);
+  left: calc(50% + 60vmin);
   right: auto;
+}
+@media (orientation: landscape) and (max-width: 1024px) {
+  body.lbar-active .mobile-action-bar .mbar-leader-section {
+    right: calc(50% + 45vmin);
+  }
+  body.lbar-active .mobile-action-bar .mbar-turn-section {
+    left: calc(50% + 45vmin);
+  }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  body.lbar-active .mobile-action-bar .mbar-leader-section {
+    right: calc(50% + 55vmin);
+  }
+  body.lbar-active .mobile-action-bar .mbar-turn-section {
+    left: calc(50% + 55vmin);
+  }
 }
 
 /* No Draw/Stay buttons in landscape side-panels — the on-table
@@ -2166,9 +2191,22 @@ body.lbar-active .mobile-action-bar .mbar-name {
   font-size: 0.9rem;
   max-width: 9rem;
 }
+/* v112: in LANDSCAPE only, the "Leader" label is pulled out of
+   flow (absolute-positioned above the section box) so the
+   section's content is just score + avatar + name — symmetric
+   with the turn section. Without this, the leader's avatar sat
+   ~0.7rem below the panel's vertical center because the label
+   pushed everything below it down — making the side-panel
+   avatar drop below the LEFT/RIGHT table characters that were
+   at the same vertical level. */
 body.lbar-active .mobile-action-bar .mbar-leader-label {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 0.4rem;
   font-size: 0.78rem;
-  margin-bottom: 0.05rem;
+  white-space: nowrap;
 }
 body.lbar-active .mobile-action-bar .mbar-card {
   width: 1.7rem;
