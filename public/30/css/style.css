@@ -1433,16 +1433,15 @@ html, body {
   .setup-header,
   #online-lobby-header {
     bottom: auto;
-    /* v120: was 2.5rem (too far below tabs row, leaving empty
-       space above the top character). Pulled up to 1rem so the
-       HUD sits just below the URL bar / tabs. env(safe-area-
-       inset-top) is 0 on iPad without notch even with tabs
-       showing, so we use a fixed offset. */
-    top: max(1rem, env(safe-area-inset-top, 1rem));
+    /* v122: 1rem still clipped under Safari's tabs strip on iPad.
+       Bumped to 2rem; the table itself was simultaneously shifted
+       down 3.5vmin in renderer.js (getTableCenter) to absorb the
+       dead space at the bottom and keep the layout balanced. */
+    top: max(2rem, env(safe-area-inset-top, 2rem));
   }
   .hud-room-row {
     bottom: auto;
-    top: calc(max(1rem, env(safe-area-inset-top, 1rem)) + 2vmin);
+    top: calc(max(2rem, env(safe-area-inset-top, 2rem)) + 2vmin);
   }
 }
 
@@ -2209,15 +2208,11 @@ body.lbar-active .mobile-action-bar .mbar-turn-section {
   body.lbar-active .mobile-action-bar .mbar-turn-section {
     left: calc(50% + 55vmin);
   }
-  /* v120: mobile-landscape side-panel avatar = 2× the table
-     character avatar size. Table avatar is 7.8vmin everywhere;
-     2× = 15.6vmin. On phone landscape (vmin ~3.75), this is
-     ~58px — close to the mobile-portrait panel's 3.4rem (~54px)
-     but expressed in vmin so it scales with the table. */
-  body.lbar-active .mobile-action-bar .mbar-avatar {
-    width: 15.6vmin;
-    height: 15.6vmin;
-  }
+  /* Mobile-landscape avatar override is below the default
+     `body.lbar-active .mbar-avatar` block so it actually wins
+     the cascade — keeping it inside this same media query meant
+     the later default rule (7.8vmin) overwrote it. See the
+     dedicated `mbar-avatar { width: 3.4rem }` rule further down. */
 }
 
 /* No Draw/Stay buttons in landscape side-panels — the on-table
@@ -2276,6 +2271,22 @@ body.lbar-active .mobile-action-bar .mbar-top {
 body.lbar-active .mobile-action-bar .mbar-badges .mbar-badge {
   font-size: 0.7rem;
   padding: 0.15rem 0.45rem;
+}
+
+/* v122 mobile-landscape avatar size override — placed AFTER the
+   default `body.lbar-active .mbar-avatar` rule (which sets 7.8vmin
+   for all landscape) so this wins the cascade. Set to 3.4rem to
+   match mobile-portrait panel's avatar — earlier attempts at
+   15.6vmin (v120) were silently overwritten by the source-order-
+   later 7.8vmin rule. v122 also restricts side panels to mobile
+   landscape only via isLandscapeView() in ui.js, so the default
+   7.8vmin/desktop sizing branch is currently dead code (kept for
+   the eventual side-panel revival, intentionally not deleted). */
+@media (orientation: landscape) and (max-height: 500px) {
+  body.lbar-active .mobile-action-bar .mbar-avatar {
+    width: 3.4rem;
+    height: 3.4rem;
+  }
 }
 
 /* v111 cards layout in the LANDSCAPE turn-section (active player

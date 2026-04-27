@@ -3060,12 +3060,17 @@ var UI = (function () {
     return window.matchMedia('(orientation: portrait) and (max-width: 480px)').matches;
   }
 
-  // Detect any landscape viewport (phone, tablet, desktop). v109
-  // shows the leader/active-player side panels in landscape across
-  // every device class — there's plenty of horizontal space on
-  // either side of the centered card table.
+  // Detect MOBILE-landscape only (phone in landscape orientation).
+  // v122: side panels (leader / active-player) were originally added
+  // to all landscape viewports in v109, but on tablet / laptop /
+  // desktop the table characters and on-table HUD already convey the
+  // same info clearly — the side panels just added clutter and a
+  // long tail of layout bugs. Removed everywhere except mobile,
+  // where the smaller table makes the at-a-glance leader display
+  // genuinely useful. Mobile-landscape phones match `max-height:
+  // 500px` (any phone in landscape is short).
   function isLandscapeView() {
-    return window.matchMedia('(orientation: landscape)').matches;
+    return window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
   }
 
   // Track the latest "is it my turn" state so updatePlayerTotal can

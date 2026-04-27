@@ -1314,10 +1314,22 @@ var Renderer = (function () {
   }
 
   function getTableCenter() {
-    // Shift down 1.5vmin. With the smaller 32vmin felt and bigger HUD text,
-    // this balances top margin (for HUD above top character) and bottom
-    // margin (for the name below the bottom character) on landscape phones.
-    return { x: W / 2, y: H / 2 + 1.5 * getVmin() };
+    // Default shift: 1.5vmin down. With the smaller 32vmin felt and
+    // bigger HUD text, this balances top margin (for HUD above top
+    // character) and bottom margin (for the name below the bottom
+    // character) on landscape phones / desktop.
+    //
+    // v122 tablet-landscape exception: iPad Safari with the URL bar
+    // AND tabs row visible eats more top space than the 1.5vmin
+    // shift accounts for, so the round/turn HUD line was clipping
+    // into the tabs strip and there was unused empty space below
+    // the bottom character. Shifting the table down to 5vmin pulls
+    // the top character + HUD down into safe space and absorbs the
+    // bottom dead zone — no proportional resize needed.
+    var shift = 1.5;
+    var isTabletLandscape = (W > H) && H > 500 && H <= 900;
+    if (isTabletLandscape) shift = 5.0;
+    return { x: W / 2, y: H / 2 + shift * getVmin() };
   }
 
   // Table felt radius. Kept slightly smaller than the absolute max so that on
