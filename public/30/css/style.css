@@ -2202,11 +2202,15 @@ body.lbar-active .mobile-action-bar .mbar-turn-section {
   }
 }
 @media (orientation: landscape) and (max-height: 500px) {
+  /* v123: pushed inset 55vmin -> 65vmin so the side panels sit
+     comfortably away from the table characters. The avatar circles
+     are now full portrait-size (3.4rem) so the panels need a wider
+     berth than they did with the smaller v120 sizing. */
   body.lbar-active .mobile-action-bar .mbar-leader-section {
-    right: calc(50% + 55vmin);
+    right: calc(50% + 65vmin);
   }
   body.lbar-active .mobile-action-bar .mbar-turn-section {
-    left: calc(50% + 55vmin);
+    left: calc(50% + 65vmin);
   }
   /* Mobile-landscape avatar override is below the default
      `body.lbar-active .mbar-avatar` block so it actually wins
