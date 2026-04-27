@@ -51,72 +51,9 @@ var CardSystem = (function () {
     return total;
   }
 
-  // Create a card DOM element
-  function createCardEl(card, faceUp) {
-    var el = document.createElement('div');
-    el.className = 'card suit-' + card.color;
-    if (faceUp) el.classList.add('flipped');
-
-    // Front face
-    var face = document.createElement('div');
-    face.className = 'card-face';
-
-    // Top-left corner
-    var tlCorner = document.createElement('div');
-    tlCorner.className = 'card-corner card-corner-tl';
-    tlCorner.innerHTML = '<span class="card-rank">' + card.rank + '</span>' +
-                         '<span class="card-suit-small">' + card.symbol + '</span>';
-    face.appendChild(tlCorner);
-
-    // Bottom-right corner
-    var brCorner = document.createElement('div');
-    brCorner.className = 'card-corner card-corner-br';
-    brCorner.innerHTML = '<span class="card-rank">' + card.rank + '</span>' +
-                         '<span class="card-suit-small">' + card.symbol + '</span>';
-    face.appendChild(brCorner);
-
-    // Center suit
-    var center = document.createElement('div');
-    center.className = 'card-center-suit';
-    center.textContent = card.symbol;
-    face.appendChild(center);
-
-    // Value badge
-    var badge = document.createElement('div');
-    badge.className = 'card-value-badge';
-    badge.textContent = card.value;
-    face.appendChild(badge);
-
-    el.appendChild(face);
-
-    // Back side
-    var back = document.createElement('div');
-    back.className = 'card-back-side';
-    el.appendChild(back);
-
-    // Store card data on element
-    el._card = card;
-
-    return el;
-  }
-
-  // Create a mini card for results display
-  function createMiniCardEl(card) {
-    var el = document.createElement('div');
-    el.className = 'result-mini-card suit-' + card.color;
-    el.innerHTML = '<span>' + card.rank + '</span><span>' + card.symbol + '</span>';
-    return el;
-  }
-
   return {
     createDeck: createDeck,
     shuffle: shuffle,
-    handTotal: handTotal,
-    createCardEl: createCardEl,
-    createMiniCardEl: createMiniCardEl,
-    SUITS: SUITS,
-    RANKS: RANKS,
-    RANK_VALUES: RANK_VALUES,
-    SUIT_SYMBOLS: SUIT_SYMBOLS
+    handTotal: handTotal
   };
 })();

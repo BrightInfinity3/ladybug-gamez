@@ -1,6 +1,9 @@
 /* ============================================================
    30 - Animation System
-   Card dealing, drawing, flipping, bust, win celebrations
+   Bust shake, confetti, seat-position math, promise-based delays.
+   (Card deal/draw/flip animations live in renderer.js — they're
+   drawn directly on the PixiJS canvas now. This module only owns
+   the side-effects that still rely on DOM/CSS classes.)
    ============================================================ */
 
 var Animations = (function () {
@@ -30,98 +33,13 @@ var Animations = (function () {
     return new Promise(function (resolve) { setTimeout(resolve, ms); });
   }
 
-  // ---- Deal Animation ----
-  // Animates a card flying from the deck to a target position
-  function animateDealCard(card, deckEl, targetEl, faceUp) {
-    return new Promise(function (resolve) {
-      var deckPos = getCenter(deckEl);
-      var targetPos = getCenter(targetEl);
-
-      // Create flying card element
-      var cardEl = CardSystem.createCardEl(card, false);
-      cardEl.classList.add('card-flying');
-      cardEl.style.position = 'fixed';
-      cardEl.style.left = (deckPos.x - 30) + 'px';
-      cardEl.style.top = (deckPos.y - 42) + 'px';
-      cardEl.style.zIndex = '100';
-      cardEl.style.transition = 'none';
-      document.body.appendChild(cardEl);
-
-      // Force reflow
-      cardEl.offsetHeight;
-
-      // Animate to target
-      cardEl.style.transition = 'all ' + TIMING.DEAL_FLIGHT + 'ms cubic-bezier(0.25, 0.8, 0.25, 1)';
-      cardEl.style.left = (targetPos.x - 30) + 'px';
-      cardEl.style.top = (targetPos.y - 42) + 'px';
-
-      setTimeout(function () {
-        // Remove flying card
-        if (cardEl.parentNode) cardEl.parentNode.removeChild(cardEl);
-        resolve();
-      }, TIMING.DEAL_FLIGHT);
-    });
-  }
-
-  // ---- Draw Card Animation ----
-  function animateDrawCard(card, deckEl, targetEl) {
-    return new Promise(function (resolve) {
-      var deckPos = getCenter(deckEl);
-      var targetPos = getCenter(targetEl);
-
-      var cardEl = CardSystem.createCardEl(card, false);
-      cardEl.classList.add('card-flying');
-      cardEl.style.position = 'fixed';
-      cardEl.style.left = (deckPos.x - 30) + 'px';
-      cardEl.style.top = (deckPos.y - 42) + 'px';
-      cardEl.style.zIndex = '100';
-      cardEl.style.transition = 'none';
-      document.body.appendChild(cardEl);
-
-      cardEl.offsetHeight;
-
-      // Fly and flip simultaneously
-      cardEl.style.transition = 'all ' + TIMING.DRAW_FLIGHT + 'ms cubic-bezier(0.25, 0.8, 0.25, 1)';
-      cardEl.style.left = (targetPos.x - 30) + 'px';
-      cardEl.style.top = (targetPos.y - 42) + 'px';
-
-      // Flip partway through
-      setTimeout(function () {
-        cardEl.classList.add('flipped');
-      }, TIMING.DRAW_FLIGHT * 0.3);
-
-      setTimeout(function () {
-        if (cardEl.parentNode) cardEl.parentNode.removeChild(cardEl);
-        resolve();
-      }, TIMING.DRAW_FLIGHT);
-    });
-  }
-
-  // ---- Flip All Cards ----
-  function flipAllCards(containerSelector) {
-    var cards = document.querySelectorAll(containerSelector + ' .card:not(.flipped)');
-    var promises = [];
-    for (var i = 0; i < cards.length; i++) {
-      (function (card, index) {
-        promises.push(new Promise(function (resolve) {
-          setTimeout(function () {
-            card.classList.add('flipped');
-            setTimeout(resolve, TIMING.FLIP_DURATION);
-          }, index * 50); // stagger slightly
-        }));
-      })(cards[i], i);
-    }
-    return Promise.all(promises);
-  }
-
   // ---- Bust Animation ----
   function animateBust(seatEl) {
-    if (seatEl) {
-      seatEl.classList.add('bust-shake');
-      setTimeout(function () {
-        seatEl.classList.remove('bust-shake');
-      }, TIMING.BUST_SHAKE);
-    }
+    if (!seatEl) return;
+    seatEl.classList.add('bust-shake');
+    setTimeout(function () {
+      seatEl.classList.remove('bust-shake');
+    }, TIMING.BUST_SHAKE);
   }
 
   // ---- Confetti ----
@@ -159,12 +77,12 @@ var Animations = (function () {
   }
 
   // ---- Seat Positions ----
-  // Calculate 8 seat positions around an ellipse
+  // Calculate 8 seat positions around a circle. Used by some legacy DOM
+  // measurements; the canvas renderer has its own seat math.
   function getSeatPositions(containerWidth, containerHeight, numSeats) {
     var positions = [];
     var cx = containerWidth / 2;
     var cy = containerHeight / 2;
-    // Circular: use the smaller dimension
     var r = Math.min(containerWidth, containerHeight) * 0.44;
 
     for (var i = 0; i < numSeats; i++) {
@@ -179,33 +97,12 @@ var Animations = (function () {
     return positions;
   }
 
-  // ---- Hand Position Offsets ----
-  // Returns position for cards relative to a seat
-  function getHandOffset(seatAngle, cardIndex, totalCards) {
-    // Cards fan out perpendicular to the seat angle
-    var spread = Math.min(totalCards * 18, 80);
-    var startX = -(spread / 2);
-    var offsetX = startX + cardIndex * (spread / Math.max(totalCards - 1, 1));
-    if (totalCards === 1) offsetX = 0;
-
-    // Cards go toward center of table from the seat
-    var towardCenter = -60;
-    var dx = Math.cos(seatAngle) * towardCenter + Math.cos(seatAngle + Math.PI / 2) * offsetX;
-    var dy = Math.sin(seatAngle) * towardCenter + Math.sin(seatAngle + Math.PI / 2) * offsetX;
-
-    return { x: dx, y: dy };
-  }
-
   return {
     TIMING: TIMING,
     delay: delay,
     getCenter: getCenter,
-    animateDealCard: animateDealCard,
-    animateDrawCard: animateDrawCard,
-    flipAllCards: flipAllCards,
     animateBust: animateBust,
     launchConfetti: launchConfetti,
-    getSeatPositions: getSeatPositions,
-    getHandOffset: getHandOffset
+    getSeatPositions: getSeatPositions
   };
 })();

@@ -10,24 +10,32 @@ var Online = (function () {
   var SEAT_FILL_ORDER = [0, 4, 2, 6, 1, 5, 3, 7];
   var NUM_SEATS = 8;
 
-  // Nickname arrays matching ui.js — pick randomly
-  var NICKNAMES = {
-    bear:['Bruno','Grizzly','Kodiak'], cat:['Shadow','Mittens','Whiskers'],
-    owl:['Hoot','Sage','Luna'], penguin:['Waddles','Tux','Frost'],
-    raccoon:['Bandit','Rascal','Stripe'], frog:['Ribbit','Lily','Marsh'],
-    dog:['Buddy','Rex','Scout'], panda:['Bamboo','Oreo','Patches'],
-    monkey:['Coco','Chip','Mango'], deer:['Dasher','Fawn','Buck'],
-    hedgehog:['Spike','Bramble','Thistle'], shark:['Finn','Jaws','Reef'],
-    octopus:['Inky','Coral','Squid'], hamster:['Nibbles','Peanut','Biscuit'],
-    parrot:['Polly','Stella','Rio'], turtle:['Shelly','Mossy','Tank'],
-    goat:['Billy','Cliffs','Bleat'], spider:['Webster','Silk','Fang'],
-    ladybug:['Dotty','Pepper','Ruby'], bee:['Buzz','Abby','Nectar'],
-    crocodile:['Snappy','Chomp','Marsh'], dolphin:['Splash','Snowflake','Echo'],
-    rabbit:['Clover','Hopper','Thumper'], dodo:['Doodle','Pebble','Waddle']
-  };
+  // Pick a nickname from SpriteEngine's central pool (single source of
+  // truth shared with ui.js's setup-screen seat naming).
   function pickNickname(animal) {
-    var arr = NICKNAMES[animal];
-    return arr ? arr[Math.floor(Math.random() * arr.length)] : animal;
+    return SpriteEngine.pickNickname(animal);
+  }
+
+  // Deep-clone via JSON round-trip. Used everywhere we send a snapshot
+  // of `lobbyState` over the wire so the receiver can't mutate the
+  // sender's authoritative copy. Safe because lobbyState is plain JSON
+  // (no Dates / functions / class instances) by design.
+  function deepClone(obj) {
+    return JSON.parse(JSON.stringify(obj));
+  }
+
+  // Hide all host-only chrome (player-count control, Deal button,
+  // Change Host button) — used when an old host hands off / is
+  // demoted, defensive against renderOnlineLobby() not running for
+  // any reason. CHANGE HOST itself is currently CSS-hidden everywhere
+  // (v118), but we still drop its inline display in case the CSS rule
+  // is ever lifted.
+  function hideHostOnlyUI() {
+    var ids = ['player-count-control', 'btn-online-deal', 'btn-change-host'];
+    for (var i = 0; i < ids.length; i++) {
+      var el = document.getElementById(ids[i]);
+      if (el) el.style.display = 'none';
+    }
   }
 
   // ---- State ----
@@ -273,11 +281,11 @@ var Online = (function () {
       broadcastLobbyState();
       renderOnlineLobby();
       if (gamePhase === 'lobby') {
-        Network.send(peerId, { type: 'lobby_state', data: JSON.parse(JSON.stringify(lobbyState)) });
+        Network.send(peerId, { type: 'lobby_state', data: deepClone(lobbyState) });
       } else if (gamePhase === 'playing') {
         Network.send(peerId, {
           type: 'game_state_sync',
-          data: { gameState: Game.serialize(), lobbyState: JSON.parse(JSON.stringify(lobbyState)) }
+          data: { gameState: Game.serialize(), lobbyState: deepClone(lobbyState) }
         });
       }
     });
@@ -285,11 +293,11 @@ var Online = (function () {
     Network.onReconnect(function (peerId) {
       console.log('[Online] Guest reconnected:', peerId);
       if (gamePhase === 'lobby') {
-        Network.send(peerId, { type: 'lobby_state', data: JSON.parse(JSON.stringify(lobbyState)) });
+        Network.send(peerId, { type: 'lobby_state', data: deepClone(lobbyState) });
       } else if (gamePhase === 'playing') {
         Network.send(peerId, {
           type: 'game_state_sync',
-          data: { gameState: Game.serialize(), lobbyState: JSON.parse(JSON.stringify(lobbyState)) }
+          data: { gameState: Game.serialize(), lobbyState: deepClone(lobbyState) }
         });
       }
     });
@@ -401,7 +409,7 @@ var Online = (function () {
       }
       broadcastLobbyState();
       if (gamePhase === 'playing') {
-        broadcastGameStateSync({ gameState: Game.serialize(), lobbyState: JSON.parse(JSON.stringify(lobbyState)) });
+        broadcastGameStateSync({ gameState: Game.serialize(), lobbyState: deepClone(lobbyState) });
       }
       // v113: voluntary-aware toast wording. The new-host toast and
       // the broadcast toast now distinguish handoff from disconnect.
@@ -452,12 +460,7 @@ var Online = (function () {
         // Force-hide host-only lobby UI immediately (PCC, Deal,
         // Change Host) instead of relying on the renderOnlineLobby
         // cascade — defensive against any race or rerun.
-        var pccEl = document.getElementById('player-count-control');
-        if (pccEl) pccEl.style.display = 'none';
-        var dealBtnEl = document.getElementById('btn-online-deal');
-        if (dealBtnEl) dealBtnEl.style.display = 'none';
-        var chgEl = document.getElementById('btn-change-host');
-        if (chgEl) chgEl.style.display = 'none';
+        hideHostOnlyUI();
         // Show waiting message in lobby phase
         var waitEl = document.getElementById('lobby-waiting');
         if (waitEl && gamePhase === 'lobby') waitEl.style.display = '';
@@ -587,7 +590,7 @@ var Online = (function () {
 
     // Re-sync full state so the reconnected device catches up.
     if (gamePhase === 'lobby') {
-      Network.send(peerId, { type: 'lobby_state', data: JSON.parse(JSON.stringify(lobbyState)) });
+      Network.send(peerId, { type: 'lobby_state', data: deepClone(lobbyState) });
       renderOnlineLobby();
     } else if (gamePhase === 'playing') {
       // The reconnecting device may STILL be on the lobby/setup
@@ -602,13 +605,13 @@ var Online = (function () {
         data: {
           players: Game.getState().players,
           dealerIndex: Game.getState().dealerIndex,
-          lobbyState: JSON.parse(JSON.stringify(lobbyState)),
+          lobbyState: deepClone(lobbyState),
           midGame: true
         }
       });
       Network.send(peerId, {
         type: 'game_state_sync',
-        data: { gameState: Game.serialize(), lobbyState: JSON.parse(JSON.stringify(lobbyState)) }
+        data: { gameState: Game.serialize(), lobbyState: deepClone(lobbyState) }
       });
     }
   }
@@ -700,13 +703,13 @@ var Online = (function () {
         data: {
           players: Game.getState().players,
           dealerIndex: Game.getState().dealerIndex,
-          lobbyState: JSON.parse(JSON.stringify(lobbyState)),
+          lobbyState: deepClone(lobbyState),
           midGame: true
         }
       });
       Network.send(peerId, {
         type: 'game_state_sync',
-        data: { gameState: Game.serialize(), lobbyState: JSON.parse(JSON.stringify(lobbyState)) }
+        data: { gameState: Game.serialize(), lobbyState: deepClone(lobbyState) }
       });
     }
 
@@ -1197,7 +1200,7 @@ var Online = (function () {
   // helpful for diagnosing races — we log the seat occupants on each
   // broadcast so the host console shows exactly what each guest receives.
   function broadcastLobbyState() {
-    var snapshot = JSON.parse(JSON.stringify(lobbyState));
+    var snapshot = deepClone(lobbyState);
     if (typeof console !== 'undefined' && console.log) {
       var occ = snapshot.seats.map(function (s, i) {
         return s.occupied ? (i + ':' + (s.isAI ? 'AI' : (s.deviceId || '?').slice(-4)) + '/' + s.name) : null;

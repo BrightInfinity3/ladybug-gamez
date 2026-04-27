@@ -1586,6 +1586,37 @@ var SpriteEngine = (function () {
     dodo: 'Dodo'
   };
 
+  // Per-animal nickname pools. Used as default seat names by both the
+  // local-play setup screen (ui.js) and the online lobby (online.js).
+  // Single source of truth — keeping it here avoids drift between the
+  // two modules' tables.
+  var ANIMAL_NICKNAMES = {
+    bear:      ['Bruno',   'Grizzly',  'Kodiak'],
+    cat:       ['Shadow',  'Mittens',  'Whiskers'],
+    owl:       ['Hoot',    'Sage',     'Luna'],
+    penguin:   ['Waddles', 'Tux',      'Frost'],
+    raccoon:   ['Bandit',  'Rascal',   'Stripe'],
+    frog:      ['Ribbit',  'Lily',     'Marsh'],
+    dog:       ['Buddy',   'Rex',      'Scout'],
+    panda:     ['Bamboo',  'Oreo',     'Patches'],
+    monkey:    ['Coco',    'Chip',     'Mango'],
+    deer:      ['Dasher',  'Fawn',     'Buck'],
+    hedgehog:  ['Spike',   'Bramble',  'Thistle'],
+    shark:     ['Finn',    'Jaws',     'Reef'],
+    octopus:   ['Inky',    'Coral',    'Squid'],
+    hamster:   ['Nibbles', 'Peanut',   'Biscuit'],
+    parrot:    ['Polly',   'Stella',   'Rio'],
+    turtle:    ['Shelly',  'Mossy',    'Tank'],
+    goat:      ['Billy',   'Cliffs',   'Bleat'],
+    spider:    ['Webster', 'Silk',     'Fang'],
+    ladybug:   ['Dotty',   'Pepper',   'Ruby'],
+    bee:       ['Buzz',    'Abby',     'Nectar'],
+    crocodile: ['Snappy',  'Chomp',    'Marsh'],
+    dolphin:   ['Splash',  'Snowflake','Echo'],
+    rabbit:    ['Clover',  'Hopper',   'Thumper'],
+    dodo:      ['Doodle',  'Pebble',   'Waddle']
+  };
+
   function init() {
     for (var id in SVG_DEFS) {
       if (SVG_DEFS.hasOwnProperty(id)) {
@@ -1626,6 +1657,16 @@ var SpriteEngine = (function () {
     return ANIMAL_NAMES[id] || id;
   }
 
+  // Pick one of the animal's nickname pool entries at random. Falls
+  // back to the species name (e.g. 'Bear') if the pool is missing.
+  function pickNickname(animalId) {
+    var arr = ANIMAL_NICKNAMES[animalId];
+    if (arr && arr.length) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+    return getAnimalName(animalId);
+  }
+
   // Initialize on load
   init();
 
@@ -1633,6 +1674,7 @@ var SpriteEngine = (function () {
     getSprite: getSprite,
     createSpriteImg: createSpriteImg,
     getAnimalList: getAnimalList,
-    getAnimalName: getAnimalName
+    getAnimalName: getAnimalName,
+    pickNickname: pickNickname
   };
 })();

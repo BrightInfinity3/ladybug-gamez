@@ -83,6 +83,14 @@ var Network = (function () {
   var STALE_MS = 35000;
 
   // ---- Low-level socket helpers ----
+  // True iff the socket exists and is in OPEN state. Centralised so the
+  // 7+ inline `ws && ws.readyState === WebSocket.OPEN` checks all read
+  // the same way, and so a future "is connected" definition (e.g.
+  // counting CONNECTING as ready under some condition) only changes here.
+  function isSocketReady() {
+    return !!ws && ws.readyState === WebSocket.OPEN;
+  }
+
   function openSocket(onReady, onError) {
     try {
       ws = new WebSocket(WS_URL);
@@ -106,7 +114,7 @@ var Network = (function () {
   }
 
   function wsSend(obj) {
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
+    if (!isSocketReady()) {
       // Queue user-action messages sent during a reconnect window
       // (socket briefly dead between a drop and a successful reclaim).
       // Without this the Draw/Stay the user clicked right after a
@@ -130,7 +138,7 @@ var Network = (function () {
     var toFlush = pendingSends.slice();
     pendingSends = [];
     for (var i = 0; i < toFlush.length; i++) {
-      if (ws && ws.readyState === WebSocket.OPEN) {
+      if (isSocketReady()) {
         try { ws.send(JSON.stringify(toFlush[i])); }
         catch (e) { console.warn('[Network] flush send failed:', e.message); }
       }
@@ -145,7 +153,7 @@ var Network = (function () {
     // and makes the server's `lastSeen` accounting always fresh. The
     // server replies with `_pong` which resets our watchdog.
     pingTimer = setInterval(function () {
-      if (ws && ws.readyState === WebSocket.OPEN) wsSend({ type: '_ping' });
+      if (isSocketReady()) wsSend({ type: '_ping' });
     }, 10000);
   }
   function stopHeartbeat() {
@@ -159,7 +167,7 @@ var Network = (function () {
   function startWatchdog() {
     stopWatchdog();
     watchdogTimer = setInterval(function () {
-      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      if (!isSocketReady()) return;
       if (userInitiatedClose) return;
       var sinceLast = Date.now() - lastInboundMessageAt;
       if (sinceLast > STALE_MS) {
@@ -186,7 +194,7 @@ var Network = (function () {
       var send = function () {
         wsSend({ type: 'create_room', data: { username: pendingUsername } });
       };
-      if (ws && ws.readyState === WebSocket.OPEN) send();
+      if (isSocketReady()) send();
       else openSocket(send, function (e) {
         if (createReject) { createReject(new Error('Could not reach the game server. Check your connection.')); createReject = null; createResolve = null; }
       });
@@ -214,7 +222,7 @@ var Network = (function () {
           }
         });
       };
-      if (ws && ws.readyState === WebSocket.OPEN) send();
+      if (isSocketReady()) send();
       else openSocket(send, function (e) {
         if (joinReject) { joinReject(new Error('Could not reach the game server. Check your connection.')); joinReject = null; joinResolve = null; }
       });
@@ -521,7 +529,7 @@ var Network = (function () {
       if (reclaimTimeoutTimer) clearTimeout(reclaimTimeoutTimer);
       reclaimTimeoutTimer = setTimeout(function () {
         reclaimTimeoutTimer = null;
-        if (ws && ws.readyState === WebSocket.OPEN && !connectedToRoom) {
+        if (isSocketReady() && !connectedToRoom) {
           console.warn('[Network] Reclaim response timeout — recycling and retrying');
           try { ws.close(4001, 'reclaim timeout'); } catch (e) {}
         }
@@ -558,7 +566,7 @@ var Network = (function () {
       console.log('[Network] ' + why + ' — socket is dead, reconnecting now');
       cancelReconnect();
       doReconnect();
-    } else if (ws && ws.readyState === WebSocket.OPEN) {
+    } else if (isSocketReady()) {
       // Socket thinks it's open — send an immediate ping so if it's
       // actually half-closed we find out quickly.
       wsSend({ type: '_ping' });
@@ -592,11 +600,9 @@ var Network = (function () {
 
   // ---- Accessors ----
   function isHost()          { return _isHost; }
-  function isConnected()     { return ws && ws.readyState === WebSocket.OPEN; }
-  function isReconnecting()  { return false; }
+  function isConnected()     { return isSocketReady(); }
   function getRoomCode()     { return roomCode; }
   function getMyPeerId()     { return myPeerId; }
-  function getGuestIds()     { return []; } // server owns the peer list now
   function getWsUrl()        { return WS_URL; }
 
   return {
@@ -618,10 +624,8 @@ var Network = (function () {
     onMigration: onMigration,
     isHost: isHost,
     isConnected: isConnected,
-    isReconnecting: isReconnecting,
     getRoomCode: getRoomCode,
     getMyPeerId: getMyPeerId,
-    getGuestIds: getGuestIds,
     getWsUrl: getWsUrl
   };
 })();

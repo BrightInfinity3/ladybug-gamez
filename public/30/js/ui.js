@@ -16,33 +16,8 @@ var UI = (function () {
   var SEAT_FILL_ORDER = [4, 0, 2, 6, 3, 7, 1, 5];
   var DEFAULT_NAMES = ['Player 1', 'Player 2', 'Player 3', 'Player 4',
                        'Player 5', 'Player 6', 'Player 7', 'Player 8'];
-  // Animal-to-name mapping — each animal has 3 possible names, chosen randomly
-  var ANIMAL_NICKNAMES = {
-    bear:      ['Bruno',   'Grizzly',  'Kodiak'],
-    cat:       ['Shadow',  'Mittens',  'Whiskers'],
-    owl:       ['Hoot',    'Sage',     'Luna'],
-    penguin:   ['Waddles', 'Tux',      'Frost'],
-    raccoon:   ['Bandit',  'Rascal',   'Stripe'],
-    frog:      ['Ribbit',  'Lily',     'Marsh'],
-    dog:       ['Buddy',   'Rex',      'Scout'],
-    panda:     ['Bamboo',  'Oreo',     'Patches'],
-    monkey:    ['Coco',    'Chip',     'Mango'],
-    deer:      ['Dasher',  'Fawn',     'Buck'],
-    hedgehog:  ['Spike',   'Bramble',  'Thistle'],
-    shark:     ['Finn',    'Jaws',     'Reef'],
-    octopus:   ['Inky',    'Coral',    'Squid'],
-    hamster:   ['Nibbles', 'Peanut',   'Biscuit'],
-    parrot:    ['Polly',   'Stella',   'Rio'],
-    turtle:    ['Shelly',  'Mossy',    'Tank'],
-    goat:      ['Billy',   'Cliffs',   'Bleat'],
-    spider:    ['Webster', 'Silk',     'Fang'],
-    ladybug:   ['Dotty',   'Pepper',   'Ruby'],
-    bee:       ['Buzz',    'Abby',     'Nectar'],
-    crocodile: ['Snappy',  'Chomp',    'Marsh'],
-    dolphin:   ['Splash',  'Snowflake','Echo'],
-    rabbit:    ['Clover',  'Hopper',   'Thumper'],
-    dodo:      ['Doodle',  'Pebble',   'Waddle']
-  };
+  // Animal-to-name mapping lives in SpriteEngine (sprites.js) — single
+  // source of truth shared with online.js. Use SpriteEngine.pickNickname.
 
   // ---- Setup State ----
   var setupSeats = []; // array of { occupied, animal, name, isHuman, isDealer, nameEdited }
@@ -1774,11 +1749,7 @@ var UI = (function () {
   }
 
   function getAnimalName(animalId) {
-    var names = ANIMAL_NICKNAMES[animalId];
-    if (names) {
-      return names[Math.floor(Math.random() * names.length)];
-    }
-    return SpriteEngine.getAnimalName(animalId);
+    return SpriteEngine.pickNickname(animalId);
   }
 
   // Pick a random occupied seat to be the dealer (current dealer is included
