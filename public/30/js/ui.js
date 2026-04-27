@@ -1102,12 +1102,11 @@ var UI = (function () {
     // Enable/disable the Deal button based on seat count.
     var dealBtn = document.getElementById('btn-online-deal');
     if (dealBtn) dealBtn.disabled = occupiedCount < 2;
-    // Every seat reserves the same top-row height above the avatar — matches
-    // the local setup layout so the avatar center lands exactly at pos.y
-    // (tangent to the table's outer wood edge). Empty seats get an invisible
-    // placeholder row so their total height matches filled seats.
-    // 3vmin row + 0.3vmin margin-bottom = 3.3vmin total vertical space.
-    var lobbyTopRowOffset = 3.3 * getVmin();
+    // v124: top of seat is the NAME (was the controller-badge row).
+    // Name renders at ~2vmin (1.4vmin font * line-height ~1.7vmin +
+    // 0.3vmin margin-bottom). Empty seats render an invisible
+    // placeholder name to keep the height consistent.
+    var lobbyTopRowOffset = 2 * getVmin();
 
     for (var i = 0; i < NUM_TABLE_SEATS; i++) {
       var seat = lobbyState.seats[i];
@@ -1120,11 +1119,10 @@ var UI = (function () {
       el.style.top = (pos.y - lobbyTopRowOffset - getSetupAvatarSize() / 2) + 'px';
       el.dataset.seat = i;
 
-      // Top row — always present (for consistent vertical layout). Filled
-      // seats fill it with a username/AI badge + optional remove button;
-      // empty seats leave it blank so they reserve the same height.
+      // Bottom row (was top row in pre-v124) — always present so empty
+      // and filled seats reserve the same vertical space.
       var topRow = document.createElement('div');
-      topRow.className = 'seat-top-row';
+      topRow.className = 'seat-top-row seat-bottom-row';
 
       if (seat.occupied) {
         // Dealer chip (solid gold "D" if this seat is dealer; hollow
@@ -1186,11 +1184,40 @@ var UI = (function () {
               Online.removeFromSeat(idx);
             };
           })(i));
-          topRow.appendChild(removeCircle);
+          // v124: removeCircle is appended to avatarRow (built below)
+          // instead of topRow. Hold the reference so we can attach in
+          // the right spot.
+          el._pendingRemoveCircle = removeCircle;
         }
+        // v124: dealer badge moved out of topRow; remove it from there.
+        // (The dealer badge was the first child appended above.)
+        if (topRow.firstChild) topRow.removeChild(topRow.firstChild);
       }
 
       el.appendChild(topRow);
+
+      // v124 Avatar row: dealer chip flanks LEFT, avatar centered,
+      // remove-X flanks RIGHT (chips/X are absolute-positioned via CSS
+      // so the avatar stays exactly at the seat's horizontal centre).
+      var avatarRow = document.createElement('div');
+      avatarRow.className = 'seat-avatar-row';
+
+      if (seat.occupied) {
+        var isDealer2 = (lobbyState.dealerIndex === i);
+        var dealerBadge2 = document.createElement('div');
+        dealerBadge2.className = isDealer2 ? 'seat-dealer-chip' : 'seat-dealer-slot';
+        dealerBadge2.textContent = 'D';
+        if (!isDealer2 && isHost) {
+          dealerBadge2.title = 'Make dealer';
+          dealerBadge2.addEventListener('click', (function (idx) {
+            return function (e) {
+              e.stopPropagation();
+              Online.setDealer(idx);
+            };
+          })(i));
+        }
+        avatarRow.appendChild(dealerBadge2);
+      }
 
       // Avatar
       var avatar = document.createElement('div');
@@ -1220,12 +1247,21 @@ var UI = (function () {
           return function () { Online.addPlayer(idx, /*asAI=*/false); };
         })(i));
       }
-      el.appendChild(avatar);
+      avatarRow.appendChild(avatar);
 
-      // Editable name (filled seats only)
+      // v124: remove-X (right of avatar) — was held aside earlier.
+      if (el._pendingRemoveCircle) {
+        avatarRow.appendChild(el._pendingRemoveCircle);
+        el._pendingRemoveCircle = null;
+      }
+
+      // Insert avatar row BEFORE the (now bottom) controller-badge row.
+      el.insertBefore(avatarRow, topRow);
+
+      // Editable name — TOP of seat in v124 (was below avatar).
+      var nameEl = document.createElement('div');
+      nameEl.className = 'seat-name';
       if (seat.occupied) {
-        var nameEl = document.createElement('div');
-        nameEl.className = 'seat-name';
         nameEl.textContent = seat.name;
         nameEl.dataset.seat = i;
         if (seat.deviceId === myDeviceId) {
@@ -1236,8 +1272,12 @@ var UI = (function () {
             };
           })(i));
         }
-        el.appendChild(nameEl);
+      } else {
+        // Reserve same height for empty seats so avatar lands at pos.y.
+        nameEl.innerHTML = '&nbsp;';
+        nameEl.style.visibility = 'hidden';
       }
+      el.insertBefore(nameEl, el.firstChild);
 
       ring.appendChild(el);
     }
@@ -1814,22 +1854,20 @@ var UI = (function () {
       var el = document.createElement('div');
       el.className = 'seat' + (seat.occupied ? '' : ' seat-empty');
       el.style.left = pos.x + 'px';
-      // Seat's visible top is the top-row (badges sit above the avatar).
-      // The row is rendered in-flow so account for its reserved height.
-      // .seat-top-row is 3vmin fixed + 0.3vmin margin-bottom. Using 3.3
-      // instead of just 3 puts the avatar center EXACTLY on the tangent
-      // orbit; 3 alone leaves a 0.3vmin visible gap on bottom seats.
-      var setupTopRowOffset = 3.3 * getVmin();
+      // v124: top of seat is the NAME (was top-row of badges). Name
+      // renders ~2vmin tall (1.4vmin font + line-height + margin).
+      var setupTopRowOffset = 2 * getVmin();
       el.style.top = (pos.y - setupTopRowOffset - getSetupAvatarSize() / 2) + 'px';
       el.dataset.seat = i;
 
-      // Top row: [dealer / dealer-slot] [AI/Human badge] [remove X]
-      // Occupied seats get all three. Empty seats get only the badge.
+      // Bottom row (was top row): controller AI/Human badge ONLY in
+      // v124. Dealer chip + remove-X moved to flank the avatar below.
       var topRow = document.createElement('div');
-      topRow.className = 'seat-top-row';
+      topRow.className = 'seat-top-row seat-bottom-row';
 
       if (seat.occupied) {
-        // Dealer chip (solid if dealer, hollow/dashed if not — click to set)
+        // v124: dealer chip moved out of topRow; build it later as a
+        // sibling of the avatar inside avatarRow.
         var dealerBadge = document.createElement('div');
         dealerBadge.className = seat.isDealer ? 'seat-dealer-chip' : 'seat-dealer-slot';
         dealerBadge.textContent = 'D';
@@ -1842,9 +1880,9 @@ var UI = (function () {
             };
           })(i));
         }
-        topRow.appendChild(dealerBadge);
+        // dealerBadge appended later to avatarRow (v124).
 
-        // AI/Human badge (toggle)
+        // AI/Human badge (toggle) \u2014 stays in bottom row.
         var badge = document.createElement('div');
         badge.className = 'seat-type-badge ' + (seat.isHuman ? 'human' : 'ai');
         badge.textContent = seat.isHuman ? 'Human' : 'AI';
@@ -1857,7 +1895,7 @@ var UI = (function () {
         })(i));
         topRow.appendChild(badge);
 
-        // Remove X (dashed red circle)
+        // Remove X (RIGHT of avatar in avatarRow; built and held aside).
         var removeCircle = document.createElement('div');
         removeCircle.className = 'seat-remove-circle';
         removeCircle.textContent = '\u00d7';
@@ -1868,7 +1906,7 @@ var UI = (function () {
             removeSeat(idx);
           };
         })(i));
-        topRow.appendChild(removeCircle);
+        // removeCircle appended later to avatarRow (v124).
       } else {
         // Empty slot — just the AI/Human toggle badge
         var emptyBadge = document.createElement('div');
@@ -1886,22 +1924,10 @@ var UI = (function () {
         topRow.appendChild(emptyBadge);
       }
 
-      el.appendChild(topRow);
-
-      // Avatar
-      var avatar = document.createElement('div');
-      avatar.className = 'seat-avatar';
-      if (seat.occupied && seat.animal) {
-        avatar.appendChild(SpriteEngine.createSpriteImg(seat.animal));
-        avatar.querySelector('img').style.width = '100%';
-        avatar.querySelector('img').style.height = '100%';
-      }
-      el.appendChild(avatar);
-
+      // Name (TOP of seat in v124).
+      var nameEl = document.createElement('div');
+      nameEl.className = 'seat-name';
       if (seat.occupied) {
-        // Editable name
-        var nameEl = document.createElement('div');
-        nameEl.className = 'seat-name';
         nameEl.textContent = seat.name;
         nameEl.dataset.seat = i;
         nameEl.addEventListener('click', (function (idx) {
@@ -1910,8 +1936,37 @@ var UI = (function () {
             startNameEdit(idx);
           };
         })(i));
-        el.appendChild(nameEl);
+      } else {
+        nameEl.innerHTML = '&nbsp;';
+        nameEl.style.visibility = 'hidden';
       }
+      el.appendChild(nameEl);
+
+      // Avatar row: dealer-chip (left) + avatar + remove-X (right).
+      var avatarRow = document.createElement('div');
+      avatarRow.className = 'seat-avatar-row';
+
+      if (seat.occupied) {
+        avatarRow.appendChild(dealerBadge);
+      }
+
+      var avatar = document.createElement('div');
+      avatar.className = 'seat-avatar';
+      if (seat.occupied && seat.animal) {
+        avatar.appendChild(SpriteEngine.createSpriteImg(seat.animal));
+        avatar.querySelector('img').style.width = '100%';
+        avatar.querySelector('img').style.height = '100%';
+      }
+      avatarRow.appendChild(avatar);
+
+      if (seat.occupied) {
+        avatarRow.appendChild(removeCircle);
+      }
+
+      el.appendChild(avatarRow);
+
+      // Bottom row last (visually below the avatar).
+      el.appendChild(topRow);
 
       // Click to select character or add player
       avatar.addEventListener('click', (function (idx) {
@@ -2731,51 +2786,42 @@ var UI = (function () {
         seat.className = 'game-seat';
         seat.dataset.player = p.id;
         seat.style.left = pos.x + 'px';
-        // The avatar sits UNDER the .game-seat-top-row (dealer + score + status),
-        // so the seat's top must be shifted up by that row's reserved height
-        // so the avatar itself is centered at pos.y (tangent to the table's
-        // outer edge). Row height is fixed at 2.4vmin + 0.3vmin margin-bottom.
-        var topRowOffset = 2.7 * getVmin();
-        seat.style.top = (pos.y - topRowOffset - getGameAvatarSize() / 2) + 'px';
+        // v124: Layout swapped. Was [top-row(dealer+score+pill), avatar,
+        // name]. Now [name, avatar-row(dealer-chip + avatar), bottom-row
+        // (score + pill)] \u2014 name on top, score-row at bottom, dealer
+        // chip flanking the avatar to its LEFT instead of riding above.
+        // The avatar must STILL land centered at pos.y (tangent to wood
+        // edge), so the seat box's top now offsets by NAME height (was
+        // top-row height). Name rendered height ~ 1.4vmin font *
+        // line-height ~1.7vmin + 0.3vmin margin = ~2vmin.
+        var nameRowOffset = 2 * getVmin();
+        seat.style.top = (pos.y - nameRowOffset - getGameAvatarSize() / 2) + 'px';
 
-        // Top row: [dealer chip] [score] [status pill]
-        // Dealer chip is tangent to the LEFT of the score, status to the RIGHT.
-        // This keeps the widest vertical cross-section at just the avatar
-        // width, making the overall seat footprint narrower.
-        var topRow = document.createElement('div');
-        topRow.className = 'game-seat-top-row';
+        // Name (top of seat).
+        var nameEl = document.createElement('div');
+        nameEl.className = 'game-seat-name';
+        nameEl.textContent = p.name;
+        seat.appendChild(nameEl);
+
+        // Avatar row: dealer chip flanks the avatar to the LEFT (chip is
+        // absolute-positioned out of flow per CSS so the avatar stays
+        // horizontally centered in the seat box).
+        var avatarRow = document.createElement('div');
+        avatarRow.className = 'game-seat-avatar-row';
 
         if (p.isDealer) {
           var chip = document.createElement('div');
-          chip.className = 'seat-dealer-chip';
+          chip.className = 'seat-dealer-chip game-seat-dealer-chip';
           chip.textContent = 'D';
-          topRow.appendChild(chip);
+          avatarRow.appendChild(chip);
         }
 
-        var totalEl = document.createElement('div');
-        totalEl.className = 'game-seat-total';
-        totalEl.dataset.total = p.id;
-        totalEl.textContent = '\u00a0';
-        totalEl.style.visibility = 'hidden';
-        topRow.appendChild(totalEl);
-
-        var statusEl = document.createElement('div');
-        statusEl.className = 'game-seat-status';
-        statusEl.dataset.status = p.id;
-        statusEl.textContent = '\u00a0';
-        statusEl.style.visibility = 'hidden';
-        topRow.appendChild(statusEl);
-
-        seat.appendChild(topRow);
-
-        // Avatar (the circle) — no more wrap needed now that chips are in top row
+        // Avatar (the circle).
         var avatarEl = document.createElement('div');
         avatarEl.className = 'game-seat-avatar';
         avatarEl.appendChild(SpriteEngine.createSpriteImg(p.animal));
         // v97: host clicks ANY avatar mid-game to open the reassign
-        // popup (AI / Host / any connected joiner). Works for all seats
-        // including AI ones, so the host can swap controllers on the
-        // fly as the game progresses.
+        // popup (AI / Host / any connected joiner).
         if (Online.isActive() && Online.isHost()) {
           avatarEl.style.cursor = 'pointer';
           avatarEl.title = 'Click to change who controls this player';
@@ -2786,13 +2832,30 @@ var UI = (function () {
             };
           })(p.seatIndex));
         }
-        seat.appendChild(avatarEl);
+        avatarRow.appendChild(avatarEl);
 
-        // Name — below avatar, centered
-        var nameEl = document.createElement('div');
-        nameEl.className = 'game-seat-name';
-        nameEl.textContent = p.name;
-        seat.appendChild(nameEl);
+        seat.appendChild(avatarRow);
+
+        // Bottom row: [score] [status pill] — was the top row, dealer
+        // chip removed (now flanks the avatar above).
+        var bottomRow = document.createElement('div');
+        bottomRow.className = 'game-seat-top-row game-seat-bottom-row';
+
+        var totalEl = document.createElement('div');
+        totalEl.className = 'game-seat-total';
+        totalEl.dataset.total = p.id;
+        totalEl.textContent = ' ';
+        totalEl.style.visibility = 'hidden';
+        bottomRow.appendChild(totalEl);
+
+        var statusEl = document.createElement('div');
+        statusEl.className = 'game-seat-status';
+        statusEl.dataset.status = p.id;
+        statusEl.textContent = ' ';
+        statusEl.style.visibility = 'hidden';
+        bottomRow.appendChild(statusEl);
+
+        seat.appendChild(bottomRow);
 
         ring.appendChild(seat);
 

@@ -249,12 +249,6 @@ var Network = (function () {
 
   // ---- Public: Leave / Kick ----
   function disconnect() {
-    // v123 diagnostics: log who is calling disconnect (which sends
-    // leave_room and tears down the room on the server). Should only
-    // fire on explicit Leave Room. If this prints on Deal!, the
-    // stack will pinpoint why.
-    console.warn('[Network] disconnect() called; isHost=', _isHost, 'roomCode=', roomCode);
-    console.trace('[Network] disconnect() stack');
     userInitiatedClose = true;
     cancelReconnect();
     connectedToRoom = false;
@@ -421,8 +415,6 @@ var Network = (function () {
       case 'room_disbanded':
         // The whole room was torn down (host left, etc.). Tell app layer
         // via disconnect('host') to match the old PeerJS behaviour.
-        // v123 diagnostics: log the reason from the server.
-        console.warn('[Network] Server sent room_disbanded; reason=', data && data.reason);
         if (disconnectHandler) disconnectHandler('host');
         connectedToRoom = false;
         break;
@@ -469,14 +461,8 @@ var Network = (function () {
     }
   }
 
-  function onSocketClose(ev) {
-    // v123 diagnostics: include the close code/reason so we can tell
-    // whether this was a clean close (1000 client disconnecting),
-    // network drop (1006 abnormal), watchdog (4000), reclaim
-    // timeout (4001), or something else.
-    var code = (ev && ev.code) ? ev.code : '?';
-    var reason = (ev && ev.reason) ? ev.reason : '';
-    console.log('[Network] WebSocket closed; code=' + code + ' reason="' + reason + '" userInitiated=' + userInitiatedClose);
+  function onSocketClose() {
+    console.log('[Network] WebSocket closed');
     stopHeartbeat();
     stopWatchdog();
     ws = null;

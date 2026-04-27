@@ -561,26 +561,44 @@ html, body {
   z-index: 5;
 }
 
-/* Top row: [dealer / dealer-slot] [AI/Human badge] [remove X].
-   Uses minmax(0, 1fr) on the side tracks so wide dealer/X chips can't
-   grow their track and push the badge off-center.
-   FIXED height (not min-height) so the avatar's vertical position is
-   deterministic — otherwise a slightly taller badge on some seats
-   shifts those avatars off the tangent orbit. Paired with the
-   topRowOffset = 3.3vmin in JS (3vmin row + 0.3vmin margin). */
+/* v124 seat-top-row is the BOTTOM row in v124's layout — only houses
+   the controller badge (dealer chip + remove-X moved to flank the
+   avatar in seat-avatar-row). Just centers the single child. */
 .seat-top-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  display: flex;
   align-items: center;
+  justify-content: center;
   width: 100%;
-  margin-bottom: 0.3vmin;
+  margin-top: 0.3vmin;
   white-space: nowrap;
   height: 3vmin;
 }
-.seat-top-row > .seat-dealer-chip,
-.seat-top-row > .seat-dealer-slot { justify-self: end; margin-right: 0.25vmin; }
-.seat-top-row > .seat-type-badge { grid-column: 2; justify-self: center; }
-.seat-top-row > .seat-remove-circle { justify-self: start; margin-left: 0.25vmin; }
+.seat-bottom-row { margin-top: 0.3vmin; margin-bottom: 0; }
+
+/* v124 avatar row: dealer-chip on left, avatar centered, remove-X on
+   right. Uses absolute positioning for the chips so the avatar stays
+   exactly at the seat's horizontal centre regardless of which chips
+   are present (dealer-only / X-only / both / neither). */
+.seat-avatar-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+.seat-avatar-row > .seat-dealer-chip,
+.seat-avatar-row > .seat-dealer-slot {
+  position: absolute;
+  right: calc(50% + 4.4vmin);
+  top: 50%;
+  transform: translateY(-50%);
+}
+.seat-avatar-row > .seat-remove-circle {
+  position: absolute;
+  left: calc(50% + 4.4vmin);
+  top: 50%;
+  transform: translateY(-50%);
+}
 
 .seat-avatar {
   width: 7.8vmin;
@@ -624,7 +642,9 @@ html, body {
   font-family: var(--font-display);
   font-size: 1.4vmin;
   color: var(--text-light);
-  margin-top: 0.21vmin;
+  /* v124: name is now ABOVE the avatar; spacing goes below it. */
+  margin-bottom: 0.21vmin;
+  margin-top: 0;
   text-align: center;
   /* No max-width / no ellipsis: show the full name (up to 12 chars) even
      if it's wider than the 7.8vmin seat box. The seat's own width stays
@@ -774,30 +794,41 @@ html, body {
   pointer-events: none;
 }
 
-/* Top row: [dealer chip] [score] [status pill] — grid so the SCORE is
-   always exactly at the seat's horizontal center, with dealer and status
-   flanking it symmetrically.
-   CRITICAL: `minmax(0, 1fr)` instead of plain `1fr` — plain 1fr grows
-   to fit its content if the content is wider than the fractional share,
-   which would push the score off-center when a wide STAY/BUST pill
-   appears. minmax(0, 1fr) caps the track so the content overflows
-   instead, keeping the center column (score) anchored at seat center. */
+/* v124: was the top row; now BOTTOM row containing just [score] +
+   [status pill]. Dealer chip moved to flank the avatar to its left.
+   CRITICAL: `minmax(0, 1fr)` on side tracks so the SCORE column
+   stays exactly centered when a wide STAY/BUST pill appears. */
 .game-seat-top-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   width: 100%;
-  margin-bottom: 0.3vmin;
+  margin-top: 0.3vmin;
   white-space: nowrap;
-  /* Fixed height so avatars don't drift between rounds as the dealer chip
-     (2.4vmin tall) rotates to different seats or as the .leader glow
-     appears/disappears. The avatar's visual position depends on this row's
-     height; keeping it constant keeps the avatars pinned to the table edge. */
   height: 2.4vmin;
 }
-.game-seat-top-row > .seat-dealer-chip { justify-self: end; margin-right: 0.2vmin; }
 .game-seat-top-row > .game-seat-total { grid-column: 2; justify-self: center; }
 .game-seat-top-row > .game-seat-status { justify-self: start; margin-left: 0.2vmin; }
+.game-seat-bottom-row { margin-top: 0.3vmin; margin-bottom: 0; }
+
+/* v124 game-seat avatar row: dealer chip flanks the avatar to the
+   LEFT (absolute-positioned out of flow so the avatar stays
+   horizontally centered in the seat). */
+.game-seat-avatar-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+.game-seat-avatar-row > .seat-dealer-chip,
+.game-seat-avatar-row > .game-seat-dealer-chip {
+  position: absolute;
+  right: calc(50% + 4.4vmin);
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: auto;
+}
 
 .game-seat-avatar {
   width: 7.8vmin;
@@ -825,7 +856,9 @@ html, body {
   font-family: var(--font-display);
   font-size: 1.4vmin;
   color: var(--text-light);
-  margin-top: 0.3vmin;
+  /* v124: name is now ABOVE the avatar; spacing goes below it. */
+  margin-bottom: 0.3vmin;
+  margin-top: 0;
   text-align: center;
 }
 
@@ -875,9 +908,11 @@ html, body {
   color: var(--win-gold);
 }
 
-/* Dealer chip inside the game-seat top row — flex item, tangent to score. */
+/* Dealer chip inside the game-seat — v124 lives in the avatar-row,
+   absolute-positioned to the LEFT of the avatar (positioning rule is
+   in .game-seat-avatar-row > .seat-dealer-chip above). Just defines
+   the chip dimensions here. */
 .game-seat .seat-dealer-chip {
-  position: static;
   width: 2.4vmin;
   height: 2.4vmin;
   font-size: 1vmin;
@@ -1139,14 +1174,13 @@ html, body {
   text-align: center;
 }
 
-/* v111: ": #" gap now matches the visible WORD gap inside
-   "CARDS REMAINING" — i.e. the space between "CARDS" and
-   "REMAINING". With letter-spacing: 0.1em the visible word-gap
-   is approximately one space-character (~0.25em) PLUS the
-   letter-spacing applied on either side of the space (2 × 0.1em),
-   so the total is ~0.45em. We translate that to a margin-left on
-   the value. (Previously the gap was just 0.14vmin = 0.1em which
-   was much smaller than the word-gap.) */
+/* ":" to "#" gap now matches the visible word-gap between "CARDS"
+   and "REMAINING" (the s-to-r gap the user pointed at). v124 dropped
+   the margin from 0.45em → 0.32em because the LABEL's letter-spacing
+   (0.1em) is also applied as TRAILING space after the colon glyph in
+   most browsers, so the perceived total gap was margin + 0.1em. With
+   margin 0.32em and trailing 0.1em the visual gap lands at ~0.42em
+   — the same as the inter-word space inside "Cards Remaining". */
 .deck-info-label {
   font-size: 1.4vmin;
   color: var(--gold);
@@ -1158,7 +1192,7 @@ html, body {
 .deck-info-value {
   font-size: 1.4vmin;
   color: var(--gold-light);
-  margin-left: 0.45em;
+  margin-left: 0.32em;
   font-weight: 900;
 }
 
@@ -1429,19 +1463,26 @@ html, body {
   }
 }
 @media (orientation: landscape) and (min-height: 501px) and (max-height: 900px) {
+  /* v124: ROUND row pulled UP closer to top safe area (1rem instead of
+     2rem) so it sits cleanly under Safari's tabs strip. The ROOM row,
+     CARDS REMAINING, and DRAW/STAY all keep their previous absolute
+     positions — see comments below. The table center has been reverted
+     to the default H/2 + 1.5vmin so characters move up too. Bottom
+     character's name now has natural breathing room. */
   .game-hud,
   .setup-header,
   #online-lobby-header {
     bottom: auto;
-    /* v122: 1rem still clipped under Safari's tabs strip on iPad.
-       Bumped to 2rem; the table itself was simultaneously shifted
-       down 3.5vmin in renderer.js (getTableCenter) to absorb the
-       dead space at the bottom and keep the layout balanced. */
-    top: max(2rem, env(safe-area-inset-top, 2rem));
+    top: max(1rem, env(safe-area-inset-top, 1rem));
   }
+  /* ROOM row: anchored to a FIXED viewport offset (computed against
+     the v122 HUD position 2rem + 2vmin) so when ROUND moves up to
+     1rem in v124, ROOM stays where it visually was — preventing the
+     two lines from looking too close together. User explicitly asked
+     to keep ROOM where it is. */
   .hud-room-row {
     bottom: auto;
-    top: calc(max(2rem, env(safe-area-inset-top, 2rem)) + 2vmin);
+    top: calc(2rem + 2vmin);
   }
 }
 
@@ -2202,15 +2243,14 @@ body.lbar-active .mobile-action-bar .mbar-turn-section {
   }
 }
 @media (orientation: landscape) and (max-height: 500px) {
-  /* v123: pushed inset 55vmin -> 65vmin so the side panels sit
-     comfortably away from the table characters. The avatar circles
-     are now full portrait-size (3.4rem) so the panels need a wider
-     berth than they did with the smaller v120 sizing. */
+  /* v124: inset pulled in from 65vmin → 60vmin per request — slight
+     bias toward the table since the side panels read clearly even
+     when not flying to the very edge. */
   body.lbar-active .mobile-action-bar .mbar-leader-section {
-    right: calc(50% + 65vmin);
+    right: calc(50% + 60vmin);
   }
   body.lbar-active .mobile-action-bar .mbar-turn-section {
-    left: calc(50% + 65vmin);
+    left: calc(50% + 60vmin);
   }
   /* Mobile-landscape avatar override is below the default
      `body.lbar-active .mbar-avatar` block so it actually wins
@@ -2219,10 +2259,19 @@ body.lbar-active .mobile-action-bar .mbar-turn-section {
      dedicated `mbar-avatar { width: 3.4rem }` rule further down. */
 }
 
-/* No Draw/Stay buttons in landscape side-panels — the on-table
-   .game-actions stay visible and serve as the input. */
+/* v124: Draw/Stay buttons VISIBLE in landscape side panels too
+   (was hidden in v109; user wants them below the active character
+   the same way they sit below the active character in mobile
+   portrait). The on-table .game-actions are still rendered too,
+   but they sit on the table near the deck — having a duplicate
+   below the side panel mirrors the portrait layout for muscle
+   memory. */
 body.lbar-active .mobile-action-bar .mbar-buttons {
-  display: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  width: 100%;
 }
 /* v115: side-panel avatars match the table characters' avatar
    size (7.8vmin) on desktop / laptop / tablet landscape so they
@@ -2293,38 +2342,40 @@ body.lbar-active .mobile-action-bar .mbar-badges .mbar-badge {
   }
 }
 
-/* v111 cards layout in the LANDSCAPE turn-section (active player
-   panel on the RIGHT of the table). Cards stack to the RIGHT of
-   the avatar in a 3-column grid (mirror of the on-table fan: 3
-   cards per row, then a 2nd row, etc.). The whole row stays
-   vertically CENTERED relative to the avatar — as more cards
-   appear and rows grow, both the avatar and the cards group
-   move toward each other's center.
-     mbar-row uses position: relative + flex with the avatar in
-     normal flow (centered horizontally inside the panel) and
-     mbar-cards absolute-positioned to the avatar's RIGHT (left:
-     50% with a margin-left to clear the avatar). The grid wraps
-     after every 3 cards. */
+/* v124 LANDSCAPE turn-section card layout (active player panel,
+   mobile-landscape only): cards stack BELOW the avatar in a 3-col
+   grid, mirroring how the on-table card fans extend toward the
+   table center. New rows appear ABOVE older rows just like the
+   table renderer's stacking. Draw/Stay buttons appear BELOW the
+   cards (un-hidden by the v124 .mbar-buttons rule below). The old
+   v111 layout (cards to the RIGHT of the avatar, buttons hidden)
+   was replaced because the side-by-side layout couldn't fit 4-5
+   cards horizontally without colliding with the table. */
 body.lbar-active .mobile-action-bar .mbar-row {
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 3.4rem;
+}
+/* Avatar comes BEFORE cards in source order for landscape so cards
+   stack below — markup has cards-then-avatar (mobile-portrait
+   side-by-side layout), so we use `order` to flip them in the
+   landscape grid without touching HTML. */
+body.lbar-active .mobile-action-bar .mbar-row .mbar-avatar {
+  order: 0;
 }
 body.lbar-active .mobile-action-bar .mbar-cards {
-  position: absolute;
-  /* RIGHT side of avatar (opposite of mobile portrait, where
-     cards sit on the LEFT). avatar half-width 1.7rem + small gap. */
-  left: 50%;
-  right: auto;
-  margin-left: 2rem;
+  order: 1;
+  position: static;
+  margin-top: 0.4rem;
+  margin-left: 0;
   margin-right: 0;
   display: grid;
   grid-template-columns: repeat(3, auto);
   grid-auto-flow: row;
   gap: 0.18rem;
-  justify-content: flex-start;
+  justify-content: center;
 }
 /* Turn section anchored BELOW the bottom seat's name (~44vmin
    below center). v109 doubles the breathing room (from ~3vmin to
@@ -2527,11 +2578,14 @@ body.mbar-turn-active .mobile-action-bar .mbar-turn-section {
    game-actions buttons so the mobile-bar Draw/Stay take over.
    Section visibility itself is handled by the body.mbar-active
    / body.mbar-turn-active rules above; this only deals with the
-   on-table buttons that would otherwise double up. */
+   on-table buttons that would otherwise double up. v124 extends
+   this to mobile-LANDSCAPE too so the Draw/Stay are below the
+   active character (per user request) instead of on the table. */
+body.mbar-active.mbar-turn-active #game-actions,
+body.lbar-active.mbar-turn-active #game-actions {
+  display: none !important;
+}
 @media (orientation: portrait) and (max-width: 480px) {
-  body.mbar-active.mbar-turn-active #game-actions {
-    display: none !important;
-  }
 
   /* v109: HUD enlargement on mobile portrait. 1.5x text on every
      element of the top line so the round/turn/leave info reads

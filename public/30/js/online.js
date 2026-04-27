@@ -1145,7 +1145,6 @@ var Online = (function () {
 
   // ---- Host: Start the game ----
   function startOnlineGame() {
-    console.log('[Online] startOnlineGame called; isHost=', _isHost, 'gamePhase=', gamePhase, 'totalPlayerCount=', totalPlayerCount());
     if (!_isHost) return;
     var count = totalPlayerCount();
     if (count < 2) return;
@@ -1216,11 +1215,6 @@ var Online = (function () {
 
   // ---- Disband room ----
   function disbandRoom(message) {
-    // v123 diagnostics: log who's tearing down the room. This should
-    // ONLY fire on host's explicit Leave Room. If it fires on Deal!
-    // we've found the smoking gun.
-    console.warn('[Online] disbandRoom() called with message:', message);
-    console.trace('[Online] disbandRoom() stack');
     Network.broadcast({
       type: 'room_disbanded',
       data: { message: message }
@@ -1301,10 +1295,6 @@ var Online = (function () {
         handleGameStateSync(message.data);
         break;
       case 'room_disbanded':
-        // v123 diagnostics: print the message so we can see WHO
-        // disbanded and WHY. Also log the message structure in case
-        // the data shape isn't what we expect.
-        console.warn('[Online] Received room_disbanded from peer; data=', message.data);
         showDisbandMessage(message.data.message);
         cleanup();
         break;
@@ -1629,7 +1619,6 @@ var Online = (function () {
 
   // Host broadcasts an action for guests to replay
   function broadcastGameAction(data) {
-    console.log('[Online] broadcastGameAction:', data && data.type, '(roomCode=' + Network.getRoomCode() + ')');
     Network.broadcast({ type: 'game_action', data: data });
   }
 
@@ -1646,12 +1635,6 @@ var Online = (function () {
   // ======== CLEANUP ========
 
   function cleanup() {
-    // v123 diagnostics: log who called cleanup so we can trace the
-    // mid-Deal disconnect bug. Stack trace shows the call chain that
-    // reached cleanup — if it's an unexpected path (e.g. Deal! is
-    // somehow routing through it), the trace will reveal it.
-    console.warn('[Online] cleanup() called; isHost=', _isHost, 'gamePhase=', gamePhase);
-    console.trace('[Online] cleanup() stack');
     Network.disconnect();
     active = false;
     _isHost = false;

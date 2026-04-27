@@ -460,9 +460,11 @@ var Renderer = (function () {
     }
     c.restore();
 
-    // Center "30" in gold with glow (doubled boldness)
+    // Center "30" in gold with glow (doubled boldness).
+    // v124: bumped 30% larger (18/19/20 → 23/25/26) so the centerpiece
+    // reads more strongly on the deck stack.
     c.save();
-    c.font = '900 18px Cinzel, Georgia, serif';
+    c.font = '900 23px Cinzel, Georgia, serif';
     c.textAlign = 'center';
     c.textBaseline = 'middle';
     var midX = CARD_W / 2;
@@ -472,16 +474,16 @@ var Renderer = (function () {
     c.fillStyle = '#d4a849';
     c.globalAlpha = 0.08;
     c.fillText('30', midX, midY);
-    c.font = '900 19px Cinzel, Georgia, serif';
+    c.font = '900 25px Cinzel, Georgia, serif';
     c.globalAlpha = 0.06;
     c.fillText('30', midX, midY);
-    c.font = '900 20px Cinzel, Georgia, serif';
+    c.font = '900 26px Cinzel, Georgia, serif';
     c.globalAlpha = 0.04;
     c.fillText('30', midX, midY);
 
     // Main gold "30"
-    c.font = '900 18px Cinzel, Georgia, serif';
-    var goldG = Textures.goldFoilGradient(c, midX - 12, midY - 10, 24, 20);
+    c.font = '900 23px Cinzel, Georgia, serif';
+    var goldG = Textures.goldFoilGradient(c, midX - 16, midY - 13, 32, 26);
     c.fillStyle = goldG;
     c.globalAlpha = 0.50;
     c.fillText('30', midX, midY);
@@ -1314,22 +1316,12 @@ var Renderer = (function () {
   }
 
   function getTableCenter() {
-    // Default shift: 1.5vmin down. With the smaller 32vmin felt and
-    // bigger HUD text, this balances top margin (for HUD above top
-    // character) and bottom margin (for the name below the bottom
-    // character) on landscape phones / desktop.
-    //
-    // v122 tablet-landscape exception: iPad Safari with the URL bar
-    // AND tabs row visible eats more top space than the 1.5vmin
-    // shift accounts for, so the round/turn HUD line was clipping
-    // into the tabs strip and there was unused empty space below
-    // the bottom character. Shifting the table down to 5vmin pulls
-    // the top character + HUD down into safe space and absorbs the
-    // bottom dead zone — no proportional resize needed.
-    var shift = 1.5;
-    var isTabletLandscape = (W > H) && H > 500 && H <= 900;
-    if (isTabletLandscape) shift = 5.0;
-    return { x: W / 2, y: H / 2 + shift * getVmin() };
+    // Shift down 1.5vmin. With the smaller 32vmin felt and bigger HUD text,
+    // this balances top margin (for HUD above top character) and bottom
+    // margin (for the name below the bottom character) on landscape phones.
+    // (v122 tried shifting to 5vmin on tablet landscape to dodge Safari's
+    // tabs strip; v124 reverts that — see CLAUDE.md.)
+    return { x: W / 2, y: H / 2 + 1.5 * getVmin() };
   }
 
   // Table felt radius. Kept slightly smaller than the absolute max so that on
