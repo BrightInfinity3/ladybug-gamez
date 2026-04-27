@@ -264,13 +264,15 @@
         /* ── Game Card ── */
         .game-area{display:none;max-width:600px;margin:0 auto;width:100%}
         .game-area.active{display:block}
-        .game-card{position:relative;overflow:hidden;background:var(--bg-card);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:2px solid var(--accent-primary);border-radius:20px;padding:20px 16px;box-shadow:0 8px 32px rgba(0,0,0,.1);width:400px;max-width:calc(100vw - 30px);margin-left:auto;margin-right:auto}
-        /* Style + Rules cards are narrower than the gameplay card. The
-           Style screen tightens its swatch gap so 5×32 swatches still fit
-           in the slimmer card without horizontal overflow. */
-        #styleScreen .game-card{width:280px;height:auto;overflow:visible}
-        #styleScreen .style-swatches{gap:6px}
+        .game-card{position:relative;overflow:hidden;background:var(--bg-card);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:2px solid var(--accent-primary);border-radius:20px;padding:20px 16px;box-shadow:0 8px 32px rgba(0,0,0,.1);width:360px;max-width:calc(100vw - 30px);margin-left:auto;margin-right:auto}
+        /* Per-screen widths are all narrower than the gameplay base.
+           Style + Links also tighten their internal sizes so swatches /
+           keyboard / textarea stay inside the slimmer card. */
+        #styleScreen .game-card{width:260px;height:auto;overflow:visible}
+        #styleScreen .style-swatches{gap:4px}
         #styleScreen .style-row label{width:50px}
+        #styleScreen .style-swatch{width:28px;height:28px}
+        #linksScreen .game-card{width:340px}
         #rulesScreen .game-card{width:290px}
         #styleScreen .btn-primary{width:140px;height:46px;display:flex;align-items:center;justify-content:center;margin-left:auto;margin-right:auto}
         .game-card>*:not(#confettiCanvas){position:relative;z-index:1}
@@ -380,8 +382,8 @@
         /* Locked-height status row so Paste/Share buttons stay put when "Paste Ready!" appears */
         .links-copy-status{height:28px;line-height:28px;font-size:.8rem;font-weight:700;color:var(--accent-primary);text-align:center;margin:6px 0 8px;letter-spacing:1px}
         .links-action-btn{width:140px;padding:10px 0;display:inline-flex;align-items:center;justify-content:center}
-        .links-button-row{display:flex;gap:10px;justify-content:center;margin-bottom:10px;flex-wrap:wrap}
-        .links-compose-buttons{display:flex;gap:10px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+        /* Both compose and share buttons stack vertically, centered. */
+        .links-compose-buttons,.links-share-buttons{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:10px}
         #linksError.message{margin:8px auto;font-size:.85rem;min-height:36px;padding:8px 12px}
 
         /* ── Links sender row (above game title in receiver mode) ── */
@@ -565,11 +567,12 @@
         .rotate-overlay .rotate-icon{font-size:5rem;line-height:1;animation:rotateBob 1.6s ease-in-out infinite alternate;color:#a78bfa}
         .rotate-overlay .rotate-text{font-size:1.25rem;font-weight:700;letter-spacing:1px}
         @keyframes rotateBob{from{transform:rotate(0deg)}to{transform:rotate(-90deg)}}
-        /* Catches both mobile and tablet in landscape — `pointer:coarse`
-           targets touch primary input (covers Android phones, iOS devices,
-           and any tablet); the height clause is a backup that catches
-           short-landscape phones even if pointer reporting is unreliable. */
-        @media (orientation:landscape) and (max-width:1024px) and (pointer:coarse), (orientation:landscape) and (max-height:600px){
+        /* Catches every touch device in landscape — phones, all iPads
+           (iPad Pro 12.9" lands at 1366×1024 in landscape, so the
+           previous `max-width:1024px` clause was excluding them), Surface
+           in tablet mode, etc. The height clause is a backup for narrow
+           hybrid devices. */
+        @media (orientation:landscape) and (pointer:coarse), (orientation:landscape) and (max-height:600px){
             .rotate-overlay{display:flex}
             .container{visibility:hidden}
         }
@@ -579,7 +582,7 @@
     <!-- Rotate-to-portrait overlay. Visible on any touch device (mobile + tablet) in landscape. -->
     <div class="rotate-overlay" id="rotateOverlay">
         <div class="rotate-icon">↺</div>
-        <div class="rotate-text">Please swap Lango to portrait</div>
+        <div class="rotate-text">Rotate Lango over to portrait</div>
     </div>
     <div class="modal-overlay" id="confirmModal">
         <div class="modal-box">
@@ -746,20 +749,16 @@
                     </div>
                 </div>
 
-                <!-- Share: textarea with link + paste/share + again/style + leave -->
+                <!-- Share: textarea with link + 5 buttons stacked vertically -->
                 <div id="linksShare" class="hidden">
                     <p class="links-share-help">Share Lango:</p>
                     <textarea id="linksMessage" readonly rows="2"></textarea>
                     <div id="linksCopyStatus" class="links-copy-status"></div>
-                    <div class="links-button-row">
+                    <div class="links-share-buttons">
                         <button class="btn btn-primary links-action-btn" id="linksNativeShareBtn" onclick="shareLinkNative()">Share</button>
-                        <button class="btn btn-primary links-action-btn" onclick="copyLink()">Paste</button>
-                    </div>
-                    <div class="links-button-row">
-                        <button class="btn btn-primary links-action-btn" onclick="resetLinks()">Again</button>
                         <button class="btn btn-primary links-action-btn" onclick="showStyleFromLinks()">Style</button>
-                    </div>
-                    <div class="links-button-row">
+                        <button class="btn btn-primary links-action-btn" onclick="copyLink()">Paste</button>
+                        <button class="btn btn-primary links-action-btn" onclick="resetLinks()">Again</button>
                         <button class="btn btn-primary links-action-btn" onclick="backFromLinks()">Leave</button>
                     </div>
                 </div>
@@ -936,7 +935,7 @@ function pickWinMessage() {
 // ── Multi Setup Titles (random per setup) ──
 var setupTitles = [
     'Set The Word',
-    'Choose A Good Word',
+    'Choose A Good Lango Word',
     'Enter A Word',
     'Make A Lango',
     'Select A Wonderful Word'
