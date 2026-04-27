@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=Caveat:wght@400;700&family=Patrick+Hand&family=Sacramento&display=swap" rel="stylesheet">
     <style>
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-        html,body{width:100%;height:100%;overflow-x:hidden}
+        html,body{width:100%;height:100%;overflow:hidden}
         body{
             font-family:var(--game-font,'Outfit'),-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
             display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
@@ -177,7 +177,7 @@
         .container{text-align:center;width:100%;max-width:600px;position:relative}
 
         /* ── Logo ── */
-        .logo{font-size:7.5rem;font-weight:900;margin-bottom:1.5rem;letter-spacing:-2px;line-height:1.15;padding-bottom:.12em;background:linear-gradient(135deg,var(--accent-secondary),var(--accent-primary));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;filter:drop-shadow(0 2px 8px var(--accent-glow));transition:filter .3s}
+        .logo{font-size:7.5rem;font-weight:900;margin-bottom:1rem;letter-spacing:-2px;line-height:1.4;padding-bottom:.3em;overflow:visible;background:linear-gradient(135deg,var(--accent-secondary),var(--accent-primary));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;filter:drop-shadow(0 2px 8px var(--accent-glow));transition:filter .3s}
         .logo-sub{font-size:1.3rem;font-weight:700;letter-spacing:3px;color:var(--accent-primary);margin-bottom:1rem;font-style:italic}
         .logo-modes{font-size:.9rem;font-weight:600;letter-spacing:5px;text-transform:uppercase;color:var(--accent-primary);margin-bottom:.4rem;opacity:.7}
 
@@ -265,8 +265,13 @@
         .game-area{display:none;max-width:600px;margin:0 auto;width:100%}
         .game-area.active{display:block}
         .game-card{position:relative;overflow:hidden;background:var(--bg-card);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:2px solid var(--accent-primary);border-radius:20px;padding:20px 16px;box-shadow:0 8px 32px rgba(0,0,0,.1);width:400px;max-width:calc(100vw - 30px);margin-left:auto;margin-right:auto}
-        #styleScreen .game-card{width:302px;height:auto;overflow:visible}
-        #rulesScreen .game-card{width:340px}
+        /* Style + Rules cards are narrower than the gameplay card. The
+           Style screen tightens its swatch gap so 5×32 swatches still fit
+           in the slimmer card without horizontal overflow. */
+        #styleScreen .game-card{width:280px;height:auto;overflow:visible}
+        #styleScreen .style-swatches{gap:6px}
+        #styleScreen .style-row label{width:50px}
+        #rulesScreen .game-card{width:290px}
         #styleScreen .btn-primary{width:140px;height:46px;display:flex;align-items:center;justify-content:center;margin-left:auto;margin-right:auto}
         .game-card>*:not(#confettiCanvas){position:relative;z-index:1}
         #confettiCanvas{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;border-radius:20px;overflow:hidden}
@@ -560,17 +565,21 @@
         .rotate-overlay .rotate-icon{font-size:5rem;line-height:1;animation:rotateBob 1.6s ease-in-out infinite alternate;color:#a78bfa}
         .rotate-overlay .rotate-text{font-size:1.25rem;font-weight:700;letter-spacing:1px}
         @keyframes rotateBob{from{transform:rotate(0deg)}to{transform:rotate(-90deg)}}
-        @media (max-device-width:1024px) and (orientation:landscape) and (hover:none){
+        /* Catches both mobile and tablet in landscape — `pointer:coarse`
+           targets touch primary input (covers Android phones, iOS devices,
+           and any tablet); the height clause is a backup that catches
+           short-landscape phones even if pointer reporting is unreliable. */
+        @media (orientation:landscape) and (max-width:1024px) and (pointer:coarse), (orientation:landscape) and (max-height:600px){
             .rotate-overlay{display:flex}
             .container{visibility:hidden}
         }
     </style>
 </head>
 <body class="theme-light accent-purple sheet-purple font-hand shade-1">
-    <!-- Rotate-to-portrait overlay. Visible only on touch devices in landscape. -->
+    <!-- Rotate-to-portrait overlay. Visible on any touch device (mobile + tablet) in landscape. -->
     <div class="rotate-overlay" id="rotateOverlay">
         <div class="rotate-icon">↺</div>
-        <div class="rotate-text">Please rotate to portrait</div>
+        <div class="rotate-text">Please swap Lango to portrait</div>
     </div>
     <div class="modal-overlay" id="confirmModal">
         <div class="modal-box">
