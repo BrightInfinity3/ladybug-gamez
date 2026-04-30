@@ -268,6 +268,10 @@
       transform: scale(1.65);
     }
 
+    .card-icon canvas.thirty-canvas {
+      transform: scale(1.65);
+    }
+
     .moregames-emoji {
       display: block;
       font-size: 54px;
@@ -367,6 +371,12 @@
       --card-accent: #00e5ff;
       --card-glow: rgba(0, 229, 255, 0.12);
       --card-icon-bg: linear-gradient(135deg, rgba(0, 229, 255, 0.15), rgba(0, 150, 255, 0.1));
+    }
+
+    .card.thirty {
+      --card-accent: #d4a017;
+      --card-glow: rgba(212, 160, 23, 0.14);
+      --card-icon-bg: linear-gradient(135deg, rgba(212, 160, 23, 0.18), rgba(160, 110, 20, 0.10));
     }
 
     .card.solitairra {
@@ -502,6 +512,26 @@
         <div class="card-tags">
           <span class="tag">Card Game</span>
           <span class="tag">Single-Player</span>
+        </div>
+        <div class="card-play">
+          Play Now <span class="arrow">&rarr;</span>
+        </div>
+      </a>
+
+      <!-- 30 -->
+      <a href="/30/" class="card thirty">
+        <div class="card-header">
+          <div class="card-icon">
+            <canvas id="thirty-icon" class="thirty-canvas" width="48" height="48"></canvas>
+          </div>
+          <h2 class="card-title">30</h2>
+        </div>
+        <p class="card-desc">
+          A card game where you race to 30 without busting. Solo with smart AI or online with up to 8 friends.
+        </p>
+        <div class="card-tags">
+          <span class="tag">Card Game</span>
+          <span class="tag">Multiplayer</span>
         </div>
         <div class="card-play">
           Play Now <span class="arrow">&rarr;</span>
@@ -816,6 +846,55 @@
 
       drawOne(cLeft + 4.5, cTop + 3);
       drawOne(cLeft + cW - 4.5, cTop + cH - 10);
+
+      x.restore();
+    })();
+
+    // Draw 30 icon — gold playing card with bold "30" centered + corner pips
+    (function() {
+      const c = document.getElementById('thirty-icon');
+      if (!c) return;
+      const x = c.getContext('2d');
+      const gold = '#c8a84e';
+      const goldDark = '#a0801e';
+      const cream = '#fdf8f0';
+
+      // Scale 1.1× around canvas center to match the Solitairra card footprint
+      x.save();
+      x.translate(24, 24);
+      x.scale(1.1, 1.1);
+      x.translate(-24, -24);
+
+      const cLeft = 10, cTop = 4, cW = 28, cH = 40, cR = 4;
+
+      x.fillStyle = cream;
+      x.beginPath();
+      x.roundRect(cLeft, cTop, cW, cH, cR);
+      x.fill();
+
+      x.strokeStyle = gold;
+      x.lineWidth = 1.2;
+      x.beginPath();
+      x.roundRect(cLeft, cTop, cW, cH, cR);
+      x.stroke();
+
+      // Big "30" centered
+      x.fillStyle = goldDark;
+      x.font = '700 16px Georgia, "Times New Roman", serif';
+      x.textAlign = 'center';
+      x.textBaseline = 'middle';
+      x.fillText('30', 24, 24);
+
+      // Tiny "30" in top-left and bottom-right (real-card vibe)
+      x.font = '700 6px Georgia, "Times New Roman", serif';
+      x.textAlign = 'left';
+      x.textBaseline = 'top';
+      x.fillText('30', cLeft + 2.5, cTop + 2.5);
+      x.save();
+      x.translate(cLeft + cW - 2.5, cTop + cH - 2.5);
+      x.rotate(Math.PI);
+      x.fillText('30', 0, 0);
+      x.restore();
 
       x.restore();
     })();
