@@ -527,7 +527,7 @@
           <h2 class="card-title">30</h2>
         </div>
         <p class="card-desc">
-          A card game where you race to 30 without busting. Solo with smart AI or online with up to 8 friends.
+          A card game where you aim for a score of 30 without going over. Solo with smart AI or online with up to 8 players.
         </p>
         <div class="card-tags">
           <span class="tag">Card Game</span>
@@ -850,51 +850,61 @@
       x.restore();
     })();
 
-    // Draw 30 icon — gold playing card with bold "30" centered + corner pips
+    // Draw 30 icon — three blue cards in a fan with gold "30" centered,
+    // matching the title screen of the game.
     (function() {
       const c = document.getElementById('thirty-icon');
       if (!c) return;
       const x = c.getContext('2d');
-      const gold = '#c8a84e';
-      const goldDark = '#a0801e';
-      const cream = '#fdf8f0';
 
-      // Scale 1.1× around canvas center to match the Solitairra card footprint
       x.save();
       x.translate(24, 24);
       x.scale(1.1, 1.1);
       x.translate(-24, -24);
 
-      const cLeft = 10, cTop = 4, cW = 28, cH = 40, cR = 4;
+      const cardW = 17;
+      const cardH = 24;
+      const cardR = 2.2;
+      const pivotX = 24;
+      const pivotY = 36;
 
-      x.fillStyle = cream;
-      x.beginPath();
-      x.roundRect(cLeft, cTop, cW, cH, cR);
-      x.fill();
+      function drawFanCard(angleDeg) {
+        x.save();
+        x.translate(pivotX, pivotY);
+        x.rotate(angleDeg * Math.PI / 180);
+        const left = -cardW / 2;
+        const top = -cardH;
+        const grad = x.createLinearGradient(left, top, left + cardW, top + cardH);
+        grad.addColorStop(0, '#1a2a5c');
+        grad.addColorStop(1, '#0d1a3d');
+        x.fillStyle = grad;
+        x.beginPath();
+        x.roundRect(left, top, cardW, cardH, cardR);
+        x.fill();
+        x.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+        x.lineWidth = 1;
+        x.beginPath();
+        x.roundRect(left, top, cardW, cardH, cardR);
+        x.stroke();
+        x.restore();
+      }
 
-      x.strokeStyle = gold;
-      x.lineWidth = 1.2;
-      x.beginPath();
-      x.roundRect(cLeft, cTop, cW, cH, cR);
-      x.stroke();
+      drawFanCard(-20);
+      drawFanCard(20);
+      drawFanCard(0);
 
-      // Big "30" centered
-      x.fillStyle = goldDark;
-      x.font = '700 16px Georgia, "Times New Roman", serif';
+      x.font = '900 16px Georgia, "Times New Roman", serif';
       x.textAlign = 'center';
       x.textBaseline = 'middle';
-      x.fillText('30', 24, 24);
-
-      // Tiny "30" in top-left and bottom-right (real-card vibe)
-      x.font = '700 6px Georgia, "Times New Roman", serif';
-      x.textAlign = 'left';
-      x.textBaseline = 'top';
-      x.fillText('30', cLeft + 2.5, cTop + 2.5);
-      x.save();
-      x.translate(cLeft + cW - 2.5, cTop + cH - 2.5);
-      x.rotate(Math.PI);
-      x.fillText('30', 0, 0);
-      x.restore();
+      const textY = 23;
+      const goldGrad = x.createLinearGradient(0, textY - 8, 0, textY + 8);
+      goldGrad.addColorStop(0, '#f0d060');
+      goldGrad.addColorStop(0.45, '#d4a017');
+      goldGrad.addColorStop(1, '#a07a10');
+      x.fillStyle = goldGrad;
+      x.shadowColor = 'rgba(212, 160, 23, 0.55)';
+      x.shadowBlur = 4;
+      x.fillText('30', 24, textY);
 
       x.restore();
     })();
