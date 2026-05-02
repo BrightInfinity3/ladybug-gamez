@@ -83,6 +83,27 @@ var Renderer = (function () {
   var gameRenderCallback = null;
   var tickerFn = null;
 
+  // v125 PERF: dirty-frame rendering. The PixiJS ticker fires every
+  // frame (~16ms) but most of those frames have nothing changing — the
+  // table felt is static, no card is flying, no particle is moving.
+  // On Windows (which doesn't throttle requestAnimationFrame the way
+  // mobile Safari does) this constant work is a measurable CPU drain.
+  //
+  // We mark the scene dirty whenever something changes that needs a
+  // re-render (a card animated, a sprite added/removed, a sync brought
+  // in new hands, etc.) and skip the per-frame work otherwise. Anything
+  // that's INHERENTLY animating (flying cards mid-flight, particles)
+  // automatically forces dirty=true via the inFlight checks.
+  //
+  // Set DEBUG_RENDER_FORCE=true (via console) to disable the gating
+  // and force every frame to render — useful when bisecting a "missed
+  // redraw" bug (forgot a markDirty call somewhere).
+  var _dirty = true;
+  function markDirty() { _dirty = true; }
+  // Active count of in-flight animate() calls — keeps the conditional
+  // pass running while a card-flight or scale animation is mid-tween.
+  var _activeAnims = 0;
+
   // ================================================================
   //  CANVAS 2D HELPERS (for pre-rendering textures)
   // ================================================================
@@ -805,8 +826,28 @@ var Renderer = (function () {
   // the active batch).
   var _tableTexToDestroy = null;
 
-  function updateTableTexture() {
+  // v125 PERF: cache the felt+wood table texture by viewport size. The
+  // procedural FBM Perlin felt is the most expensive single asset we
+  // generate (40-80ms at 1080p, quadratic in resolution — Windows
+  // monitors are bigger so they pay more). It only depends on W, H
+  // and the resolution multiplier, so if those haven't changed since
+  // last regen we can skip the work entirely. iOS+Android viewports
+  // change rarely (rotation only); Windows changes constantly during
+  // window drag — caching is a much bigger win on the latter.
+  var _cachedTableTexKey = null;
+  function _tableTexKey() {
+    var dpr = (app && app.renderer && app.renderer.resolution) || 1;
+    return W + 'x' + H + '@' + dpr.toFixed(2);
+  }
+
+  function updateTableTexture(force) {
     if (!tableSprite || !W || !H) return;
+    var key = _tableTexKey();
+    if (!force && key === _cachedTableTexKey) {
+      // Already have a texture for this exact size — skip the
+      // procedural noise pass entirely. Hot path on Windows resize.
+      return;
+    }
     try {
       var tableCanvas = renderTableToCanvas();
       if (!tableCanvas) return;
@@ -817,6 +858,8 @@ var Renderer = (function () {
       tableSprite.width = W;
       tableSprite.height = H;
       tableSprite.renderable = true;
+      _cachedTableTexKey = key;
+      markDirty();
       // Destroy the *previous* pending-destroy texture now — it's had at least
       // one full frame to be unreferenced by anything in flight.
       if (_tableTexToDestroy && _tableTexToDestroy !== newTex && _tableTexToDestroy !== PIXI.Texture.EMPTY) {
@@ -828,6 +871,10 @@ var Renderer = (function () {
       console && console.warn && console.warn('updateTableTexture failed:', e);
     }
   }
+  // After webglcontextrestored we MUST regenerate even if W/H unchanged,
+  // because the GPU-side texture is gone. The webglcontextrestored
+  // handler invalidates the cache key.
+  function invalidateTableTextureCache() { _cachedTableTexKey = null; }
 
   // ================================================================
   //  INITIALIZATION (async - returns Promise)
@@ -841,7 +888,17 @@ var Renderer = (function () {
     }
 
     app = new PIXI.Application();
-    dpr = window.devicePixelRatio || 1;
+    // v125 PERF: cap the canvas resolution multiplier at 1.5×.
+    // Many Windows laptops report devicePixelRatio = 1.5–2.0 (high-DPI
+    // scaling), which makes PIXI render the table+cards at 4× the pixel
+    // count of a standard display. The visual difference past ~1.5×
+    // is imperceptible for cartoon SVG sprites and a procedural felt
+    // texture, but the per-frame GPU work scales quadratically with
+    // resolution. Capping at 1.5 typically halves Windows-side render
+    // cost with no visible quality loss. Mobile (DPR usually 2-3 on
+    // Retina/AMOLED) also benefits — a 4K backing store on a 6-inch
+    // display is wasted work.
+    dpr = Math.min(window.devicePixelRatio || 1, 1.5);
 
     // Use window dimensions directly — canvas parent can be 0x0 during CSS
     // screen transitions, which would initialize the app at 0x0.
@@ -862,12 +919,14 @@ var Renderer = (function () {
         _backCanvasCache = null;
         cardTextures = {};
         backTexture = null;
+        invalidateTableTextureCache();
         buildCardTextures();
         buildShadowTexture();
         buildGlowTexture();
         buildParticleTexture();
-        updateTableTexture();
+        updateTableTexture(true); // force regen — GPU-side texture gone
         initPixiParticles();
+        markDirty();
       } catch (err) { /* ignore — render loop will retry */ }
     }, false);
 
@@ -926,12 +985,21 @@ var Renderer = (function () {
     if (!app || !app.renderer) return;
     // Use window dimensions directly. The canvas parent can briefly report 0
     // during CSS screen transitions, which would render the table blank.
-    W = window.innerWidth;
-    H = window.innerHeight;
-    if (W === 0 || H === 0) return;
+    var newW = window.innerWidth;
+    var newH = window.innerHeight;
+    if (newW === 0 || newH === 0) return;
+    var changed = (newW !== W) || (newH !== H);
+    W = newW;
+    H = newH;
     app.renderer.resize(W, H);
+    // updateTableTexture itself checks the cache key — if W/H/DPR all
+    // match the cached texture, it returns instantly. If they changed,
+    // it regenerates and marks dirty.
     updateTableTexture();
     initPixiParticles();
+    // Even if the table texture was cached, the seats / hand positions
+    // depend on the new vmin so we must redraw at least once.
+    if (changed) markDirty();
   }
 
   // ================================================================
@@ -1091,6 +1159,7 @@ var Renderer = (function () {
 
     var entry = { obj: obj, sprite: sprite, shadowSprite: shadowSprite };
     flyingCards.push(entry);
+    markDirty();
     return obj;
   }
 
@@ -1102,6 +1171,7 @@ var Renderer = (function () {
         flyingCards[i].sprite.destroy();
         flyingCards[i].shadowSprite.destroy();
         flyingCards.splice(i, 1);
+        markDirty(); // re-render once to clear the trail
         return;
       }
     }
@@ -1115,6 +1185,7 @@ var Renderer = (function () {
       flyingCards[i].shadowSprite.destroy();
     }
     flyingCards = [];
+    markDirty();
   }
 
   function syncFlyingCard(entry) {
@@ -1225,17 +1296,35 @@ var Renderer = (function () {
 
   function startLoop(callback) {
     gameRenderCallback = callback;
+    _dirty = true; // first frame always renders
     if (tickerFn) app.ticker.remove(tickerFn);
     tickerFn = function () {
       try {
-        // Periodic self-heal for canvas rendering
+        // ALWAYS-RUN PASS — cheap, fixed-cost work that should happen
+        // every frame regardless of game state. Particle drift (~100
+        // sprites moving 1px each) is essentially free, and skipping
+        // it would freeze the ambient atmosphere. Health check is also
+        // here so canvas-context-loss recovery never gets gated out.
         checkTableHealth();
+        updateParticles();
+
+        // CONDITIONAL PASS — re-position the player-hand sprites and
+        // flying cards. v125 PERF: skip this when nothing has actually
+        // changed since the last render. The dirty flag is set by
+        // markDirty() calls in the animation/state code paths; flying
+        // cards and active animations also force-keep dirty. Set
+        // window.DEBUG_RENDER_FORCE = true in the console to disable
+        // gating (useful when bisecting a "missed redraw" bug — we
+        // forgot a markDirty call somewhere).
+        var forceRender = (typeof window !== 'undefined' && window.DEBUG_RENDER_FORCE);
+        var needsCondPass = forceRender || _dirty || flyingCards.length > 0 || _activeAnims > 0;
+        if (!needsCondPass) {
+          return;
+        }
+        _dirty = false;
 
         // Reset sprite pool
         poolIndex = 0;
-
-        // Update particles
-        updateParticles();
 
         // Call game render callback (populates gameLayer via drawCard/drawDeck calls)
         if (gameRenderCallback) {
@@ -1259,6 +1348,9 @@ var Renderer = (function () {
         // a single bad frame (e.g. during a resize) can halt the ticker and
         // the game appears "stuck" with a blank table.
         console && console.warn && console.warn('render frame error:', err);
+        // Force-mark dirty so we try again next frame (don't lock into
+        // a "skip render" state because of a transient error).
+        _dirty = true;
       }
     };
     app.ticker.add(tickerFn);
@@ -1284,17 +1376,24 @@ var Renderer = (function () {
     return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
 
-  // Uses setTimeout for consistent timing regardless of tab visibility
+  // Uses setTimeout for consistent timing regardless of tab visibility.
+  // v125: increments _activeAnims so the dirty-frame gate keeps the
+  // PixiJS ticker rendering for the duration of the animation without
+  // needing every onUpdate call to also call markDirty.
   function animate(duration, onUpdate, onComplete) {
     var start = performance.now();
     var interval = 16; // ~60fps
+    _activeAnims++;
     function tick() {
       var now = performance.now();
       var t = Math.min((now - start) / duration, 1);
       onUpdate(t);
+      markDirty(); // each animation tick is a state change
       if (t < 1) {
         setTimeout(tick, interval);
       } else {
+        _activeAnims = Math.max(0, _activeAnims - 1);
+        markDirty();
         if (onComplete) onComplete();
       }
     }
@@ -1413,6 +1512,7 @@ var Renderer = (function () {
     drawDeck: drawDeck,
     startLoop: startLoop,
     stopLoop: stopLoop,
+    markDirty: markDirty,
     addFlyingCard: addFlyingCard,
     removeFlyingCard: removeFlyingCard,
     clearFlyingCards: clearFlyingCards,

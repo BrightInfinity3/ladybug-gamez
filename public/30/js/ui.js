@@ -1612,24 +1612,30 @@ var UI = (function () {
       var pid = data.playerId;
       var player = Game.getPlayerById(pid);
       var seatIndex = (data.seatIndex !== undefined) ? data.seatIndex : (player && player.seatIndex);
-      // Fly the card from the deck to the player's hand, same as the host.
-      animateCanvasDraw(data.card, pid, seatIndex).then(function () {
-        updateDeckCount();
-        // Optimistically show the new total — state sync will reconfirm.
-        var totalEl = document.querySelector('[data-total="' + pid + '"]');
-        if (totalEl && data.newTotal !== undefined) {
-          totalEl.textContent = data.newTotal;
-          totalEl.style.visibility = 'visible';
-        }
-        updateLeaderGlow();
-        if (data.busted) {
-          var seatEl = document.querySelector('.game-seat[data-player="' + pid + '"]');
-          if (seatEl) Animations.animateBust(seatEl);
-          updatePlayerStatus(pid, 'busted');
-        } else if (data.stayed) {
-          updatePlayerStatus(pid, 'stayed');
-        }
-      });
+
+      // v125 PERF: update score + deck count + status pill IMMEDIATELY
+      // on the guest, in parallel with the card-flight animation. Was
+      // previously gated on the animation's `.then()` — meaning every
+      // guest waited 500ms before the actor's new total appeared.
+      // Mirror's the host-side decoupling in executeAction.
+      updateDeckCount();
+      var totalEl = document.querySelector('[data-total="' + pid + '"]');
+      if (totalEl && data.newTotal !== undefined) {
+        totalEl.textContent = data.newTotal;
+        totalEl.style.visibility = 'visible';
+      }
+      updateLeaderGlow();
+      if (data.busted) {
+        var seatEl = document.querySelector('.game-seat[data-player="' + pid + '"]');
+        if (seatEl) Animations.animateBust(seatEl);
+        updatePlayerStatus(pid, 'busted');
+      } else if (data.stayed) {
+        updatePlayerStatus(pid, 'stayed');
+      }
+
+      // Fly the card from the deck to the player's hand. The score is
+      // already up-to-date; the animation is purely visual confirmation.
+      animateCanvasDraw(data.card, pid, seatIndex);
       return;
     }
     if (data.type === 'action_stay') {
@@ -1686,6 +1692,7 @@ var UI = (function () {
         for (var c = 0; c < hand.cards.length; c++) {
           handDisplay[pid].push({ card: hand.cards[c], faceUp: true });
         }
+        Renderer.markDirty(); // v125: handDisplay changed, force a redraw
       }
       updatePlayerTotal(pid);
       // ALWAYS reconcile the status pill against authoritative state —
@@ -2591,6 +2598,7 @@ var UI = (function () {
   function humanAction(action) {
     var player = Game.getCurrentPlayer();
     if (!player || !player.isHuman) return;
+    Perf.markClick(action);
     // v116 diagnostic: log who's clicking and whether the state
     // matches. Helps catch the "Draw click does nothing" freeze
     // that's been reported on devices that just had a seat
@@ -2627,6 +2635,7 @@ var UI = (function () {
 
     if (action === 'draw') {
       var result = Game.drawCard(playerId);
+      Perf.mark('state-updated');
 
       setMessage(player.name + ' draws!');
 
@@ -2655,9 +2664,19 @@ var UI = (function () {
         });
       }
 
+      // v125 PERF: update the score + deck count IMMEDIATELY rather
+      // than waiting for the 500ms card-flight animation to land.
+      // The user clicks Draw, the new total flashes in instantly, the
+      // card animates in to confirm. Cuts perceived click→state-change
+      // latency from ~500ms to ~0ms — the single biggest perceived
+      // snappiness win in the v125 perf pass. The animation itself is
+      // unchanged.
+      updateDeckCount();
+      updatePlayerTotal(playerId);
+      Perf.mark('score-rendered');
+
       return animateCanvasDraw(result.card, playerId, player.seatIndex).then(function () {
-        updateDeckCount();
-        updatePlayerTotal(playerId);
+        Perf.mark('animation-done');
 
         if (result.busted) {
           setMessage(player.name + ' busts with ' + result.total + '!');
@@ -2715,6 +2734,8 @@ var UI = (function () {
   }
 
   function advanceToNext() {
+    Perf.mark('advance-to-next');
+    Perf.endClick();
     var next = Game.advanceTurn();
     // Sync state after advancing (host broadcasts to guests)
     if (Online.isActive() && Online.isHost()) syncGameStateToGuests();
@@ -3483,6 +3504,7 @@ var UI = (function () {
         if (hand.busted) updatePlayerStatus(pid, 'busted');
         else if (hand.stayed) updatePlayerStatus(pid, 'stayed');
       }
+      Renderer.markDirty();
 
       if (gs.roundPhase === 'finished') {
         var winnerResult = Game.determineWinner();
