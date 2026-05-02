@@ -250,6 +250,50 @@
         .style-swatch.s-5{background:hsl(var(--sheet-hue, 262), var(--sheet-sat, 55%), 12%);--sw-ring:hsl(var(--sheet-hue, 262), var(--sheet-sat, 55%), 55%)}
         /* Placeholder (bonus/laser/scene) */
         .placeholder-swatch{background:var(--cell-bg);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:var(--text-secondary);--sw-ring:var(--cell-border)}
+        /* Scene swatches — default mirrors the empty/blank Sheet preview;
+           animals + beach embed small SVG icons. Slots 4 & 5 are blank. */
+        .style-swatch.scene-default{background:linear-gradient(135deg,#ffffff 0%,#cbd5e1 100%);--sw-ring:#64748b}
+        .style-swatch.scene-animals{background:#fee2e2;display:flex;align-items:center;justify-content:center;--sw-ring:#dc2626}
+        .style-swatch.scene-beach{background:#fef3c7;display:flex;align-items:center;justify-content:center;--sw-ring:#16a34a}
+        .style-swatch.scene-four,.style-swatch.scene-five{background:var(--cell-bg);--sw-ring:var(--cell-border)}
+
+        /* ── Scene background layer ──
+           A single fixed-position pseudo-element under .container draws the
+           selected scene. The game card stays opaque on top of it (the card
+           is inside .container with z-index:1). The default scene uses no
+           background-image so the body's existing gradient shows through. */
+        .container{position:relative;z-index:1}
+        body::before{
+            content:"";
+            position:fixed;
+            inset:0;
+            pointer-events:none;
+            z-index:0;
+            opacity:0;
+            transition:opacity .35s ease;
+            background-repeat:no-repeat;
+            background-size:cover;
+            background-position:center bottom;
+        }
+        body.scene-animals::before,
+        body.scene-beach::before{opacity:1}
+
+        /* Animals — three subtle critters tile across the page (300×300
+           tile so 4 animals on a phone, ~16 on desktop). Inline SVG data
+           URI keeps the file self-contained and avoids any network hit. */
+        body.scene-animals::before{
+            background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 300'><g opacity='0.5'><g transform='translate(70,80)'><ellipse cx='0' cy='6' rx='22' ry='20' fill='%23dc2626'/><line x1='0' y1='-14' x2='0' y2='26' stroke='%231e293b' stroke-width='2'/><circle cx='-10' cy='0' r='3' fill='%231e293b'/><circle cx='10' cy='0' r='3' fill='%231e293b'/><circle cx='-8' cy='14' r='3' fill='%231e293b'/><circle cx='8' cy='14' r='3' fill='%231e293b'/><ellipse cx='0' cy='-15' rx='11' ry='8' fill='%231e293b'/><line x1='-7' y1='-21' x2='-12' y2='-26' stroke='%231e293b' stroke-width='1.2'/><line x1='7' y1='-21' x2='12' y2='-26' stroke='%231e293b' stroke-width='1.2'/></g><g transform='translate(220,160)'><ellipse cx='-12' cy='-7' rx='14' ry='11' fill='%23a855f7'/><ellipse cx='12' cy='-7' rx='14' ry='11' fill='%23a855f7'/><ellipse cx='-10' cy='10' rx='10' ry='8' fill='%23ec4899'/><ellipse cx='10' cy='10' rx='10' ry='8' fill='%23ec4899'/><line x1='0' y1='-15' x2='0' y2='18' stroke='%231e293b' stroke-width='2'/><circle cx='0' cy='-15' r='3' fill='%231e293b'/></g><g transform='translate(150,240)'><ellipse cx='0' cy='0' rx='20' ry='14' fill='%23fbbf24'/><rect x='-14' y='-4' width='4' height='8' fill='%231e293b'/><rect x='-2' y='-4' width='4' height='8' fill='%231e293b'/><rect x='10' y='-4' width='4' height='8' fill='%231e293b'/><ellipse cx='-7' cy='-14' rx='9' ry='6' fill='%23ffffff' opacity='0.7'/><ellipse cx='7' cy='-14' rx='9' ry='6' fill='%23ffffff' opacity='0.7'/></g></g></svg>");
+            background-repeat:repeat;
+            background-size:300px 300px;
+            background-position:0 0;
+        }
+
+        /* Beach — sky/sea/sand bands with two palm trees, a sun, and a
+           couple of clouds. preserveAspectRatio='xMidYMid slice' lets the
+           SVG fill any viewport without distortion. */
+        body.scene-beach::before{
+            background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800' preserveAspectRatio='xMidYMid slice'><defs><linearGradient id='sky' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%23bae6fd'/><stop offset='0.7' stop-color='%23fed7aa'/></linearGradient></defs><rect width='1200' height='500' fill='url(%23sky)'/><rect y='450' width='1200' height='200' fill='%230ea5e9'/><path d='M0 460 Q200 440 400 460 T800 460 T1200 460 L1200 650 L0 650 Z' fill='%230284c7'/><rect y='650' width='1200' height='150' fill='%23fde68a'/><path d='M0 650 Q300 640 600 660 T1200 650 L1200 800 L0 800 Z' fill='%23fcd34d'/><circle cx='600' cy='200' r='55' fill='%23fef9c3'/><circle cx='600' cy='200' r='42' fill='%23fde047'/><g transform='translate(120,420)'><rect x='-7' y='0' width='14' height='235' fill='%2392400e' rx='3'/><path d='M0 5 Q-50 -25 -90 -10 Q-40 -25 0 -15 Z' fill='%2315803d'/><path d='M0 5 Q-25 -45 -45 -75 Q-5 -45 5 -12 Z' fill='%2316a34a'/><path d='M0 5 Q50 -25 90 -10 Q40 -25 0 -15 Z' fill='%2315803d'/><path d='M0 5 Q25 -45 45 -75 Q5 -45 -5 -12 Z' fill='%2316a34a'/><circle cx='-15' cy='0' r='6' fill='%2378350f'/><circle cx='0' cy='-3' r='6' fill='%2378350f'/><circle cx='15' cy='0' r='6' fill='%2378350f'/></g><g transform='translate(1080,440)'><rect x='-7' y='0' width='14' height='215' fill='%2392400e' rx='3'/><path d='M0 5 Q-50 -25 -90 -10 Q-40 -25 0 -15 Z' fill='%2315803d'/><path d='M0 5 Q-25 -45 -45 -75 Q-5 -45 5 -12 Z' fill='%2316a34a'/><path d='M0 5 Q50 -25 90 -10 Q40 -25 0 -15 Z' fill='%2315803d'/><circle cx='-15' cy='0' r='6' fill='%2378350f'/><circle cx='15' cy='0' r='6' fill='%2378350f'/></g><g transform='translate(280,160)' fill='%23ffffff' opacity='0.85'><ellipse cx='0' cy='0' rx='35' ry='13'/><ellipse cx='-22' cy='-8' rx='24' ry='14'/><ellipse cx='20' cy='-6' rx='27' ry='15'/></g><g transform='translate(900,180)' fill='%23ffffff' opacity='0.85'><ellipse cx='0' cy='0' rx='42' ry='15'/><ellipse cx='-25' cy='-10' rx='27' ry='15'/><ellipse cx='24' cy='-8' rx='30' ry='17'/></g><path d='M40 530 Q120 520 200 530 T360 530' stroke='%23ffffff' stroke-width='2' fill='none' opacity='0.6'/><path d='M820 540 Q900 530 980 540 T1140 540' stroke='%23ffffff' stroke-width='2' fill='none' opacity='0.6'/></svg>");
+        }
 
         /* Hints toggle alignment — match swatches width of other rows, left-align buttons */
         .style-section .style-row .style-swatches:has(.toggle-btn){min-width:192px;justify-content:flex-start}
@@ -257,7 +301,7 @@
         /* ── Toggle Buttons (On/Off) ── */
         .toggle-group{display:flex;align-items:center;gap:6px}
         .toggle-label{font-weight:700;font-size:.8rem;color:var(--text-secondary);font-family:inherit;min-width:60px;text-align:right;display:inline-block}
-        .toggle-btn{padding:3px 12px;border-radius:14px;font-size:.72rem;font-weight:700;border:none;background:var(--accent-primary);cursor:pointer;color:#fff;font-family:inherit;touch-action:manipulation;transition:all .15s;letter-spacing:.5px;opacity:.5}
+        .toggle-btn{padding:3px 0;width:48px;text-align:center;border-radius:14px;font-size:.72rem;font-weight:700;border:none;background:var(--accent-primary);cursor:pointer;color:#fff;font-family:inherit;touch-action:manipulation;transition:all .15s;letter-spacing:.5px;opacity:.5}
         .toggle-btn:active{transform:scale(.95)}
         .toggle-btn.active{background:var(--accent-primary);color:#fff;opacity:1}
 
@@ -272,7 +316,7 @@
         #styleScreen .style-swatches{gap:4px}
         #styleScreen .style-row label{width:50px}
         #styleScreen .style-swatch{width:28px;height:28px}
-        #linksScreen .game-card{width:340px}
+        #linksScreen .game-card{width:400px}
         #rulesScreen .game-card{width:290px}
         #styleScreen .btn-primary{width:140px;height:46px;display:flex;align-items:center;justify-content:center;margin-left:auto;margin-right:auto}
         .game-card>*:not(#confettiCanvas){position:relative;z-index:1}
@@ -341,7 +385,8 @@
         .invisible{visibility:hidden!important;pointer-events:none!important}
 
         /* ── Known Row ── */
-        .known-toggle-row{display:flex;justify-content:center;margin-bottom:8px}
+        .known-toggle-row{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:8px}
+        .toggle-buttons{display:flex;gap:6px}
         .known-row{display:flex;align-items:center;justify-content:center;margin-bottom:10px;gap:10px;min-height:30px}
         .known-slots{display:flex;gap:8px}
         .known-slot{width:30px;font-size:1.2rem;font-weight:800;text-align:center;border-bottom:3px solid var(--accent-border);padding-bottom:2px;line-height:1.3;color:var(--accent-primary);transition:color .2s}
@@ -377,7 +422,7 @@
         .links-name-input:focus{border-color:var(--accent-primary);box-shadow:0 0 0 3px var(--accent-light)}
         .links-screen .current-guess{margin-bottom:14px}
         .links-share-help{font-size:.9rem;color:var(--text-secondary);text-align:center;margin-bottom:8px;font-weight:600}
-        #linksMessage{width:100%;min-height:64px;padding:10px 12px;font-size:.85rem;font-family:inherit;border:2px solid var(--cell-border);border-radius:10px;background:var(--input-bg);color:var(--text-primary);resize:none;outline:none;line-height:1.4;word-break:break-all}
+        #linksMessage{width:100%;min-height:48px;padding:10px 12px;font-size:.85rem;font-family:inherit;border:2px solid var(--cell-border);border-radius:10px;background:var(--input-bg);color:var(--text-primary);resize:none;outline:none;line-height:1.4;text-align:center;white-space:nowrap;overflow-x:auto}
         #linksMessage:focus{border-color:var(--accent-primary);box-shadow:0 0 0 3px var(--accent-light)}
         /* Locked-height status row so Paste/Share buttons stay put when "Paste Ready!" appears */
         .links-copy-status{height:28px;line-height:28px;font-size:.8rem;font-weight:700;color:var(--accent-primary);text-align:center;margin:6px 0 8px;letter-spacing:1px}
@@ -578,7 +623,7 @@
         }
     </style>
 </head>
-<body class="theme-light accent-purple sheet-purple font-hand shade-1">
+<body class="theme-light accent-purple sheet-purple font-hand shade-1 scene-default">
     <!-- Rotate-to-portrait overlay. Visible on any touch device (mobile + tablet) in landscape. -->
     <div class="rotate-overlay" id="rotateOverlay">
         <div class="rotate-icon">↺</div>
@@ -684,13 +729,35 @@
                         </div>
                     </div>
                     <div class="style-row">
-                        <label>?????:</label>
+                        <label>Scene:</label>
                         <div class="style-swatches">
-                            <div class="style-swatch placeholder-swatch active" onclick=""></div>
-                            <div class="style-swatch placeholder-swatch" onclick="showSoonMsg('????? coming soon!')"></div>
-                            <div class="style-swatch placeholder-swatch" onclick="showSoonMsg('????? coming soon!')"></div>
-                            <div class="style-swatch placeholder-swatch" onclick="showSoonMsg('????? coming soon!')"></div>
-                            <div class="style-swatch placeholder-swatch" onclick="showSoonMsg('????? coming soon!')"></div>
+                            <div class="style-swatch scene-default active" onclick="changeScene('default')"></div>
+                            <div class="style-swatch scene-animals" onclick="changeScene('animals')" title="Animals">
+                                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                                    <ellipse cx="12" cy="14" rx="8" ry="7" fill="#dc2626"/>
+                                    <line x1="12" y1="7" x2="12" y2="21" stroke="#1e293b" stroke-width="1.2"/>
+                                    <circle cx="9" cy="12" r="1.4" fill="#1e293b"/>
+                                    <circle cx="15" cy="12" r="1.4" fill="#1e293b"/>
+                                    <circle cx="9" cy="17" r="1.4" fill="#1e293b"/>
+                                    <circle cx="15" cy="17" r="1.4" fill="#1e293b"/>
+                                    <ellipse cx="12" cy="7" rx="4" ry="3" fill="#1e293b"/>
+                                    <line x1="10" y1="4" x2="9" y2="2" stroke="#1e293b" stroke-width="1"/>
+                                    <line x1="14" y1="4" x2="15" y2="2" stroke="#1e293b" stroke-width="1"/>
+                                </svg>
+                            </div>
+                            <div class="style-swatch scene-beach" onclick="changeScene('beach')" title="Beach">
+                                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                                    <rect x="11" y="13" width="2" height="9" fill="#92400e"/>
+                                    <path d="M12 13 Q5 10 3 7 Q7 9 12 11 Z" fill="#15803d"/>
+                                    <path d="M12 13 Q19 10 21 7 Q17 9 12 11 Z" fill="#15803d"/>
+                                    <path d="M12 13 Q14 4 18 3 Q15 6 12 11 Z" fill="#16a34a"/>
+                                    <path d="M12 13 Q10 4 6 3 Q9 6 12 11 Z" fill="#16a34a"/>
+                                    <circle cx="10" cy="10" r="1.2" fill="#78350f"/>
+                                    <circle cx="14" cy="10" r="1.2" fill="#78350f"/>
+                                </svg>
+                            </div>
+                            <div class="style-swatch scene-four" onclick="showSoonMsg('Scene coming soon!')"></div>
+                            <div class="style-swatch scene-five" onclick="showSoonMsg('Scene coming soon!')"></div>
                         </div>
                     </div>
                 </div>
@@ -739,8 +806,11 @@
                     </div>
                     <div class="keyes-row">
                         <span class="toggle-label">Keyes:</span>
-                        <button class="toggle-btn" id="linksKeyesOnBtn" onclick="setKeyes(true)">On</button>
-                        <button class="toggle-btn active" id="linksKeyesOffBtn" onclick="setKeyes(false)">Off</button>
+                        <div class="toggle-buttons">
+                            <button class="toggle-btn" id="linksKeyesOnBtn" onclick="setKeyes(true)">On</button>
+                            <button class="toggle-btn active" id="linksKeyesOffBtn" onclick="setKeyes(false)">Off</button>
+                        </div>
+                        <span class="toggle-label" aria-hidden="true" style="visibility:hidden">Keyes:</span>
                     </div>
                     <div id="linksError" class="message error invisible"></div>
                     <div class="links-compose-buttons">
@@ -795,8 +865,11 @@
                     </div>
                     <div class="keyes-row">
                         <span class="toggle-label">Keyes:</span>
-                        <button class="toggle-btn" id="setupKeyesOnBtn" onclick="setKeyes(true)">On</button>
-                        <button class="toggle-btn active" id="setupKeyesOffBtn" onclick="setKeyes(false)">Off</button>
+                        <div class="toggle-buttons">
+                            <button class="toggle-btn" id="setupKeyesOnBtn" onclick="setKeyes(true)">On</button>
+                            <button class="toggle-btn active" id="setupKeyesOffBtn" onclick="setKeyes(false)">Off</button>
+                        </div>
+                        <span class="toggle-label" aria-hidden="true" style="visibility:hidden">Keyes:</span>
                     </div>
                     <button class="btn btn-primary btn-leave" onclick="makeGuess()">Ready</button>
                 </div>
@@ -836,20 +909,24 @@
                     </div>
                 </div>
 
-                <!-- Known toggle -->
+                <!-- Known toggle — invisible mirror label on the right makes the row symmetric so the gap between On/Off lands on the row center. -->
                 <div class="known-toggle-row hidden" id="knownToggleRow">
-                    <div class="toggle-group">
-                        <span class="toggle-label">Known:</span>
+                    <span class="toggle-label">Known:</span>
+                    <div class="toggle-buttons">
                         <button class="toggle-btn" id="knownOnBtn" onclick="setKnown(true)">On</button>
                         <button class="toggle-btn active" id="knownOffBtn" onclick="setKnown(false)">Off</button>
                     </div>
+                    <span class="toggle-label" aria-hidden="true" style="visibility:hidden">Known:</span>
                 </div>
 
                 <!-- Keyes toggle -->
                 <div class="keyes-row hidden" id="keyesRow">
                     <span class="toggle-label">Keyes:</span>
-                    <button class="toggle-btn" id="keyesOnBtn" onclick="setKeyes(true)">On</button>
-                    <button class="toggle-btn active" id="keyesOffBtn" onclick="setKeyes(false)">Off</button>
+                    <div class="toggle-buttons">
+                        <button class="toggle-btn" id="keyesOnBtn" onclick="setKeyes(true)">On</button>
+                        <button class="toggle-btn active" id="keyesOffBtn" onclick="setKeyes(false)">Off</button>
+                    </div>
+                    <span class="toggle-label" aria-hidden="true" style="visibility:hidden">Keyes:</span>
                 </div>
 
                 <!-- Keyboard -->
@@ -953,6 +1030,7 @@ var SW_ACCENTS  = ['purple', 'blue', 'pink', 'green', 'orange'];
 var SW_SHEETS   = ['purple', 'blue', 'pink', 'green', 'orange'];
 var SW_FONTS    = ['hand', 'script', 'cursive', 'outfit', 'calligraphy'];
 var SW_SHADES   = ['1', '2', '3', '4', '5'];
+var SW_SCENES   = ['default', 'animals', 'beach', 'four', 'five'];
 
 function setActiveSwatch(selector, values, current) {
     for (var i = 0; i < values.length; i++) {
@@ -1009,6 +1087,12 @@ function changeShade(s) {
     b.classList.add('shade-' + s);
     setActiveSwatch(function(v) { return '.style-swatch.s-' + v; }, SW_SHADES, s);
     updateClashFix();
+}
+function changeScene(s) {
+    var b = document.body;
+    b.className = b.className.replace(/scene-\S+/g, '');
+    b.classList.add('scene-' + s);
+    setActiveSwatch(function(v) { return '.style-swatch.scene-' + v; }, SW_SCENES, s);
 }
 
 function showSoonMsg(msg) {
