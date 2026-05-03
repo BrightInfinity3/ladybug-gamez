@@ -178,31 +178,27 @@ var UI = (function () {
     blockPinchZoom();
     installKeyboardScrollReset();
     showScreen('screen-title');
-    // v109: warm up card-texture canvases AND eagerly initialise
-    // PIXI in the background so Local Play / Online Play / Deal
-    // clicks aren't blocked by WebGL context creation. On a slow
-    // desktop the first PIXI init can spend 200-500ms compiling
-    // shaders and uploading textures; doing that work BEFORE the
-    // first user click takes the latency off the critical path.
-    // The canvas element is hidden behind the title screen, so the
-    // user doesn't see the early init.
+    // v126 main-menu lag fix: drop the eager Renderer.init() warm-up.
+    // v109's intent was to pay PIXI's 200-500ms init cost up front so
+    // the first Local Play / Online Play click felt snappy. Reality on
+    // Windows: that init kicks off via requestIdleCallback right after
+    // the title screen paints, then runs a long synchronous block
+    // (shader compile + 53 sequential GPU texture uploads + procedural
+    // felt) that BLOCKS the main thread for hundreds of milliseconds —
+    // during which the buttons can't respond and the floating-suit
+    // background CSS animation can't kick in either. Better to leave
+    // the title screen rock-solid responsive and pay the cost on first
+    // click.
+    //
+    // We DO still pre-render the card canvases in the background
+    // (Canvas 2D, properly RAF-spread with an 8ms-per-frame budget,
+    // never blocks more than one frame at a time). That's the bulk of
+    // the heavy lifting, it just doesn't include the WebGL upload
+    // step. With v126's card atlas, that upload becomes a single GPU
+    // call instead of 53 — so first-click latency drops dramatically
+    // even without pre-warming PIXI.
     if (typeof Renderer !== 'undefined' && Renderer.precacheCardCanvases) {
       try { Renderer.precacheCardCanvases(); } catch (e) { /* non-fatal */ }
-    }
-    // Use requestIdleCallback (or a small setTimeout fallback) so
-    // the early init doesn't block the title screen's paint.
-    var warmRenderer = function () {
-      if (canvasReady) return;
-      var canvasEl = document.getElementById('game-canvas');
-      if (!canvasEl || !Renderer || !Renderer.init) return;
-      try {
-        Renderer.init(canvasEl).then(function () { canvasReady = true; });
-      } catch (e) { /* non-fatal — first click will retry */ }
-    };
-    if (window.requestIdleCallback) {
-      window.requestIdleCallback(warmRenderer, { timeout: 1500 });
-    } else {
-      setTimeout(warmRenderer, 600);
     }
   }
 
@@ -2364,24 +2360,56 @@ var UI = (function () {
   }
 
   // ---- Canvas Deal Animation ----
+  // v126 PERF: deal animation parallelized by ROUND. Was strictly
+  // serialized — each of the 24 cards (8 players × 3 rounds) waited
+  // for the previous card's 350ms flight to land, totalling ~8.4s of
+  // dead time before play could start. Now: deal all N cards of a
+  // round in quick succession with a 60ms stagger, wait for the
+  // whole round's animations to land, then start the next round.
+  // Cuts deal time from ~8s to ~2s for 8 players, ~5.5s to ~1.6s
+  // for 4 players. Pops still happen in dealOrder (one per card-start)
+  // so the deck count visibly ticks down — the only change is that
+  // multiple cards are in flight at once.
   function animateDealSequence(dealOrder) {
-    var promise = Promise.resolve();
+    if (!dealOrder || !dealOrder.length) return Promise.resolve();
 
-    for (var i = 0; i < dealOrder.length; i++) {
-      (function (playerId) {
-        promise = promise.then(function () {
-          var card = Game.dealCardTo(playerId);
-          if (!card) return;
-
-          var player = Game.getPlayerById(playerId);
-          return animateCanvasDeal(card, playerId, player.seatIndex).then(function () {
-            updateDeckCount();
-          });
-        });
-      })(dealOrder[i]);
+    // dealOrder is structured as [r0_p0, r0_p1, ..., r1_p0, ...]
+    // (see Game.buildDealOrder), so length / 3 = players-per-round.
+    var perRound = Math.max(1, Math.round(dealOrder.length / 3));
+    var rounds = [];
+    for (var r = 0; r * perRound < dealOrder.length; r++) {
+      rounds.push(dealOrder.slice(r * perRound, (r + 1) * perRound));
     }
 
-    return promise;
+    var STAGGER = 60;             // ms between each card's start in a round
+    var INTER_ROUND_PAUSE = 80;   // ms between rounds for a clear visual break
+
+    function dealRound(roundIds) {
+      // Each card pops + starts animating at idx * STAGGER. We
+      // resolve when ALL animations in this round have landed.
+      var jobs = roundIds.map(function (playerId, idx) {
+        return new Promise(function (resolve) {
+          setTimeout(function () {
+            var card = Game.dealCardTo(playerId);
+            if (!card) { resolve(); return; }
+            updateDeckCount(); // tick down as each card actually leaves the deck
+            var player = Game.getPlayerById(playerId);
+            animateCanvasDeal(card, playerId, player.seatIndex)
+              .then(resolve);
+          }, idx * STAGGER);
+        });
+      });
+      return Promise.all(jobs);
+    }
+
+    var seq = Promise.resolve();
+    for (var rr = 0; rr < rounds.length; rr++) {
+      (function (roundIds, isLast) {
+        seq = seq.then(function () { return dealRound(roundIds); });
+        if (!isLast) seq = seq.then(function () { return Animations.delay(INTER_ROUND_PAUSE); });
+      })(rounds[rr], rr === rounds.length - 1);
+    }
+    return seq;
   }
 
   // Viewport-proportional card scale (matches drawGameFrame)

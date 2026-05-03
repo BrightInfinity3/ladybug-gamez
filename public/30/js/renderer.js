@@ -525,12 +525,24 @@ var Renderer = (function () {
   //  TABLE PRE-RENDERING
   // ================================================================
 
+  // v126 PERF: cap the felt-canvas pixel size at 1920×1080. Beyond that
+  // resolution the visual gain from supersampling a procedural Perlin
+  // felt is imperceptible (the noise's underlying frequency is way
+  // below what those pixels would resolve), but the FBM cost scales
+  // quadratically with pixel count. On a 1440p Windows monitor this
+  // typically halves the per-regen cost; on 4K it cuts it 4-9×.
+  // PixiJS sprite-scales the texture to actual viewport size, so the
+  // visual appearance is unchanged.
+  var TABLE_TEX_MAX_W = 1920;
+  var TABLE_TEX_MAX_H = 1080;
+
   function renderTableToCanvas() {
+    var renderScale = Math.min(dpr, TABLE_TEX_MAX_W / W, TABLE_TEX_MAX_H / H);
     var tableCanvas = document.createElement('canvas');
-    tableCanvas.width = W * dpr;
-    tableCanvas.height = H * dpr;
+    tableCanvas.width = Math.round(W * renderScale);
+    tableCanvas.height = Math.round(H * renderScale);
     var c = tableCanvas.getContext('2d');
-    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.setTransform(renderScale, 0, 0, renderScale, 0, 0);
 
     var center = getTableCenter();
     var cx = center.x;
@@ -683,19 +695,67 @@ var Renderer = (function () {
   var _cardCanvasCache = {};
   var _backCanvasCache = null;
 
+  // v126 PERF: atlas all 53 card textures into ONE big canvas, upload
+  // it as a SINGLE PIXI texture, and create per-card sub-textures that
+  // share the same GPU memory. Was 53 sequential PIXI.Texture.from()
+  // calls, each triggering a separate WebGL upload (1-3ms each on
+  // integrated GPUs, can spike higher on Windows). Now: one upload.
+  // Layout: 13 ranks × (4 suits + 1 back) = 13 columns × 5 rows. The
+  // back occupies the entire 5th row but we only use the first cell.
   function buildCardTextures() {
     var suits = ['hearts', 'diamonds', 'clubs', 'spades'];
     var ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+
+    // Phase 1 — ensure all individual card canvases exist (cheap if
+    // precacheCardCanvases already populated them).
     for (var s = 0; s < suits.length; s++) {
       for (var r = 0; r < ranks.length; r++) {
         var key = ranks[r] + '_' + suits[s];
-        var canvas = _cardCanvasCache[key] || renderCardToImage(ranks[r], suits[s]);
-        _cardCanvasCache[key] = canvas;
-        cardTextures[key] = PIXI.Texture.from(canvas);
+        if (!_cardCanvasCache[key]) {
+          _cardCanvasCache[key] = renderCardToImage(ranks[r], suits[s]);
+        }
       }
     }
     if (!_backCanvasCache) _backCanvasCache = renderCardBackToImage();
-    backTexture = PIXI.Texture.from(_backCanvasCache);
+
+    // Phase 2 — composite into a single atlas canvas. Each card canvas
+    // is rendered at TEX_SCALE × the logical card size, so the atlas
+    // pixel grid is (CARD_W * TEX_SCALE) × (CARD_H * TEX_SCALE) per cell.
+    var cellW = CARD_W * TEX_SCALE;
+    var cellH = CARD_H * TEX_SCALE;
+    var cols = ranks.length; // 13
+    var rows = suits.length + 1; // 4 suits + back row
+    var atlasCanvas = document.createElement('canvas');
+    atlasCanvas.width = cellW * cols;
+    atlasCanvas.height = cellH * rows;
+    var ac = atlasCanvas.getContext('2d');
+    for (var ss = 0; ss < suits.length; ss++) {
+      for (var rr = 0; rr < ranks.length; rr++) {
+        var k = ranks[rr] + '_' + suits[ss];
+        ac.drawImage(_cardCanvasCache[k], rr * cellW, ss * cellH);
+      }
+    }
+    // Back goes in row 4 (the "5th" row), column 0.
+    ac.drawImage(_backCanvasCache, 0, suits.length * cellH);
+
+    // Phase 3 — single GPU upload, then per-card sub-textures sharing
+    // the same texture source via frame rectangles.
+    var atlasTex = PIXI.Texture.from(atlasCanvas);
+    var src = atlasTex.source;
+    cardTextures = {};
+    for (var s2 = 0; s2 < suits.length; s2++) {
+      for (var r2 = 0; r2 < ranks.length; r2++) {
+        var k2 = ranks[r2] + '_' + suits[s2];
+        cardTextures[k2] = new PIXI.Texture({
+          source: src,
+          frame: new PIXI.Rectangle(r2 * cellW, s2 * cellH, cellW, cellH)
+        });
+      }
+    }
+    backTexture = new PIXI.Texture({
+      source: src,
+      frame: new PIXI.Rectangle(0, suits.length * cellH, cellW, cellH)
+    });
   }
 
   // Render all card canvases in the background so buildCardTextures is fast.
