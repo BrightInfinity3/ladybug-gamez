@@ -276,6 +276,10 @@
       transform: scale(1.5);
     }
 
+    .card-icon canvas.lango-canvas {
+      transform: scale(1.55);
+    }
+
     .moregames-emoji {
       display: block;
       font-size: 54px;
@@ -393,6 +397,12 @@
       --card-accent: #4ea8ff;
       --card-glow: rgba(78, 168, 255, 0.14);
       --card-icon-bg: linear-gradient(135deg, rgba(78, 168, 255, 0.18), rgba(21, 101, 192, 0.10));
+    }
+
+    .card.lango {
+      --card-accent: #a78bfa;
+      --card-glow: rgba(139, 92, 246, 0.16);
+      --card-icon-bg: linear-gradient(135deg, rgba(139, 92, 246, 0.20), rgba(76, 29, 149, 0.10));
     }
 
     /* === COMING SOON CARDS === */
@@ -562,6 +572,26 @@
         <div class="card-tags">
           <span class="tag">Card Game</span>
           <span class="tag">Single-Player</span>
+        </div>
+        <div class="card-play">
+          Play Now <span class="arrow">&rarr;</span>
+        </div>
+      </a>
+
+      <!-- LANGO -->
+      <a href="/lango/" class="card lango">
+        <div class="card-header">
+          <div class="card-icon">
+            <canvas id="lango-icon" class="lango-canvas" width="48" height="48"></canvas>
+          </div>
+          <h2 class="card-title">Lango</h2>
+        </div>
+        <p class="card-desc">
+          A 5-letter word-guessing game inspired by Lingo and Wordle. Solo, pass-and-play, or send a word to a friend via shareable link.
+        </p>
+        <div class="card-tags">
+          <span class="tag">Word Game</span>
+          <span class="tag">Multiplayer</span>
         </div>
         <div class="card-play">
           Play Now <span class="arrow">&rarr;</span>
@@ -1107,6 +1137,74 @@
       x.moveTo(CX + 8, CY + 22);
       x.lineTo(CX, CY + 12);
       x.stroke();
+    })();
+
+    // Draw Lango icon — a row of 5 tiles spelling LANGO with the same
+    // mid-game state mix the actual game shows: solid (correct/given),
+    // rings (present/wrong place), and faded (absent).
+    (function() {
+      const c = document.getElementById('lango-icon');
+      if (!c) return;
+      const x = c.getContext('2d');
+
+      const purple = '#8b5cf6';
+      const purpleLight = 'rgba(139, 92, 246, 0.30)';
+      const purpleLightTxt = 'rgba(139, 92, 246, 0.65)';
+      const ts = 8;            // tile size
+      const gap = 1;           // tile gap
+      const totalW = ts * 5 + gap * 4;
+      const startX = (48 - totalW) / 2;
+      const ty = 20;
+      const tileR = 1.6;
+
+      function drawTile(tx, letter, state) {
+        if (state === 'solid') {
+          x.fillStyle = purple;
+          x.shadowColor = purple;
+          x.shadowBlur = 3;
+          x.beginPath();
+          x.roundRect(tx, ty, ts, ts, tileR);
+          x.fill();
+          x.shadowBlur = 0;
+          x.fillStyle = '#fff';
+        } else if (state === 'rings') {
+          // Concentric ring (mimics the in-game "present" tile)
+          const cx = tx + ts/2;
+          const cy = ty + ts/2;
+          x.fillStyle = purple;
+          x.beginPath();
+          x.arc(cx, cy, ts * 0.48, 0, Math.PI * 2);
+          x.fill();
+          x.globalCompositeOperation = 'destination-out';
+          x.beginPath();
+          x.arc(cx, cy, ts * 0.30, 0, Math.PI * 2);
+          x.fill();
+          x.globalCompositeOperation = 'source-over';
+          x.fillStyle = purple;
+        } else {
+          // absent / faded
+          x.fillStyle = purpleLight;
+          x.beginPath();
+          x.roundRect(tx, ty, ts, ts, tileR);
+          x.fill();
+          x.fillStyle = purpleLightTxt;
+        }
+        x.font = '700 5.4px "Outfit", sans-serif';
+        x.textAlign = 'center';
+        x.textBaseline = 'middle';
+        x.fillText(letter, tx + ts/2, ty + ts/2 + 0.4);
+      }
+
+      const tiles = [
+        ['L', 'solid'],   // first letter — always given
+        ['A', 'absent'],  // not in word
+        ['N', 'rings'],   // present — wrong place
+        ['G', 'absent'],  // not in word
+        ['O', 'solid'],   // correct
+      ];
+      tiles.forEach(function(t, i) {
+        drawTile(startX + i * (ts + gap), t[0], t[1]);
+      });
     })();
   </script>
 </body>
