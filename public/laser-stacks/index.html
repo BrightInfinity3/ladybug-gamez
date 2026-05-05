@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Laser Stacks - A Card Game</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=1">
+</head>
+<body>
+
+  <!-- ========== TITLE SCREEN ========== -->
+  <div id="screen-title" class="screen active">
+    <div class="title-bg">
+      <div class="floating-suits"></div>
+    </div>
+    <div class="title-content">
+      <div class="title-card-fan">
+        <div class="title-card tc-1"></div>
+        <div class="title-card tc-2"></div>
+        <div class="title-card tc-3"></div>
+      </div>
+      <h1 class="game-title">Laser<br>Stacks</h1>
+      <div class="title-buttons">
+        <button class="btn btn-gold btn-play" id="btn-play">Play</button>
+        <button class="btn btn-outline btn-menu-size" id="btn-how-to-play">How to Play</button>
+        <button class="btn btn-outline btn-menu-size" id="btn-options">Options</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== OPTIONS SCREEN ========== -->
+  <div id="screen-options" class="screen">
+    <div class="rules-panel">
+      <h2>Options</h2>
+      <div class="rules-content">
+        <div class="rule-section">
+          <h3>Suits</h3>
+          <p>Choose how the four suits are drawn on the cards, the suit hierarchy legend, and in the rulebook.</p>
+          <div class="options-row" id="opt-suit-style">
+            <button class="btn btn-outline opt-choice" data-value="classic">
+              <span class="opt-choice-label">Classic</span>
+              <span class="opt-choice-sub">&clubs; &spades; &hearts; &diams;</span>
+            </button>
+            <button class="btn btn-outline opt-choice" data-value="laser">
+              <span class="opt-choice-label">Laser</span>
+              <span class="opt-choice-sub">Combiners &middot; Blades &middot; Prisms &middot; Diodes</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="rules-back-row">
+        <button class="btn btn-gold" id="btn-options-back">Back</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== HOW TO PLAY SCREEN ========== -->
+  <div id="screen-rules" class="screen">
+    <div class="rules-panel">
+      <h2>How to Play</h2>
+      <div class="rules-content">
+        <div class="rule-section">
+          <h3>Goal</h3>
+          <p>Win exactly the number of <strong>Stacks</strong> (tricks) you bid each round.</p>
+        </div>
+        <div class="rule-section">
+          <h3>Setup</h3>
+          <p>4 players, <strong>9 cards</strong> each from a standard deck (16 left out).</p>
+          <p>Action moves clockwise. The player with the <strong>lowest-ranked card</strong> leads the first Stack.</p>
+        </div>
+        <div class="rule-section">
+          <h3>Suit Ranking</h3>
+          <p data-rules-section="suit-ranking">Suits are ranked: <strong class="suit-clubs">&clubs;</strong> Clubs &gt; <strong class="suit-spades">&spades;</strong> Spades &gt; <strong class="suit-hearts">&hearts;</strong> Hearts &gt; <strong class="suit-diamonds">&diams;</strong> Diamonds.</p>
+          <p>Any card of a higher suit <strong>beats</strong> any card of a lower suit.</p>
+        </div>
+        <div class="rule-section">
+          <h3>Leading a Stack</h3>
+          <p data-rules-section="leading">The leader must play a <strong class="suit-diamonds">&diams; Diamond</strong> if they have one.</p>
+          <p>Once other suits are <em>introduced</em>, the leader may play any unlocked suit.</p>
+          <p>If they have no unlocked suits, they play their lowest available suit.</p>
+        </div>
+        <div class="rule-section">
+          <h3>Following</h3>
+          <p>If you have a card of the <strong>same suit</strong> as the lead, you <strong>must</strong> play it.</p>
+          <p data-rules-section="following">Otherwise, play a <strong>lower-ranked</strong> suit. If you can't, play the next higher suit. Clubs is the last resort.</p>
+        </div>
+        <div class="rule-section">
+          <h3>Winning a Stack</h3>
+          <p>The <strong>highest-ranked card</strong> wins. Suit rank beats card rank &mdash;</p>
+          <p data-rules-section="winning">a 2&clubs; beats a K&spades;, a 2&hearts; beats a K&diams;, and so on.</p>
+          <p>The winner leads the next Stack.</p>
+        </div>
+        <div class="rule-section">
+          <h3>Bidding &amp; Scoring</h3>
+          <p>Before play, bid <strong>0&ndash;9</strong> Stacks you think you'll win.</p>
+          <p><strong>Hit your bid:</strong> bid &times; 11 points.</p>
+          <p><strong>Under bid:</strong> score 0 for the round.</p>
+          <p><strong>Over bid:</strong> bid &times; 11 minus compiling penalty &mdash; &minus;11 for 1 over, &minus;22 for 2 over, etc.</p>
+          <p><strong>Bid 0 and win 0:</strong> score <strong>99</strong> points!</p>
+          <p>Minimum round score is 0. Aces are high.</p>
+        </div>
+        <div class="rule-section">
+          <h3>AI</h3>
+          <p>AI players bid based on hand strength and play to meet their bid.</p>
+        </div>
+      </div>
+      <div class="rules-back-row">
+        <button class="btn btn-gold" id="btn-rules-back">Back</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== GAME SCREEN ========== -->
+  <div id="screen-game" class="screen">
+    <!-- Game HUD -->
+    <div class="game-hud" id="game-hud" style="display:none">
+      <div class="hud-round">
+        <span class="hud-label">Round:</span>
+        <span class="hud-value" id="hud-round">1</span>
+      </div>
+      <div class="hud-left">
+        <span id="hud-message"></span>
+      </div>
+      <button class="btn btn-outline btn-action-menu" id="btn-menu">Main Menu</button>
+    </div>
+
+    <!-- Suit rank diagram (positioned above left player during gameplay) -->
+    <div class="suit-stack" id="suit-stack" style="display:none">
+      <div class="suit-stack-arrow">&uarr;</div>
+      <div class="suit-stack-item suit-clubs locked" data-suit="clubs"><span class="suit-glyph">&clubs;</span></div>
+      <div class="suit-stack-item suit-spades locked" data-suit="spades"><span class="suit-glyph">&spades;</span></div>
+      <div class="suit-stack-item suit-hearts locked" data-suit="hearts"><span class="suit-glyph">&hearts;</span></div>
+      <div class="suit-stack-item suit-diamonds locked" data-suit="diamonds"><span class="suit-glyph">&diams;</span></div>
+      <div class="suit-stack-arrow">&darr;</div>
+    </div>
+
+    <!-- Trick counter (positioned on right side of table during gameplay) -->
+    <div class="trick-info" id="trick-info" style="display:none">
+      <span class="trick-info-label">Stack:</span>
+      <div><span class="trick-info-value" id="hud-trick">1</span><span class="trick-info-slash">/9</span></div>
+    </div>
+
+    <!-- Setup bar -->
+    <div class="setup-header" id="setup-header">
+      <h2 id="setup-title">Game Setup</h2>
+      <button class="btn btn-outline btn-action-menu" id="btn-setup-back">Main Menu</button>
+    </div>
+
+    <!-- Player count control (hidden for Laser Stacks — always 4) -->
+    <div class="player-count-control" id="player-count-control" style="display:none">
+      <label class="pcc-label">Players:</label>
+      <div class="pcc-row">
+        <button class="btn btn-gold btn-large" id="btn-fewer">&minus;</button>
+        <span id="player-count-display">4</span>
+        <button class="btn btn-gold btn-large" id="btn-more">+</button>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <div class="card-table game-table">
+        <canvas id="game-canvas"></canvas>
+        <div class="table-felt">
+          <div class="table-logo">LS</div>
+        </div>
+        <div class="seats-ring" id="seats-ring"></div>
+      </div>
+    </div>
+
+    <!-- Deal button -->
+    <button class="btn btn-gold btn-large setup-deal-btn" id="btn-deal" disabled>Deal!</button>
+
+    <!-- Human player's hand bar (bottom of screen) -->
+    <div class="hand-bar" id="hand-bar" style="display:none">
+      <div class="hand-bar-cards" id="hand-bar-cards"></div>
+    </div>
+
+    <!-- Bidding overlay -->
+    <div class="bid-overlay" id="bid-overlay" style="display:none">
+      <div class="bid-panel">
+        <h3>Your Bid</h3>
+        <p class="bid-prompt">How many Stacks will you win?</p>
+        <div class="bid-controls">
+          <button class="btn btn-gold bid-btn" id="bid-minus">&minus;</button>
+          <span class="bid-value" id="bid-value">0</span>
+          <button class="btn btn-gold bid-btn" id="bid-plus">+</button>
+        </div>
+        <button class="btn btn-gold btn-large" id="bid-confirm">Confirm Bid</button>
+      </div>
+    </div>
+
+    <!-- Character picker overlay -->
+    <div class="character-picker" id="character-picker" style="display:none">
+      <div class="picker-panel">
+        <h3>Choose Your Character</h3>
+        <div class="picker-grid" id="picker-grid"></div>
+        <button class="btn btn-outline btn-sm" id="btn-picker-cancel">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Confirm exit overlay -->
+    <div class="confirm-overlay" id="confirm-exit" style="display:none">
+      <div class="confirm-panel">
+        <p class="confirm-title">Return to Main Menu?</p>
+        <p class="confirm-sub">Your current game will be lost.</p>
+        <div class="confirm-buttons">
+          <button class="btn btn-gold" id="btn-confirm-yes">Yes, Exit</button>
+          <button class="btn btn-outline" id="btn-confirm-no">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== RESULTS SCREEN ========== -->
+  <div id="screen-results" class="screen">
+    <div class="results-content">
+      <div class="results-winner" id="results-winner"></div>
+      <div class="results-hands" id="results-hands"></div>
+      <div class="results-scoreboard" id="results-scoreboard"></div>
+      <div class="results-buttons">
+        <button class="btn btn-gold btn-large" id="btn-play-again">Play Again</button>
+        <button class="btn btn-outline btn-large" id="btn-new-game">Main Menu</button>
+      </div>
+    </div>
+    <div class="confetti-container" id="confetti-container"></div>
+    <div class="confirm-overlay" id="confirm-exit-results" style="display:none">
+      <div class="confirm-panel">
+        <p class="confirm-title">Return to Main Menu?</p>
+        <p class="confirm-sub">Your current game will be lost.</p>
+        <div class="confirm-buttons">
+          <button class="btn btn-gold" id="btn-confirm-results-yes">Yes, Exit</button>
+          <button class="btn btn-outline" id="btn-confirm-results-no">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts in dependency order -->
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js@8/dist/pixi.min.js"></script>
+  <script src="js/sprites.js?v=2"></script>
+  <script src="js/cards.js?v=2"></script>
+  <script src="js/game.js?v=2"></script>
+  <script src="js/animations.js?v=2"></script>
+  <script src="js/textures.js?v=2"></script>
+  <script src="js/laser-pips.js?v=2"></script>
+  <script src="js/renderer.js?v=2"></script>
+  <script src="js/save.js?v=2"></script>
+  <script src="js/ui.js?v=2"></script>
+
+</body>
+</html>

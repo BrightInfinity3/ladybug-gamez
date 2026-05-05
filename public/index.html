@@ -272,6 +272,10 @@
       transform: scale(1.65);
     }
 
+    .card-icon canvas.laser-stacks-canvas {
+      transform: scale(1.5);
+    }
+
     .moregames-emoji {
       display: block;
       font-size: 54px;
@@ -377,6 +381,12 @@
       --card-accent: #d4a017;
       --card-glow: rgba(212, 160, 23, 0.14);
       --card-icon-bg: linear-gradient(135deg, rgba(212, 160, 23, 0.18), rgba(160, 110, 20, 0.10));
+    }
+
+    .card.laser-stacks {
+      --card-accent: #ff2d55;
+      --card-glow: rgba(255, 45, 85, 0.14);
+      --card-icon-bg: linear-gradient(135deg, rgba(255, 45, 85, 0.18), rgba(180, 30, 60, 0.10));
     }
 
     .card.solitairra {
@@ -532,6 +542,26 @@
         <div class="card-tags">
           <span class="tag">Card Game</span>
           <span class="tag">Multiplayer</span>
+        </div>
+        <div class="card-play">
+          Play Now <span class="arrow">&rarr;</span>
+        </div>
+      </a>
+
+      <!-- LASER STACKS -->
+      <a href="/laser-stacks/" class="card laser-stacks">
+        <div class="card-header">
+          <div class="card-icon">
+            <canvas id="laser-stacks-icon" class="laser-stacks-canvas" width="48" height="48"></canvas>
+          </div>
+          <h2 class="card-title">Laser Stacks</h2>
+        </div>
+        <p class="card-desc">
+          A trick-taking card game with a strict suit hierarchy. Bid the exact number of stacks you'll win, then play to hit it. Optional laser-themed suits.
+        </p>
+        <div class="card-tags">
+          <span class="tag">Card Game</span>
+          <span class="tag">Single-Player</span>
         </div>
         <div class="card-play">
           Play Now <span class="arrow">&rarr;</span>
@@ -905,6 +935,109 @@
       x.shadowColor = 'rgba(212, 160, 23, 0.55)';
       x.shadowBlur = 4;
       x.fillText('30', 24, textY);
+
+      x.restore();
+    })();
+
+    // Laser Stacks icon — fan of three blue cards with a glowing diode pip on the front card
+    (function () {
+      const c = document.getElementById('laser-stacks-icon');
+      if (!c) return;
+      const x = c.getContext('2d');
+
+      x.save();
+      x.translate(24, 24);
+      x.scale(1.3, 1.3);
+      x.translate(-24, -24);
+
+      const cardW = 17, cardH = 24, cardR = 2.2;
+      const pivotX = 24, pivotY = 36;
+
+      function drawFanCard(angleDeg) {
+        x.save();
+        x.translate(pivotX, pivotY);
+        x.rotate(angleDeg * Math.PI / 180);
+        const left = -cardW / 2;
+        const top = -cardH;
+        const grad = x.createLinearGradient(left, top, left + cardW, top + cardH);
+        grad.addColorStop(0, '#1a2a5c');
+        grad.addColorStop(1, '#0d1a3d');
+        x.fillStyle = grad;
+        x.beginPath();
+        x.roundRect(left, top, cardW, cardH, cardR);
+        x.fill();
+        x.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+        x.lineWidth = 1;
+        x.beginPath();
+        x.roundRect(left, top, cardW, cardH, cardR);
+        x.stroke();
+        x.restore();
+      }
+      drawFanCard(-20);
+      drawFanCard(20);
+      drawFanCard(0);
+
+      // Diode pip on the center card
+      const cx = 24, cy = 22;
+      const glow = x.createRadialGradient(cx, cy - 2, 0, cx, cy - 2, 9);
+      glow.addColorStop(0, 'rgba(255, 100, 100, 0.5)');
+      glow.addColorStop(0.5, 'rgba(255, 60, 60, 0.18)');
+      glow.addColorStop(1, 'rgba(255, 40, 40, 0)');
+      x.fillStyle = glow;
+      x.beginPath();
+      x.arc(cx, cy - 2, 9, 0, Math.PI * 2);
+      x.fill();
+
+      const bodyW = 4.5, bodyH = 5;
+      const domeR = bodyW;
+      const bodyTop = cy - bodyH * 0.35;
+      const bodyBot = cy + bodyH * 0.35;
+      x.beginPath();
+      x.arc(cx, bodyTop, domeR, Math.PI, 0);
+      x.lineTo(cx + bodyW, bodyBot);
+      x.lineTo(cx - bodyW, bodyBot);
+      x.closePath();
+      const body = x.createLinearGradient(cx - bodyW, bodyTop - domeR, cx + bodyW, bodyBot);
+      body.addColorStop(0, '#ffa0a0');
+      body.addColorStop(0.3, '#ff4a4a');
+      body.addColorStop(0.7, '#b71c1c');
+      body.addColorStop(1, '#7f0000');
+      x.fillStyle = body;
+      x.fill();
+      x.strokeStyle = 'rgba(127, 0, 0, 0.6)';
+      x.lineWidth = 0.5;
+      x.stroke();
+
+      const hl = x.createRadialGradient(cx - 1, bodyTop - 1.5, 0.4, cx, bodyTop, domeR * 0.7);
+      hl.addColorStop(0, 'rgba(255, 255, 255, 0.7)');
+      hl.addColorStop(0.4, 'rgba(255, 180, 180, 0.25)');
+      hl.addColorStop(1, 'rgba(255, 100, 100, 0)');
+      x.fillStyle = hl;
+      x.beginPath();
+      x.arc(cx, bodyTop, domeR * 0.85, Math.PI, 0);
+      x.lineTo(cx + bodyW * 0.85, bodyBot * 0.5 + cy * 0.5);
+      x.lineTo(cx - bodyW * 0.85, bodyBot * 0.5 + cy * 0.5);
+      x.closePath();
+      x.fill();
+
+      x.fillStyle = '#546E7A';
+      x.fillRect(cx - bodyW * 0.9, bodyBot - 0.5, bodyW * 1.8, 1.4);
+
+      x.strokeStyle = '#78909C';
+      x.lineWidth = 0.7;
+      x.lineCap = 'round';
+      const legTop = bodyBot + 1;
+      const legLen = 2.5;
+      x.beginPath();
+      x.moveTo(cx - 1.5, legTop);
+      x.lineTo(cx - 1.5, legTop + legLen * 0.6);
+      x.lineTo(cx - 2.2, legTop + legLen);
+      x.stroke();
+      x.beginPath();
+      x.moveTo(cx + 1.5, legTop);
+      x.lineTo(cx + 1.5, legTop + legLen);
+      x.lineTo(cx + 2.2, legTop + legLen + 0.6);
+      x.stroke();
 
       x.restore();
     })();
