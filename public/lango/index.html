@@ -256,7 +256,7 @@
         .style-swatch.scene-animals{background:#fee2e2;display:flex;align-items:center;justify-content:center;--sw-ring:#dc2626}
         .style-swatch.scene-beach{background:#fef3c7;display:flex;align-items:center;justify-content:center;--sw-ring:#16a34a}
         .style-swatch.scene-space{background:radial-gradient(circle at 30% 30%, #1e1b4b 0%, #020617 100%);display:flex;align-items:center;justify-content:center;--sw-ring:#fbbf24}
-        .style-swatch.scene-five{background:var(--cell-bg);--sw-ring:var(--cell-border)}
+        .style-swatch.scene-five{background:var(--cell-bg);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:var(--text-secondary);--sw-ring:var(--cell-border)}
 
         /* ── Scene background layer ──
            A single fixed-position pseudo-element under .container draws the
@@ -298,7 +298,7 @@
            couple of clouds. preserveAspectRatio='xMidYMid slice' lets the
            SVG fill any viewport without distortion. */
         body.scene-beach::before{
-            background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800' preserveAspectRatio='xMidYMid slice'><defs><linearGradient id='sky' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%23bae6fd'/><stop offset='0.7' stop-color='%23fed7aa'/></linearGradient></defs><rect width='1200' height='500' fill='url(%23sky)'/><rect y='450' width='1200' height='200' fill='%230ea5e9'/><path d='M0 460 Q200 440 400 460 T800 460 T1200 460 L1200 650 L0 650 Z' fill='%230284c7'/><rect y='650' width='1200' height='150' fill='%23fde68a'/><path d='M0 650 Q300 640 600 660 T1200 650 L1200 800 L0 800 Z' fill='%23fcd34d'/><circle cx='400' cy='130' r='55' fill='%23fef9c3'/><circle cx='400' cy='130' r='42' fill='%23fde047'/><g transform='translate(120,420)'><rect x='-7' y='0' width='14' height='235' fill='%2392400e' rx='3'/><path d='M0 5 Q-50 -25 -90 -10 Q-40 -25 0 -15 Z' fill='%2315803d'/><path d='M0 5 Q-25 -45 -45 -75 Q-5 -45 5 -12 Z' fill='%2316a34a'/><path d='M0 5 Q50 -25 90 -10 Q40 -25 0 -15 Z' fill='%2315803d'/><path d='M0 5 Q25 -45 45 -75 Q5 -45 -5 -12 Z' fill='%2316a34a'/><circle cx='-15' cy='0' r='6' fill='%2378350f'/><circle cx='0' cy='-3' r='6' fill='%2378350f'/><circle cx='15' cy='0' r='6' fill='%2378350f'/></g><g transform='translate(1080,440)'><rect x='-7' y='0' width='14' height='215' fill='%2392400e' rx='3'/><path d='M0 5 Q-50 -25 -90 -10 Q-40 -25 0 -15 Z' fill='%2315803d'/><path d='M0 5 Q-25 -45 -45 -75 Q-5 -45 5 -12 Z' fill='%2316a34a'/><path d='M0 5 Q50 -25 90 -10 Q40 -25 0 -15 Z' fill='%2315803d'/><circle cx='-15' cy='0' r='6' fill='%2378350f'/><circle cx='15' cy='0' r='6' fill='%2378350f'/></g><g transform='translate(620,260)' fill='%23ffffff' opacity='0.85'><ellipse cx='0' cy='0' rx='35' ry='13'/><ellipse cx='-22' cy='-8' rx='24' ry='14'/><ellipse cx='20' cy='-6' rx='27' ry='15'/></g><g transform='translate(900,180)' fill='%23ffffff' opacity='0.85'><ellipse cx='0' cy='0' rx='42' ry='15'/><ellipse cx='-25' cy='-10' rx='27' ry='15'/><ellipse cx='24' cy='-8' rx='30' ry='17'/></g><path d='M40 530 Q120 520 200 530 T360 530' stroke='%23ffffff' stroke-width='2' fill='none' opacity='0.6'/><path d='M820 540 Q900 530 980 540 T1140 540' stroke='%23ffffff' stroke-width='2' fill='none' opacity='0.6'/></svg>");
+            background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800' preserveAspectRatio='xMidYMid slice'><defs><linearGradient id='sky' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%23bae6fd'/><stop offset='0.7' stop-color='%23fed7aa'/></linearGradient></defs><rect width='1200' height='500' fill='url(%23sky)'/><rect y='450' width='1200' height='200' fill='%230ea5e9'/><path d='M0 460 Q200 440 400 460 T800 460 T1200 460 L1200 650 L0 650 Z' fill='%230284c7'/><rect y='650' width='1200' height='150' fill='%23fde68a'/><path d='M0 650 Q300 640 600 660 T1200 650 L1200 800 L0 800 Z' fill='%23fcd34d'/><circle cx='400' cy='80' r='55' fill='%23fef9c3'/><circle cx='400' cy='80' r='42' fill='%23fde047'/><g transform='translate(120,420)'><rect x='-7' y='0' width='14' height='235' fill='%2392400e' rx='3'/><path d='M0 5 Q-50 -25 -90 -10 Q-40 -25 0 -15 Z' fill='%2315803d'/><path d='M0 5 Q-25 -45 -45 -75 Q-5 -45 5 -12 Z' fill='%2316a34a'/><path d='M0 5 Q50 -25 90 -10 Q40 -25 0 -15 Z' fill='%2315803d'/><path d='M0 5 Q25 -45 45 -75 Q5 -45 -5 -12 Z' fill='%2316a34a'/><circle cx='-15' cy='0' r='6' fill='%2378350f'/><circle cx='0' cy='-3' r='6' fill='%2378350f'/><circle cx='15' cy='0' r='6' fill='%2378350f'/></g><g transform='translate(800,440)'><rect x='-7' y='0' width='14' height='215' fill='%2392400e' rx='3'/><path d='M0 5 Q-50 -25 -90 -10 Q-40 -25 0 -15 Z' fill='%2315803d'/><path d='M0 5 Q-25 -45 -45 -75 Q-5 -45 5 -12 Z' fill='%2316a34a'/><path d='M0 5 Q50 -25 90 -10 Q40 -25 0 -15 Z' fill='%2315803d'/><circle cx='-15' cy='0' r='6' fill='%2378350f'/><circle cx='15' cy='0' r='6' fill='%2378350f'/></g><g transform='translate(620,260)' fill='%23ffffff' opacity='0.85'><ellipse cx='0' cy='0' rx='35' ry='13'/><ellipse cx='-22' cy='-8' rx='24' ry='14'/><ellipse cx='20' cy='-6' rx='27' ry='15'/></g><g transform='translate(900,180)' fill='%23ffffff' opacity='0.85'><ellipse cx='0' cy='0' rx='42' ry='15'/><ellipse cx='-25' cy='-10' rx='27' ry='15'/><ellipse cx='24' cy='-8' rx='30' ry='17'/></g><path d='M40 530 Q120 520 200 530 T360 530' stroke='%23ffffff' stroke-width='2' fill='none' opacity='0.6'/><path d='M820 540 Q900 530 980 540 T1140 540' stroke='%23ffffff' stroke-width='2' fill='none' opacity='0.6'/></svg>");
         }
 
         /* Space — dark night sky with stars, a crescent moon and a Saturn-like ringed planet. Single SVG, paint-once. */
@@ -322,7 +322,7 @@
         /* ── Game Card ── */
         .game-area{display:none;max-width:600px;margin:0 auto;width:100%}
         .game-area.active{display:block}
-        .game-card{position:relative;overflow:hidden;background:var(--bg-card);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:2px solid var(--accent-primary);border-radius:20px;padding:20px 16px;box-shadow:0 8px 32px rgba(0,0,0,.1);width:360px;max-width:calc(100vw - 30px);margin-left:auto;margin-right:auto}
+        .game-card{position:relative;overflow:hidden;background:var(--bg-card);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:2px solid var(--accent-primary);border-radius:20px;padding:20px 16px;box-shadow:0 8px 32px rgba(0,0,0,.1);width:420px;max-width:calc(100vw - 30px);margin-left:auto;margin-right:auto}
         /* Per-screen widths are all narrower than the gameplay base.
            Style + Links also tighten their internal sizes so swatches /
            keyboard / textarea stay inside the slimmer card. */
@@ -330,7 +330,7 @@
         #styleScreen .style-swatches{gap:4px}
         #styleScreen .style-row label{width:50px}
         #styleScreen .style-swatch{width:28px;height:28px}
-        #linksScreen .game-card{width:400px}
+        #linksScreen .game-card{width:420px}
         #rulesScreen .game-card{width:290px}
         #styleScreen .btn-primary{width:140px;height:46px;display:flex;align-items:center;justify-content:center;margin-left:auto;margin-right:auto}
         .game-card>*:not(#confettiCanvas){position:relative;z-index:1}
@@ -781,7 +781,7 @@
                                     <ellipse cx="12" cy="12" rx="7" ry="1.2" fill="none" stroke="#fbbf24" stroke-width="0.8"/>
                                 </svg>
                             </div>
-                            <div class="style-swatch scene-five" onclick="showSoonMsg('Scene coming soon!')"></div>
+                            <div class="style-swatch scene-five" onclick="showSoonMsg('Scene coming soon!')">?</div>
                         </div>
                     </div>
                 </div>
