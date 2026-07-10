@@ -135,7 +135,31 @@ const server = http.createServer(app);
 // Attach the WebSocket game-room server. This is the CENTRAL hub used by
 // both this site and by wbcgamez — wbcgamez's client connects back here
 // at wss://<ladybug-gamez-host>/ws.
-attachGameWebSocketServer(server, { path: "/ws" });
+//
+// Both WebSocket servers run in noServer mode with ONE upgrade router below:
+// two ws instances bound with {server, path} each abort the other's upgrades
+// with HTTP 400, so the port can only be shared by routing upgrades manually.
+const hubWss = attachGameWebSocketServer(server, { path: "/ws", noServer: true });
+
+// ---- Alliances (deep-link only: /alliances — no card on the landing page) ----
+// The full multiplayer game lives in ./alliances (published from the
+// Alliances repo via its tools/publish-ladybug.ps1). Its WebSocket rides the
+// same port at /alliances/ws; its room snapshots persist under the volume
+// (or ./data without one, ephemeral across deploys).
+const alliances = require("./alliances/server/integrate.js")(app, server, {
+  basePath: "/alliances",
+  noServerWs: true
+});
+
+server.on("upgrade", (req, socket, head) => {
+  let pathname = "/";
+  try { pathname = new URL(req.url, "http://x").pathname; } catch (e) { /* fall through */ }
+  const target = pathname === "/ws" ? hubWss
+    : pathname === alliances.wsPath ? alliances.wss
+    : null;
+  if (!target) { socket.destroy(); return; }
+  target.handleUpgrade(req, socket, head, (ws) => target.emit("connection", ws, req));
+});
 
 server.listen(PORT, () => {
   console.log(`Ladybug Gamez running on port ${PORT} (HTTP + /ws WebSocket)`);
@@ -145,6 +169,12 @@ server.listen(PORT, () => {
 // Railway deploys so the rotation isn't reported as a crash.
 function gracefulShutdown(signal) {
   console.log(`[ladybug-gamez] received ${signal}, shutting down`);
+  try {
+    const flushed = alliances.flushAllSync();
+    console.log(`[ladybug-gamez] flushed ${flushed} Alliances snapshot(s)`);
+  } catch (e) {
+    console.warn("[ladybug-gamez] Alliances flush failed:", e.message);
+  }
   server.close(() => {
     console.log("[ladybug-gamez] HTTP server closed");
     process.exit(0);

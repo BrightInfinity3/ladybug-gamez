@@ -1,0 +1,810 @@
+/* ==========================================================================
+   fx.css — map renderer states, battle cinematic, elimination, ceremony.
+   Relies on the :root tokens defined in style.css (--bg-*, --gold, --danger…).
+   Loaded AFTER style.css so these rules win on shared elements.
+   ========================================================================== */
+
+/* ---- fx root: invisible at rest, overlays opt in to pointer events -------
+   z-ladder: game HUD < fx overlays (450) < reconnect scrim (500) < toasts (550)
+   < tooltips (600) — a disconnect mid-cinematic must still show the scrim. */
+#fx-root {
+  position: fixed;
+  inset: 0;
+  z-index: 450;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   1. MAP — renderer.js
+   ========================================================================== */
+
+.map-host { position: relative; }
+
+.alliances-map {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-map);
+  touch-action: none;      /* we own pan/pinch */
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.alliances-map.panning { cursor: grabbing; }
+
+/* territories: fill/stroke arrive as SVG attributes from JS; CSS classes
+   override them for interaction states (CSS always beats attributes) */
+.alliances-map .terr {
+  transition: fill 0.35s ease, stroke 0.35s ease, opacity 0.25s ease, filter 0.2s ease;
+}
+.alliances-map.interactive .terr.own-selectable,
+.alliances-map.interactive .terr.selected,
+.alliances-map.interactive .terr.attackable { cursor: pointer; }
+.alliances-map.interactive .terr.attackable { cursor: crosshair; }
+.alliances-map.interactive .terr:hover { filter: brightness(1.25); }
+
+/* your eligible attack sources: a slow, soft pulse */
+.terr.own-selectable { animation: fx-terr-pulse 2.2s ease-in-out infinite; }
+@keyframes fx-terr-pulse {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.35); }
+}
+
+/* armed attacker: gold ring + glow, pulse off */
+.terr.selected {
+  animation: none;
+  stroke: var(--gold);
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 7px var(--gold-glow)) brightness(1.2);
+}
+
+/* legal targets: red marching ants + crosshair */
+.terr.attackable {
+  stroke: var(--danger);
+  stroke-width: 2;
+  stroke-dasharray: 7 5;
+  animation: fx-ants 0.9s linear infinite;
+}
+@keyframes fx-ants { to { stroke-dashoffset: -24; } }
+
+/* bloc highlight: everyone NOT in the spotlight steps back to ~60% */
+.terr.dimmed,
+.terr-metal.dimmed { opacity: 0.6; filter: saturate(0.45); }
+.badge.dimmed { opacity: 0.55; }
+
+/* log-click locate flash */
+.terr.flash { animation: fx-terr-flash 0.9s ease; }
+@keyframes fx-terr-flash {
+  0%, 100% { filter: brightness(1); }
+  20%, 60% { filter: brightness(2) drop-shadow(0 0 10px var(--gold-glow)); }
+  40%      { filter: brightness(1.2); }
+}
+
+/* failed assault: the defender stands defiant in its own colors */
+.terr.repel-pulse { animation: fx-repel 0.7s ease; }
+@keyframes fx-repel {
+  0%, 100% { stroke-width: 1.25; filter: brightness(1); }
+  30%      { stroke-width: 4;    filter: brightness(1.7); }
+  60%      { stroke-width: 2;    filter: brightness(1.3); }
+}
+
+/* round-start deal cascade */
+.terr.deal-pop {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: fx-deal-pop 0.45s ease-out backwards;
+}
+@keyframes fx-deal-pop {
+  0%   { transform: scale(0.82); filter: brightness(2); }
+  60%  { transform: scale(1.05); }
+  100% { transform: scale(1);    filter: brightness(1); }
+}
+
+/* alliance trim: stroke 4 clipped to the shape = true 2px INNER dash */
+.terr-metal {
+  fill: none;
+  stroke-width: 4;
+  stroke-dasharray: 6 4;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.terr-metal.on { opacity: 0.95; }
+
+/* ---- garrison badges ------------------------------------------------------ */
+.layer-labels { pointer-events: none; }
+.badge { transition: opacity 0.25s ease; }
+.badge.empty { opacity: 0; }
+
+.badge-bg {
+  fill: #0c1322;
+  fill-opacity: 0.92;
+  stroke: rgba(0, 0, 0, 0.55);
+  stroke-width: 1;
+}
+.badge-ring {
+  fill: none;
+  stroke-width: 2;
+  transition: stroke 0.35s ease;
+}
+.badge-ring.ring-flash { animation: fx-ring-flash 0.5s ease; }
+@keyframes fx-ring-flash {
+  0%   { stroke-width: 2; stroke-opacity: 1; }
+  35%  { stroke-width: 5; stroke-opacity: 0.6; }
+  100% { stroke-width: 2; stroke-opacity: 1; }
+}
+.badge-halo {
+  fill: none;
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.badge.allied .badge-halo { opacity: 0.9; }
+
+.badge-val {
+  font-family: 'Orbitron', 'Inter', sans-serif;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  fill: var(--text-main);
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.5);
+  stroke-width: 0.6;
+}
+.badge-tag {
+  font-family: 'Orbitron', 'Inter', sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  fill: var(--text-dim);
+}
+.badge-inner.badge-pop {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: fx-badge-pop 0.4s ease-out backwards;
+}
+@keyframes fx-badge-pop {
+  0%   { transform: scale(0.4); }
+  65%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+/* leader chips (tiny NE states) hang offshore on a hairline */
+.leader-line {
+  stroke: rgba(233, 237, 245, 0.28);
+  stroke-width: 0.75;
+  pointer-events: none;
+}
+
+/* ---- links + decor ---------------------------------------------------------- */
+.layer-links { pointer-events: none; }
+.link {
+  fill: none;
+  stroke: rgba(245, 200, 76, 0.35);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 6;
+  stroke-linecap: round;
+}
+.link--sea    { stroke: rgba(110, 170, 255, 0.4); }
+.link--ferry  { stroke: rgba(110, 170, 255, 0.4); stroke-dasharray: 2 6; }
+.link--bridge { stroke: rgba(245, 200, 76, 0.45); stroke-dasharray: 8 3; }
+
+/* Decor shapes never paint solid: SVG's default black fill would bleed through
+   the 30%-alpha territory fills. Each decor class opts into its own look. */
+.decor, .decor path, .decor rect { pointer-events: none; fill: none; }
+
+.inset-frame {
+  stroke: var(--line-soft);
+  stroke-width: 1.5;
+}
+
+.north-fade { fill: url(#alc-fade-y) none; } /* gradient def injected by renderer.js */
+
+.river {
+  stroke: rgba(46, 155, 255, 0.28);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sundering-rift {
+  stroke: var(--gold);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  opacity: 0.4;
+  filter: drop-shadow(0 0 6px var(--gold-glow));
+  animation: rift-pulse 6s ease-in-out infinite;
+}
+
+@keyframes rift-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.55; }
+}
+
+.frostspine-ridge {
+  stroke: rgba(201, 214, 232, 0.3);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 1 5;
+}
+
+/* hexfield's missing center — a quiet, watching void */
+.the-eye {
+  fill: rgba(245, 200, 76, 0.05);
+  stroke: var(--gold);
+  stroke-opacity: 0.45;
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 9px var(--gold-glow));
+  animation: fx-eye 4.5s ease-in-out infinite;
+}
+@keyframes fx-eye {
+  0%, 100% { stroke-opacity: 0.3; fill-opacity: 0.6; }
+  50%      { stroke-opacity: 0.7; fill-opacity: 1; }
+}
+
+/* ---- zoom controls ------------------------------------------------------------ */
+.map-controls {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 5;
+}
+.map-ctl-btn {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  color: var(--text-main);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.map-ctl-btn:hover { border-color: var(--gold); color: var(--gold); }
+.map-ctl-btn:active { transform: scale(0.92); }
+
+/* ---- lobby mini previews -------------------------------------------------------- */
+.map-mini { display: block; background: var(--bg-map); border-radius: 8px; }
+.map-mini .mini-terr {
+  fill: #161d2c;
+  stroke: rgba(190, 205, 230, 0.25);
+  stroke-width: 1;
+}
+
+/* ==========================================================================
+   2. BATTLE CINEMATIC — animations.js
+   ========================================================================== */
+
+.battle-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 800;
+  pointer-events: auto;       /* clicks skip; flips to none at the verdict */
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.battle-overlay.in { opacity: 1; }
+.battle-overlay.out {
+  opacity: 0;
+  transform: scale(0.96);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+}
+
+/* the map dims — it never goes away; the wipe plays underneath */
+.battle-scrim { position: absolute; inset: 0; background: rgba(4, 6, 11, 0.35); }
+
+.battle-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 9vh;
+  background: linear-gradient(180deg, #03050a 70%, transparent);
+  transform: translateY(-100%);
+  transition: transform 0.32s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.battle-bar--bot {
+  top: auto;
+  bottom: 0;
+  background: linear-gradient(0deg, #03050a 70%, transparent);
+  transform: translateY(100%);
+}
+.battle-overlay.in .battle-bar { transform: translateY(0); }
+
+.battle-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(12px, 3vw, 40px);
+  padding: 0 4vw;
+}
+.battle-stage.shake { animation: fx-shake 0.15s linear; }
+@keyframes fx-shake {
+  0%, 100% { transform: translate(0, 0); }
+  25%      { transform: translate(4px, -3px); }
+  50%      { transform: translate(-4px, 2px); }
+  75%      { transform: translate(3px, 3px); }
+}
+
+.battle-panel {
+  min-width: 240px;
+  max-width: 380px;
+  padding: 18px 22px 16px;
+  background: var(--bg-panel);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--line-soft);
+  border-top: 3px solid var(--gold);   /* JS recolors to the faction */
+  border-radius: 12px;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.28s ease, transform 0.34s cubic-bezier(0.2, 0.9, 0.3, 1), filter 0.4s ease;
+}
+.battle-panel--att { transform: translateX(-70px) skewX(-3deg); }
+.battle-panel--def { transform: translateX(70px) skewX(3deg); }
+.battle-overlay.in .battle-panel { opacity: 1; transform: translateX(0) skewX(0); }
+.battle-panel.desat { filter: grayscale(0.85) brightness(0.65); }
+
+.bp-name {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 800;
+  font-size: clamp(15px, 2vw, 21px);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.bp-terr { color: var(--text-main); font-size: 14px; margin-top: 2px; }
+.bp-sub { color: var(--text-dim); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; margin: 2px 0 10px; }
+
+.bp-total {
+  margin-top: 12px;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: clamp(26px, 4vw, 40px);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-main);
+  text-shadow: 0 0 14px rgba(233, 237, 245, 0.25);
+}
+
+.battle-versus {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: clamp(22px, 3.4vw, 36px);
+  color: var(--gold);
+  text-shadow: 0 0 18px var(--gold-glow);
+  opacity: 0;
+  transform: scale(2.4);
+  transition: opacity 0.22s ease 0.18s, transform 0.3s cubic-bezier(0.2, 1.4, 0.4, 1) 0.18s;
+}
+.battle-overlay.in .battle-versus { opacity: 1; transform: scale(1); }
+
+/* ---- dice ---------------------------------------------------------------------- */
+.bp-dice {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+  max-width: calc(5 * 44px + 4 * 7px);  /* two honest rows of five */
+  margin: 0 auto;
+}
+.die {
+  --pip: #141d2e;
+  width: 44px;
+  height: 44px;
+  border-radius: 9px;
+  border: 2px solid rgba(0, 0, 0, 0.4);
+  background-color: #edf1f8;
+  background-repeat: no-repeat;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.16), 0 4px 10px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transform: translateY(-26px) scale(0.6) rotate(14deg);
+}
+.die.in {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.16s ease, transform 0.24s cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+.die.settled { animation: fx-die-settle 0.18s ease; }
+@keyframes fx-die-settle {
+  0%   { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+
+/* pip faces — pure radial-gradient dots, no images */
+.die--1 { background-image: radial-gradient(circle 4.5px at 50% 50%, var(--pip) 95%, transparent); }
+.die--2 { background-image:
+  radial-gradient(circle 4.5px at 27% 27%, var(--pip) 95%, transparent),
+  radial-gradient(circle 4.5px at 73% 73%, var(--pip) 95%, transparent); }
+.die--3 { background-image:
+  radial-gradient(circle 4.5px at 27% 27%, var(--pip) 95%, transparent),
+  radial-gradient(circle 4.5px at 50% 50%, var(--pip) 95%, transparent),
+  radial-gradient(circle 4.5px at 73% 73%, var(--pip) 95%, transparent); }
+.die--4 { background-image:
+  radial-gradient(circle 4.5px at 27% 27%, var(--pip) 95%, transparent),
+  radial-gradient(circle 4.5px at 73% 27%, var(--pip) 95%, transparent),
+  radial-gradient(circle 4.5px at 27% 73%, var(--pip) 95%, transparent),
+  radial-gradient(circle 4.5px at 73% 73%, var(--pip) 95%, transparent); }
+.die--5 { background-image:
+  radial-gradient(circle 4.5px at 27% 27%, var(--pip) 95%, transparent),
+  radial-gradient(circle 4.5px at 73% 27%, var(--pip) 95%, transparent),
+  radial-gradient(circle 4.5px at 50% 50%, var(--pip) 95%, transparent),
+  radial-gradient(circle 4.5px at 27% 73%, var(--pip) 95%, transparent),
+  radial-gradient(circle 4.5px at 73% 73%, var(--pip) 95%, transparent); }
+.die--6 { background-image:
+  radial-gradient(circle 4.5px at 27% 25%, var(--pip) 95%, transparent),
+  radial-gradient(circle 4.5px at 73% 25%, var(--pip) 95%, transparent),
+  radial-gradient(circle 4.5px at 27% 50%, var(--pip) 95%, transparent),
+  radial-gradient(circle 4.5px at 73% 50%, var(--pip) 95%, transparent),
+  radial-gradient(circle 4.5px at 27% 75%, var(--pip) 95%, transparent),
+  radial-gradient(circle 4.5px at 73% 75%, var(--pip) 95%, transparent); }
+
+/* the blurred overflow stack: ">10 dice" stays spectacular but bounded */
+.die-stack {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 8px;
+  border-radius: 9px;
+  border: 2px dashed rgba(237, 241, 248, 0.4);
+  background: rgba(237, 241, 248, 0.12);
+  backdrop-filter: blur(3px);
+  color: var(--text-main);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+/* ---- verdict ---------------------------------------------------------------------- */
+.battle-verdict {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  transform: translateX(-50%) scale(2.6) rotate(-7deg);
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: clamp(38px, 8vw, 88px);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  opacity: 0;
+  text-shadow: 0 0 26px currentColor, 0 4px 18px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+.battle-verdict.show {
+  opacity: 1;
+  transform: translateX(-50%) scale(1) rotate(-4deg);
+  transition: opacity 0.12s ease, transform 0.22s cubic-bezier(0.2, 1.5, 0.4, 1);
+}
+
+/* ---- instant-mode verdict card ---------------------------------------------------- */
+.battle-flash {
+  position: fixed;
+  top: 9vh;
+  left: 50%;
+  transform: translate(-50%, -16px);
+  z-index: 800;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 18px;
+  background: var(--bg-panel);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.18s ease;
+  pointer-events: none;
+}
+.battle-flash.in { opacity: 1; transform: translate(-50%, 0); }
+.battle-flash.out { opacity: 0; transform: translate(-50%, -10px); }
+.bf-line { color: var(--text-main); font-size: 14px; font-variant-numeric: tabular-nums; }
+.bf-stamp {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: 15px;
+  letter-spacing: 0.12em;
+}
+
+/* ==========================================================================
+   3. ELIMINATION — Anim.elimination
+   ========================================================================== */
+
+.elim-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 850;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: radial-gradient(ellipse at center, rgba(60, 6, 12, 0.78), rgba(4, 6, 11, 0.92));
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;       /* a death notice shouldn't trap clicks */
+}
+.elim-overlay.in { opacity: 1; }
+.elim-overlay.out { opacity: 0; transition: opacity 0.38s ease; }
+
+.elim-stamp {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: clamp(40px, 9vw, 104px);
+  letter-spacing: 0.14em;
+  color: var(--danger);
+  border: 5px solid var(--danger);
+  border-radius: 6px;
+  padding: 8px 30px;
+  transform: rotate(-6deg) scale(2.2);
+  opacity: 0;
+  text-shadow: 0 0 30px rgba(255, 70, 85, 0.6);
+  box-shadow: 0 0 40px rgba(255, 70, 85, 0.3), inset 0 0 30px rgba(255, 70, 85, 0.12);
+}
+.elim-overlay.in .elim-stamp {
+  opacity: 1;
+  transform: rotate(-6deg) scale(1);
+  transition: opacity 0.1s ease, transform 0.26s cubic-bezier(0.2, 1.3, 0.4, 1);
+}
+.elim-sub {
+  color: var(--text-dim);
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  opacity: 0;
+  transition: opacity 0.4s ease 0.5s;
+}
+.elim-overlay.in .elim-sub { opacity: 1; }
+
+/* ==========================================================================
+   4. CEREMONY — Anim.ceremony
+   ========================================================================== */
+
+.cer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  overflow: hidden;
+  background: rgba(4, 6, 11, 0.82);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: auto;        /* the ceremony owns the screen until CONTINUE */
+}
+.cer-overlay.in { opacity: 1; }
+.cer-overlay.out { opacity: 0; }
+
+.cer-sweep {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 42%, var(--gold-glow), transparent 55%);
+  transform: scale(0.2);
+  opacity: 0;
+  animation: fx-sweep 1.1s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes fx-sweep {
+  0%   { transform: scale(0.2); opacity: 0; }
+  35%  { opacity: 0.9; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+.cer-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 4vh 16px;
+}
+
+.cer-stamp {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: clamp(46px, 10vw, 110px);
+  letter-spacing: 0.16em;
+  background: linear-gradient(180deg, #ffe9a8 0%, var(--gold) 55%, var(--gold-deep) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 24px var(--gold-glow));
+  opacity: 0;
+  transform: scale(2.2);
+}
+.cer-stamp.in {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 0.14s ease, transform 0.32s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.cer-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.cer-banner.in { opacity: 1; transform: translateY(0); }
+
+.cer-sigil { font-size: 26px; text-shadow: 0 0 12px currentColor; }
+.cer-alliance-name,
+.cer-solo-name {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 800;
+  font-size: clamp(18px, 3vw, 28px);
+  letter-spacing: 0.08em;
+  color: var(--text-main);
+  text-transform: uppercase;
+}
+.cer-members { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+.cer-member { display: inline-flex; align-items: center; gap: 6px; color: var(--text-main); font-size: 14px; }
+.cer-chip {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border-radius: 4px;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+  vertical-align: middle;
+}
+.cer-chip--big { width: 20px; height: 20px; border-radius: 6px; margin-right: 8px; }
+.cer-points-line {
+  color: var(--gold);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.14em;
+}
+
+.cer-columns {
+  display: flex;
+  gap: clamp(14px, 4vw, 44px);
+  justify-content: center;
+  flex-wrap: wrap;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.cer-columns.in { opacity: 1; }
+.cer-col {
+  min-width: 110px;
+  padding: 12px 16px 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--line-soft);
+  border-top: 3px solid var(--gold);  /* JS recolors per winner */
+  border-radius: 10px;
+  text-align: center;
+}
+.cer-col-name { color: var(--text-main); font-size: 13px; letter-spacing: 0.06em; margin-bottom: 4px; }
+.cer-count {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: 34px;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+  text-shadow: 0 0 14px var(--gold-glow);
+}
+.cer-count.tick { animation: fx-count-tick 0.16s ease; }
+@keyframes fx-count-tick {
+  0%   { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+/* gold pips in flight: positioned purely by transform, so the compositor
+   does all the work — 60 of these stay smooth */
+.cer-pip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ffe9a8, var(--gold) 60%, var(--gold-deep));
+  box-shadow: 0 0 8px var(--gold-glow);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.cer-board {
+  width: min(540px, 92vw);
+  padding: 14px 18px 16px;
+  background: var(--bg-panel);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  opacity: 0;
+  transform: translateY(26px);
+  transition: opacity 0.35s ease, transform 0.4s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.cer-board.in { opacity: 1; transform: translateY(0); }
+.cer-board-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  color: var(--text-dim);
+  text-align: center;
+  margin-bottom: 10px;
+}
+.cer-row {
+  display: grid;
+  grid-template-columns: 34px 22px 20px 1fr 64px;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--text-main);
+  font-size: 14px;
+}
+.cer-row:last-child { border-bottom: none; }
+.cer-rank { color: var(--text-dim); font-family: 'Orbitron', sans-serif; font-size: 12px; }
+.cer-arrow.up { color: var(--ok); }
+.cer-arrow.down { color: var(--danger); }
+.cer-arrow.flat { color: var(--text-dim); }
+.cer-row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cer-row-pts {
+  text-align: right;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+}
+
+.cer-btn {
+  margin-top: 4px;
+  padding: 11px 38px;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.18em;
+  color: #0a0d14;
+  background: linear-gradient(180deg, #ffe9a8, var(--gold) 60%, var(--gold-deep));
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 0 18px var(--gold-glow);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease, box-shadow 0.15s ease;
+  pointer-events: none;
+}
+.cer-btn.in { opacity: 1; transform: translateY(0); pointer-events: auto; }
+.cer-btn:hover { box-shadow: 0 0 28px var(--gold-glow); }
+.cer-btn:active { transform: scale(0.96); }
+
+/* ==========================================================================
+   5. RESPONSIVE + REDUCED MOTION
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  .battle-stage { flex-direction: column; gap: 10px; padding: 10vh 5vw; }
+  .battle-panel { min-width: 0; width: min(380px, 90vw); padding: 12px 14px 10px; }
+  .battle-versus { font-size: 18px; }
+  .battle-verdict { top: 6%; }
+  .die { width: 34px; height: 34px; border-radius: 7px; }
+  .bp-dice { max-width: calc(5 * 34px + 4 * 7px); gap: 7px; }
+  .die-stack { min-width: 34px; height: 34px; font-size: 10px; }
+  .bp-total { margin-top: 6px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #fx-root *,
+  .alliances-map .terr,
+  .terr-metal,
+  .badge-ring,
+  .badge-inner {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .battle-stage.shake { animation: none !important; }
+  .the-eye { animation: none !important; }
+  .sundering-rift { animation: none !important; }
+  /* keep legal-target affordance readable without motion */
+  .terr.attackable { stroke-dasharray: 7 5; }
+}

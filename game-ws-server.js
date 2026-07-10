@@ -61,7 +61,13 @@ function attachGameWebSocketServer(httpServer, options) {
   const HEARTBEAT_MS = 10000;
   const RECONNECT_GRACE_MS = 300000; // 5 min to reconnect before final drop
 
-  const wss = new WebSocket.Server({ server: httpServer, path: path });
+  // noServer mode: the caller routes 'upgrade' events itself. Needed as soon
+  // as MORE THAN ONE WebSocket server shares the port (e.g. Alliances at
+  // /alliances/ws) — two ws instances bound with {server, path} each abort
+  // the other's upgrades with HTTP 400.
+  const wss = options.noServer
+    ? new WebSocket.Server({ noServer: true })
+    : new WebSocket.Server({ server: httpServer, path: path });
 
   // rooms: roomCode -> { code, hostPeerId, peers: { peerId: PeerEntry } }
   // PeerEntry: { peerId, socket, isHost, username, playerCount, lastSeen, graceTimer }
