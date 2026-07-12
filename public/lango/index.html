@@ -60,8 +60,7 @@
         body.font-calligraphy .style-section-title,
         body.font-calligraphy .style-row label,
         body.font-calligraphy .links-name-label,
-        body.font-calligraphy .links-sender-row,
-        body.font-calligraphy .logo-modes{text-transform:lowercase}
+        body.font-calligraphy .links-sender-row{text-transform:lowercase}
         /* Game letter elements stay uppercase. */
         body.font-calligraphy .letter-input,
         body.font-calligraphy .letter-cell,
@@ -178,8 +177,6 @@
 
         /* ── Logo ── */
         .logo{font-size:7.5rem;font-weight:900;margin-bottom:1rem;letter-spacing:-2px;line-height:1.4;padding-bottom:.3em;overflow:visible;background:linear-gradient(135deg,var(--accent-secondary),var(--accent-primary));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;filter:drop-shadow(0 2px 8px var(--accent-glow));transition:filter .3s}
-        .logo-sub{font-size:1.3rem;font-weight:700;letter-spacing:3px;color:var(--accent-primary);margin-bottom:1rem;font-style:italic}
-        .logo-modes{font-size:.9rem;font-weight:600;letter-spacing:5px;text-transform:uppercase;color:var(--accent-primary);margin-bottom:.4rem;opacity:.7}
 
         /* ── Menu Buttons ── */
         .menu-buttons{display:flex;flex-direction:column;gap:10px;margin-bottom:2rem;align-items:center;min-height:340px}
@@ -194,7 +191,6 @@
         .menu-btn:active{transform:scale(.97);box-shadow:0 2px 8px var(--accent-light)}
         .menu-btn.sec{background:transparent;color:var(--accent-primary);border:2px solid var(--accent-border);box-shadow:none}
         .menu-btn.sec:hover{background:var(--accent-light)}
-        .menu-btn.dim{opacity:.4;cursor:not-allowed}
 
         /* ── Style Screen ── */
         .style-screen{display:none}
@@ -204,7 +200,6 @@
         .style-section-title{font-size:.9rem;font-weight:800;color:var(--accent-primary);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;font-family:inherit;line-height:1.2rem;min-height:1.2rem}
         .style-row{display:flex;align-items:center;justify-content:center;gap:12px;font-size:.85rem;font-weight:600;color:var(--text-secondary);margin-bottom:10px;height:38px}
         .style-row label{width:60px;flex-shrink:0;text-align:right;text-transform:uppercase;letter-spacing:1px;font-size:.75rem;font-family:inherit;line-height:1;color:var(--accent-primary)}
-        #styleScreen .toggle-label{color:var(--accent-primary)}
 
         /* ── Swatches ── */
         .style-swatches{display:flex;gap:8px}
@@ -226,13 +221,6 @@
         .style-swatch.sh-pink{background:hsl(330,65%,78%);--sw-ring:hsl(330,65%,50%)}
         .style-swatch.sh-green{background:hsl(152,50%,68%);--sw-ring:hsl(152,60%,38%)}
         .style-swatch.sh-orange{background:hsl(24,90%,72%);--sw-ring:hsl(24,90%,50%)}
-        /* Theme row — placeholder blanks (Theme is merged into Sheet for now;
-           these stay for UI continuity + future theming) */
-        .style-swatch.t-light,
-        .style-swatch.t-dark,
-        .style-swatch.t-pink,
-        .style-swatch.t-green,
-        .style-swatch.t-sunset{background:linear-gradient(135deg,#ffffff,#e2e8f0);--sw-ring:#94a3b8}
 
         /* Font swatches — letter is colored with the selected Words accent */
         .font-swatch{background:#fff;display:flex;align-items:center;justify-content:center;font-size:1.05rem;font-weight:700;color:var(--accent-primary);--sw-ring:var(--accent-primary)}
@@ -248,8 +236,6 @@
         .style-swatch.s-3{background:hsl(var(--sheet-hue, 262), var(--sheet-sat, 55%), var(--sheet-L-mid, 60%));--sw-ring:hsl(var(--sheet-hue, 262), var(--sheet-sat, 55%), 30%)}
         .style-swatch.s-4{background:hsl(var(--sheet-hue, 262), var(--sheet-sat, 55%), 28%);--sw-ring:hsl(var(--sheet-hue, 262), var(--sheet-sat, 55%), 60%)}
         .style-swatch.s-5{background:hsl(var(--sheet-hue, 262), var(--sheet-sat, 55%), 12%);--sw-ring:hsl(var(--sheet-hue, 262), var(--sheet-sat, 55%), 55%)}
-        /* Placeholder (bonus/laser/scene) */
-        .placeholder-swatch{background:var(--cell-bg);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:var(--text-secondary);--sw-ring:var(--cell-border)}
         /* Scene swatches — default mirrors the empty/blank Sheet preview;
            animals + beach embed small SVG icons. Slots 4 & 5 are blank. */
         .style-swatch.scene-default{background:linear-gradient(135deg,#ffffff 0%,#cbd5e1 100%);--sw-ring:#64748b}
@@ -309,11 +295,7 @@
             background-position:center;
         }
 
-        /* Hints toggle alignment — match swatches width of other rows, left-align buttons */
-        .style-section .style-row .style-swatches:has(.toggle-btn){min-width:192px;justify-content:flex-start}
-
         /* ── Toggle Buttons (On/Off) ── */
-        .toggle-group{display:flex;align-items:center;gap:6px}
         .toggle-label{font-weight:700;font-size:.8rem;color:var(--text-secondary);font-family:inherit;min-width:60px;text-align:right;display:inline-block}
         .toggle-btn{padding:3px 0;width:48px;text-align:center;border-radius:14px;font-size:.72rem;font-weight:700;border:none;background:var(--accent-primary);cursor:pointer;color:#fff;font-family:inherit;touch-action:manipulation;transition:all .15s;letter-spacing:.5px;opacity:.5}
         .toggle-btn:active{transform:scale(.95)}
@@ -373,7 +355,6 @@
         .guess-spacer{height:12px}
 
         .setup-area{display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:4px}
-        .setup-options{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:14px}
         .hide-toggle{display:flex;align-items:center;gap:8px;font-size:.85rem;font-weight:600;color:var(--text-secondary)}
         .hide-toggle input[type="checkbox"]{width:18px;height:18px;accent-color:var(--accent-primary)}
 
@@ -394,7 +375,6 @@
         .message{margin:10px auto;padding:10px 16px;border-radius:10px;font-weight:700;font-size:.95rem;max-width:320px;transition:opacity .3s;min-height:42px}
         .message.success{background:var(--accent-light);color:var(--accent-primary)}
         .message.error{background:#fef2f2;color:#dc2626}
-        body.sheet-slate .message.error{background:rgba(220,38,38,.15)}
         .hidden{display:none!important}
         .invisible{visibility:hidden!important;pointer-events:none!important}
 
@@ -414,7 +394,6 @@
         .kb-key{position:relative;overflow:hidden;min-width:30px;height:38px;font-size:.85rem;font-weight:700;font-family:inherit;border:1.5px solid var(--cell-border);border-radius:6px;background:var(--cell-bg);color:var(--text-primary);cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;transition:background .15s,color .15s,transform .1s;padding:0 6px}
         .kb-key:hover{background:var(--accent-light);border-color:var(--accent-border)}
         .kb-key:active{transform:scale(.93)}
-        .kb-key.absent-key{background:#94a3b8;color:#e2e8f0;border-color:#94a3b8;opacity:.45}
         .kb-key.blocked-key{background:#475569;color:#64748b;border-color:#475569;opacity:.35;cursor:not-allowed}
         .kb-key.correct-key{background:var(--accent-primary);color:#fff;border-color:var(--accent-secondary)}
         .kb-key.present-key{background:var(--accent-light);color:var(--accent-primary);border-color:var(--accent-border)}
@@ -513,7 +492,6 @@
             .style-swatches{gap:6px}
             .toggle-label{font-size:.72rem;min-width:50px}
             .toggle-btn{padding:3px 9px;font-size:.68rem}
-            .style-section .style-row .style-swatches:has(.toggle-btn){min-width:170px}
             #styleScreen .btn-primary{width:130px;height:40px}
 
             /* Rules screen — tighter line-height, smaller example tiles */
@@ -528,7 +506,6 @@
             .links-action-btn{width:130px;padding:9px 0}
             .links-share-help{font-size:.85rem;margin-bottom:6px}
             #linksMessage{padding:8px 10px;font-size:.8rem;min-height:54px}
-            .links-button-row{gap:8px;margin-bottom:8px}
 
             /* Modal */
             .modal-box{padding:22px 18px;max-width:300px}
@@ -571,20 +548,6 @@
             .style-swatch{width:24px;height:24px}
             #styleScreen .btn-primary{height:36px}
         }
-        @media(max-height:580px){
-            .logo{font-size:3rem;margin-bottom:.6rem}
-            .menu-btn{height:36px;padding:8px 0;font-size:.85rem}
-            .menu-buttons{min-height:240px;gap:6px}
-            .lango-home-btn{width:36px;height:36px;margin-top:2px}
-            .game-card{padding:10px 10px}
-            .game-title-center{font-size:1.15rem;margin-bottom:3px}
-            .kb-key{height:26px;font-size:.6rem}
-            .attempts-grid{gap:2px}
-            .style-row{height:26px;margin-bottom:4px}
-            .style-swatch{width:22px;height:22px}
-            .style-section{margin-bottom:8px}
-        }
-
         /* Portrait phones (typical 360-428×640-844). Game stack with Keyes
            on is the worst case; this combo shrinks it enough to fit. */
         @media(max-width:480px) and (max-height:760px){
@@ -616,8 +579,24 @@
             .style-swatch{width:24px;height:24px}
             .style-swatches{gap:5px}
             .toggle-btn{padding:2px 8px;font-size:.66rem}
-            .style-section .style-row .style-swatches:has(.toggle-btn){min-width:160px}
             #styleScreen .btn-primary{height:36px;width:120px}
+        }
+
+        /* Final cuts for very short viewports (e.g. iPhone SE 320×568).
+           Must come AFTER the 480×760 block: both match on narrow+short
+           phones, and these tighter values need to win the cascade. */
+        @media(max-height:580px){
+            .logo{font-size:3rem;margin-bottom:.6rem}
+            .menu-btn{height:36px;padding:8px 0;font-size:.85rem}
+            .menu-buttons{min-height:240px;gap:6px}
+            .lango-home-btn{width:36px;height:36px;margin-top:2px}
+            .game-card{padding:10px 8px}
+            .game-title-center{font-size:1.15rem;margin-bottom:3px}
+            .kb-key{height:26px;font-size:.6rem}
+            .attempts-grid{gap:2px}
+            .style-row{height:26px;margin-bottom:4px}
+            .style-swatch{width:22px;height:22px}
+            .style-section{margin-bottom:8px}
         }
 
         /* ── Portrait lock — touch devices in landscape see a rotate prompt
@@ -1001,7 +980,6 @@ var knownOn = false;
 var keyesOn = false;
 var modalCallback = null;
 var confettiAnim = null;
-var linksSenderName = '';  // populated when receiver opens a `?ll=` URL
 var styleReturnTarget = null;  // null = main menu; 'links' = links share view
 var linksActive = null;        // {word, name} of the most recently created link
 var linksStyleSnapshot = null; // style snapshot taken on entering Style from Links
@@ -1045,11 +1023,10 @@ function pickSetupTitle() {
     return setupTitles[Math.floor(Math.random() * setupTitles.length)];
 }
 
-// ── Style: Theme / Accent / Sheet / Font / Shade ──
+// ── Style: Accent / Sheet / Font / Shade / Scene ──
 // Swatch sets use explicit values (not [class*=] substring matching, which
 // collided — e.g. `font-swatch` contains the substring `t-` and got cleared
-// when the Theme swatches were updated).
-var SW_THEMES   = ['light', 'dark', 'pink', 'green', 'sunset'];
+// when the since-removed Theme swatches were updated).
 var SW_ACCENTS  = ['purple', 'blue', 'pink', 'green', 'orange'];
 var SW_SHEETS   = ['purple', 'blue', 'pink', 'green', 'orange'];
 var SW_FONTS    = ['hand', 'script', 'cursive', 'outfit', 'calligraphy'];
@@ -2402,7 +2379,10 @@ var LANGO_ANIMAL_SVGS = {
             '<stop offset="60%" stop-color="#5878A0"/>' +
             '<stop offset="100%" stop-color="#405878"/>' +
           '</radialGradient>' +
-          '<radialGradient id="dlHighlight" cx="40%" cy="25%" r="40%">' +
+          // id renamed from the 30-repo original dlHighlight: the shark uses the
+          // same id, and buildAnimalsSceneBg() concatenates all 24 sprites into
+          // one SVG document where ids must be unique
+          '<radialGradient id="dolHighlight" cx="40%" cy="25%" r="40%">' +
             '<stop offset="0%" stop-color="rgba(160,200,240,0.35)"/>' +
             '<stop offset="100%" stop-color="rgba(160,200,240,0)"/>' +
           '</radialGradient>' +
@@ -2413,7 +2393,7 @@ var LANGO_ANIMAL_SVGS = {
         // Body (smooth, rounded)
         '<ellipse cx="50" cy="55" rx="36" ry="34" fill="url(#dlSkin1)"/>' +
         '<ellipse cx="50" cy="55" rx="36" ry="34" fill="url(#dlSkinTex)"/>' +
-        '<ellipse cx="50" cy="55" rx="36" ry="34" fill="url(#dlHighlight)"/>' +
+        '<ellipse cx="50" cy="55" rx="36" ry="34" fill="url(#dolHighlight)"/>' +
         // Belly (lighter underside)
         '<ellipse cx="50" cy="65" rx="24" ry="18" fill="#A0B8D0" opacity="0.35"/>' +
         // Dorsal fin
@@ -2631,9 +2611,11 @@ function buildAnimalsSceneBg() {
 }
 
 function setActiveSwatch(selector, values, current) {
+    // String(current): SW_* values are strings; tolerate numeric callers
+    // (e.g. changeShade(3)) so the active ring never silently skips
     for (var i = 0; i < values.length; i++) {
         var el = document.querySelector(selector(values[i]));
-        if (el) el.classList.toggle('active', values[i] === current);
+        if (el) el.classList.toggle('active', values[i] === String(current));
     }
 }
 
@@ -2652,12 +2634,6 @@ function updateClashFix() {
     document.body.classList.toggle('accent-clash', !!clash);
 }
 
-function changeTheme(t) {
-    var b = document.body;
-    b.className = b.className.replace(/theme-\S+/g, '');
-    b.classList.add('theme-' + t);
-    setActiveSwatch(function(v) { return '.style-swatch.t-' + v; }, SW_THEMES, t);
-}
 function changeAccent(a) {
     var b = document.body;
     b.className = b.className.replace(/accent-\S+/g, '');
@@ -2677,7 +2653,6 @@ function changeFont(f) {
     b.className = b.className.replace(/font-\S+/g, '');
     b.classList.add('font-' + f);
     setActiveSwatch(function(v) { return '.style-swatch.font-swatch.f-' + v; }, SW_FONTS, f);
-    setTimeout(fitCards, 50);
 }
 function changeShade(s) {
     var b = document.body;
@@ -2703,12 +2678,9 @@ function showSoonMsg(msg) {
 }
 
 // ── Helps Defaults ──
+// Console-only API (the Style-screen Hints UI was removed); persists the
+// Known/Keyes defaults that getHelpDefault reads on each game start
 function setHelpDefault(which, val) {
-    var cap = which.charAt(0).toUpperCase() + which.slice(1);
-    var on  = document.getElementById('help' + cap + 'On');
-    var off = document.getElementById('help' + cap + 'Off');
-    if (on)  on.classList.toggle('active', val);
-    if (off) off.classList.toggle('active', !val);
     try { localStorage.setItem('lango-default-' + which, val ? '1' : '0'); } catch(e) {}
 }
 function getHelpDefault(which) {
@@ -2720,15 +2692,10 @@ function getHelpDefault(which) {
 function showRules() {
     document.getElementById('menu').classList.add('hidden');
     document.getElementById('rulesScreen').classList.add('active');
-    setTimeout(fitCards, 50);
 }
 function showStyle() {
     document.getElementById('menu').classList.add('hidden');
     document.getElementById('styleScreen').classList.add('active');
-    setTimeout(fitCards, 50);
-}
-function showComingSoon() {
-    alert('Coming soon!');
 }
 function goHome() {
     window.location.href = 'https://ladybug.up.railway.app';
@@ -2763,7 +2730,7 @@ function styleSnapshot() {
 // Sender flow: Menu → Links → enter name + 5-letter word → Create Link →
 // share view with copy/share buttons.
 // Receiver flow: open URL with `?ll=<token>` → parseLinksUrl decodes →
-// startLinksGame jumps straight into the game with a "Lango from <NAME>" row.
+// startLinksGame jumps straight into the game with a "Lango Maker: <NAME>" row.
 
 function showLinks() {
     isSettingLink = true;
@@ -2877,7 +2844,9 @@ function shortenUrl(url) {
 }
 
 function createLink() {
-    var name = (document.getElementById('linksNameInput').value || '').trim();
+    // '|' is the token delimiter in buildLinksUrl — strip it so the name
+    // can never shift the receiver's parsed fields
+    var name = (document.getElementById('linksNameInput').value || '').replace(/\|/g, '').trim();
     var word = '';
     for (var i = 0; i < 5; i++) {
         word += (document.getElementById('linksLetter' + i).value || '').toUpperCase();
@@ -2896,6 +2865,7 @@ function createLink() {
     btn.disabled = true;
 
     linksActive = { word: word, name: name };
+    var myLink = linksActive;
     var longUrl = buildLinksUrl(word, name);
     Promise.race([
         shortenUrl(longUrl),
@@ -2904,6 +2874,9 @@ function createLink() {
         var finalUrl = shortUrl || longUrl;
         btn.textContent = originalText;
         btn.disabled = false;
+        // Stale request: user left Links (or re-fired createLink) before
+        // the shortener resolved — don't flip the screen to an old share view
+        if (linksActive !== myLink) return;
         showLinksShare(name, finalUrl);
     });
 }
@@ -2915,16 +2888,18 @@ function createLink() {
 // responds within 4s.
 function regenerateLinksUrl() {
     if (!linksActive) return;
-    var longUrl = buildLinksUrl(linksActive.word, linksActive.name);
-    showLinksShare(linksActive.name, longUrl);
+    var active = linksActive;
+    var longUrl = buildLinksUrl(active.word, active.name);
+    showLinksShare(active.name, longUrl);
     Promise.race([
         shortenUrl(longUrl),
         new Promise(function(r) { setTimeout(function() { r(null); }, 4000); })
     ]).then(function(shortUrl) {
-        if (!shortUrl) return;
+        // Bail if the link was cleared (Leave) or replaced while shortening
+        if (!shortUrl || linksActive !== active) return;
         var ta = document.getElementById('linksMessage');
         if (!ta) return;
-        ta.value = linksActive.name + ' has shared a Lango! ' + shortUrl;
+        ta.value = active.name + ' has shared a Lango! ' + shortUrl;
         setTimeout(function() {
             ta.style.height = 'auto';
             ta.style.height = (ta.scrollHeight + 2) + 'px';
@@ -2997,7 +2972,6 @@ function shareLinkNative() {
 function startLinksGame(info) {
     currentMode = 'links';
     currentWord = info.word;
-    linksSenderName = info.name;
     // Apply the sender's Style choices so the receiver sees the look the
     // sender created the link in. Older URLs without these fields just keep
     // the receiver's current style.
@@ -3017,7 +2991,9 @@ function startLinksGame(info) {
     matchKeyboardRowWidths();
     setKnown(getHelpDefault('known'));
     setKeyes(getHelpDefault('keyes'));
-    useDictMode = true;
+    // Sender words outside the dictionary (dict toggle off at compose time)
+    // relax guess validation for the receiver, mirroring Multi mode
+    useDictMode = !!allowedSet[info.word];
     startRound();
 }
 
@@ -3054,6 +3030,11 @@ function clearModalPosition() {
     modalBox.style.transform = '';
 }
 
+function modalIsOpen() {
+    var m = document.getElementById('confirmModal');
+    return !!(m && m.classList.contains('active'));
+}
+
 function showModal(title, text, cancelText, confirmText, cb) {
     document.getElementById('modalTitle').textContent = title;
     document.getElementById('modalText').textContent = text;
@@ -3068,6 +3049,9 @@ function closeModal() {
     document.getElementById('confirmModal').classList.remove('active');
     clearModalPosition();
     modalCallback = null;
+    // Resume physical typing after "Never" without requiring a tile tap;
+    // ensureFocus's own phase guards make this a no-op outside guessing
+    setTimeout(ensureFocus, 0);
 }
 function confirmModal() {
     document.getElementById('confirmModal').classList.remove('active');
@@ -3093,7 +3077,6 @@ function backToMenu() {
     // Hide the Links sender row (only shown in receiver mode)
     var senderRow = document.getElementById('linksSenderRow');
     if (senderRow) senderRow.classList.add('hidden');
-    linksSenderName = '';
     currentMode = '';
     gameOver = false;
     isSettingWord = false;
@@ -3199,6 +3182,7 @@ function buildKeyboard() {
     enterBtn.textContent = 'Enter';
     enterBtn.onmousedown = function(e) { e.preventDefault(); };
     enterBtn.onclick = function() {
+        if (gameOver && !isSettingWord && !isSettingLink) return;
         if (isSettingLink) createLink();
         else makeGuess();
     };
@@ -3267,7 +3251,7 @@ function updateKeyboard() {
         var letter = k.textContent;
         if (letter.length !== 1) return;
         var state = keyboardStates[letter];
-        k.classList.remove('absent-key', 'correct-key', 'present-key', 'blocked-key');
+        k.classList.remove('correct-key', 'present-key', 'blocked-key');
         if (state === 'correct') {
             k.classList.add('correct-key');
         } else if (state === 'present') {
@@ -3434,6 +3418,7 @@ function cursorPosition(inp) {
     }, 0);
 }
 function ensureFocus() {
+    if (modalIsOpen()) return;
     if (gameOver || isSettingWord || isSettingLink) return;
     for (var i = 1; i <= 4; i++) {
         var inp = document.getElementById('letter' + i);
@@ -3443,7 +3428,7 @@ function ensureFocus() {
     last.focus(); cursorPosition(last);
 }
 function ensureSetupFocus() {
-    if (!isSettingWord) return;
+    if (modalIsOpen() || !isSettingWord) return;
     for (var i = 0; i < 5; i++) {
         var inp = document.getElementById('setup' + i);
         if (!inp.value) { inp.focus(); cursorPosition(inp); return; }
@@ -3535,7 +3520,6 @@ function startTwoPlayer() {
     guessBtn.onclick = function() { makeGuess(); };
 
     setTimeout(function() { document.getElementById('setup0').focus(); }, 50);
-    setTimeout(fitCards, 100);
 }
 
 function startRound() {
@@ -3589,7 +3573,6 @@ function startRound() {
     guessBtn.onclick = function() { makeGuess(); };
 
     setTimeout(function() { document.getElementById('letter1').focus(); }, 50);
-    setTimeout(fitCards, 100);
 }
 
 function initGrid() {
@@ -3638,6 +3621,7 @@ function updateKnown() {
 
 // ── Guessing ──
 function makeGuess() {
+    if (modalIsOpen()) return;
     var guess = '';
 
     if (isSettingWord) {
@@ -3729,7 +3713,9 @@ function updateRow(rowIdx, guess) {
 
     for (var i = 0; i < 5; i++) {
         if (states[i] === 'unknown') {
-            if (i === 0 || !counts[guess[i]]) {
+            // position 0 is never 'unknown' here — the guess is always built
+            // with currentWord[0], so pass 1 marks it 'correct'
+            if (!counts[guess[i]]) {
                 states[i] = 'absent';
             } else {
                 states[i] = 'present';
@@ -4380,8 +4366,6 @@ function launchScream() {
     draw();
 }
 
-// Back-compat alias (external callers)
-function resetScreamWarps() { resetTransformWarps(); }
 
 // ── Spins (each game object rotates in place) ──
 function launchSpins() {
@@ -4464,39 +4448,28 @@ function newGame() {
     }
 }
 
-// ── Dynamic Card Width Fitting (reserved for future use) ──
-function fitCards() {
-    // Fixed widths set in CSS per mode; fitCards reserved for future adjustments
-}
-
 // ── Input Handlers ──
 window.addEventListener('load', function() {
     // Style options always start fresh on page load — body's default class
-    // (`theme-light accent-purple sheet-purple font-hand shade-1`) stands as
-    // the initial state; user changes persist in-session but are not read
-    // back from localStorage across loads.
-    try {
-        updateClashFix();
-        // Hints UI was removed from the Style screen; the toggles still
-        // exist as in-game controls and read from getHelpDefault, so we
-        // just guard against the missing #helpKnown* / #helpKeyes* nodes.
-        var knownDef = getHelpDefault('known');
-        var keyesDef = getHelpDefault('keyes');
-        var hkOn  = document.getElementById('helpKnownOn');
-        var hkOff = document.getElementById('helpKnownOff');
-        var hyOn  = document.getElementById('helpKeyesOn');
-        var hyOff = document.getElementById('helpKeyesOff');
-        if (hkOn)  hkOn.classList.toggle('active', knownDef);
-        if (hkOff) hkOff.classList.toggle('active', !knownDef);
-        if (hyOn)  hyOn.classList.toggle('active', keyesDef);
-        if (hyOff) hyOff.classList.toggle('active', !keyesDef);
-    } catch(e) {}
+    // (`theme-light accent-purple sheet-purple font-hand shade-1 scene-default`)
+    // stands as the initial state; user changes persist in-session but are not
+    // read back from localStorage across loads. (Known/Keyes defaults DO
+    // persist — getHelpDefault is read on each game start.)
+    try { updateClashFix(); } catch(e) {}
 
     buildKeyboard();
-    fitCards();
 
-    // Refit cards on window resize
-    window.addEventListener('resize', function() { fitCards(); });
+    // Keep a running animation's canvas bitmap in sync with the card size —
+    // launchers size it once at launch; without this a mid-animation window
+    // resize CSS-stretches the stale bitmap
+    window.addEventListener('resize', function() {
+        if (!confettiAnim) return;
+        var cv = document.getElementById('confettiCanvas');
+        if (cv && cv.parentElement) {
+            cv.width = cv.parentElement.offsetWidth;
+            cv.height = cv.parentElement.offsetHeight;
+        }
+    });
 
     // Click on game card background keeps cursor on inputs
     var gameCards = document.querySelectorAll('.game-card');
@@ -4505,8 +4478,9 @@ window.addEventListener('load', function() {
             var t = e.target;
             if (t.classList.contains('letter-input') || t.classList.contains('kb-key') ||
                 t.classList.contains('btn') || t.closest('.btn') || t.closest('.toggle-btn') ||
-                t.closest('.kb-key') || t.closest('.toggle-group') || t.closest('.hide-toggle') ||
-                t.closest('label') || t.tagName === 'INPUT' || t.tagName === 'BUTTON') return;
+                t.closest('.kb-key') || t.closest('.hide-toggle') ||
+                t.closest('label') || t.tagName === 'INPUT' || t.tagName === 'BUTTON' ||
+                t.tagName === 'TEXTAREA') return;
             e.preventDefault();
             setTimeout(function() {
                 if (isSettingWord) ensureSetupFocus();
@@ -4619,7 +4593,7 @@ window.addEventListener('load', function() {
                 if (e.key === 'End')        { e.preventDefault(); document.getElementById('linksLetter4').focus(); return; }
                 if (e.key === ' ')          { e.preventDefault(); kbSpace(); return; }
                 if (e.key === 'Backspace' && !this.value) {
-                    var prevIdx = idx > 0 ? idx - 1 : 0;
+                    var prevIdx = idx > 0 ? idx - 1 : 4;
                     var prev = document.getElementById('linksLetter' + prevIdx);
                     if (prev) { prev.value = ''; prev.focus(); }
                     e.preventDefault();
