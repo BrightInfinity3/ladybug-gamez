@@ -1253,10 +1253,11 @@ var Renderer = (function () {
     return getTableRadii().rx + getWoodBorder();
   }
 
-  // Setup avatar radius (matches .seat-avatar CSS: 10.4vmin diameter —
-  // setup has no hand bar, so its avatars get to be bigger)
+  // Setup/lobby avatar radius (matches .seat-avatar CSS: 7.8vmin
+  // diameter — same as in-game per MK's v2.5 consistency ask; both
+  // screens now share the 34.4vmin tangent orbit)
   function getSetupAvatarRadius() {
-    return 5.2 * getVmin();
+    return 3.9 * getVmin();
   }
 
   // Game avatar radius (matches .game-seat-avatar CSS: 7.8vmin diameter)

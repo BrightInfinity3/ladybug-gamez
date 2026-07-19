@@ -45,7 +45,7 @@ var UI = (function () {
     return Math.min(vw, vh) / 100;
   }
   function getSetupAvatarSize() {
-    return 10.4 * getVmin(); // matches .seat-avatar CSS
+    return 7.8 * getVmin(); // matches .seat-avatar CSS (in-game size)
   }
   function getGameAvatarSize() {
     return 7.8 * getVmin(); // matches .game-seat-avatar CSS
@@ -201,7 +201,7 @@ var UI = (function () {
   function init() {
     // Build stamp — matches the title-screen .build-tag; a device
     // logging an older number is running a cached build.
-    console.log('[LaserStacks] build v2.4');
+    console.log('[LaserStacks] build v2.5');
     initSetupSeats();
     bindEvents();
     bindOnlineEvents();
@@ -675,7 +675,7 @@ var UI = (function () {
       var w = table.offsetWidth || window.innerWidth;
       var h = table.offsetHeight || window.innerHeight;
       var vm = Math.min(w, h) / 100;
-      var orbit = (28 + 2.5 + 5.2) * vm; // felt + wood + setup avatar radius
+      var orbit = (28 + 2.5 + 3.9) * vm; // felt + wood + avatar radius
       var cx = w / 2, cy = h / 2 - 4 * vm;
       positions = [];
       for (var s = 0; s < NUM_TABLE_SEATS; s++) {

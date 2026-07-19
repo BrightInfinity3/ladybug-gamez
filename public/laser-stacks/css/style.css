@@ -506,8 +506,8 @@ html, body {
 }
 
 .seat-avatar {
-  width: 10.4vmin;
-  height: 10.4vmin;
+  width: 7.8vmin;
+  height: 7.8vmin;
   border-radius: 50%;
   border: 0.3vmin solid var(--wood-mid);
   background: rgba(20, 30, 25, 0.8);
