@@ -485,15 +485,37 @@ var Renderer = (function () {
   }
 
   // ================================================================
+  //  DIRTY-FRAME RENDERING (30's v125 perf pass, ported)
+  // ================================================================
+  // The ticker's conditional pass (full scene rebuild: sprite pool +
+  // every resting card + flying-card sync) only runs when something
+  // actually changed. Anything inherently animating (flying cards,
+  // active animate() tweens) forces the pass; discrete state changes
+  // call markDirty(). Set window.DEBUG_RENDER_FORCE = true to disable
+  // the gating when bisecting a missed-redraw bug.
+  var _dirty = true;
+  function markDirty() { _dirty = true; }
+  // Count of in-flight animate() tweens — keeps the conditional pass
+  // running for their whole duration.
+  var _activeAnims = 0;
+
+  // ================================================================
   //  TABLE PRE-RENDERING
   // ================================================================
 
+  // (E) Cap the felt canvas at 1080p (30's v126). The FBM noise cost is
+  // quadratic in pixels and invisible past this resolution — PIXI
+  // sprite-scales the texture to the viewport with no visible change.
+  var TABLE_TEX_MAX_W = 1920;
+  var TABLE_TEX_MAX_H = 1080;
+
   function renderTableToCanvas() {
+    var renderScale = Math.min(dpr, TABLE_TEX_MAX_W / W, TABLE_TEX_MAX_H / H);
     var tableCanvas = document.createElement('canvas');
-    tableCanvas.width = W * dpr;
-    tableCanvas.height = H * dpr;
+    tableCanvas.width = Math.round(W * renderScale);
+    tableCanvas.height = Math.round(H * renderScale);
     var c = tableCanvas.getContext('2d');
-    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.setTransform(renderScale, 0, 0, renderScale, 0, 0);
 
     var center = getTableCenter();
     var cx = center.x;
@@ -640,22 +662,48 @@ var Renderer = (function () {
   //  TEXTURE BUILDING (Canvas 2D -> PIXI.Texture)
   // ================================================================
 
+  // 30's v126 card ATLAS: composite all 53 card canvases into one
+  // texture so the GPU sees a single upload instead of 53 (1-3ms each
+  // on integrated GPUs, worse on Windows). Sub-textures share the
+  // atlas source via frame rectangles.
+  // Layout: 13 ranks x (4 suits + 1 back row); back uses cell (0, 4).
   function buildCardTextures() {
     var suits = ['hearts', 'diamonds', 'clubs', 'spades'];
     var ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-    // Replace map (don't destroy old textures — sprites may still reference them
-    // for one more frame; let GC clean up when no longer reachable).
-    cardTextures = {};
+    var cellW = CARD_W * TEX_SCALE;
+    var cellH = CARD_H * TEX_SCALE;
+    var atlasCanvas = document.createElement('canvas');
+    atlasCanvas.width = cellW * ranks.length;
+    atlasCanvas.height = cellH * (suits.length + 1);
+    var ac = atlasCanvas.getContext('2d');
     for (var s = 0; s < suits.length; s++) {
       for (var r = 0; r < ranks.length; r++) {
-        var key = ranks[r] + '_' + suits[s];
-        cardTextures[key] = PIXI.Texture.from(renderCardToImage(ranks[r], suits[s]));
+        ac.drawImage(renderCardToImage(ranks[r], suits[s]), r * cellW, s * cellH);
       }
     }
-    backTexture = PIXI.Texture.from(renderCardBackToImage());
+    ac.drawImage(renderCardBackToImage(), 0, suits.length * cellH);
+
+    // Single GPU upload, then per-card views into it. (Old textures are
+    // not destroyed — sprites may reference them for one more frame;
+    // GC reclaims them once unreachable.)
+    var atlasTex = PIXI.Texture.from(atlasCanvas);
+    var src = atlasTex.source;
+    cardTextures = {};
+    for (var s2 = 0; s2 < suits.length; s2++) {
+      for (var r2 = 0; r2 < ranks.length; r2++) {
+        cardTextures[ranks[r2] + '_' + suits[s2]] = new PIXI.Texture({
+          source: src,
+          frame: new PIXI.Rectangle(r2 * cellW, s2 * cellH, cellW, cellH)
+        });
+      }
+    }
+    backTexture = new PIXI.Texture({
+      source: src,
+      frame: new PIXI.Rectangle(0, suits.length * cellH, cellW, cellH)
+    });
   }
 
-  function rebuildCardTextures() { buildCardTextures(); }
+  function rebuildCardTextures() { buildCardTextures(); markDirty(); }
 
   function buildShadowTexture() {
     var pad = 16;
@@ -711,15 +759,40 @@ var Renderer = (function () {
     particleTex = particleTextures[0]; // default fallback
   }
 
-  function updateTableTexture() {
+  // 30's v125 felt cache: the procedural FBM felt is the most expensive
+  // single asset (40-80ms at 1080p) and only depends on (W, H, dpr) —
+  // skip the regen entirely when the size hasn't changed. This is the
+  // tab-return hot path: visibilitychange forces a resize()+regen, and
+  // on an unchanged viewport this now no-ops.
+  var _cachedTableTexKey = null;
+  var _tableTexToDestroy = null; // destroy one frame late (see below)
+  function _tableTexKey() {
+    return W + 'x' + H + '@' + dpr.toFixed(2);
+  }
+  function invalidateTableTextureCache() { _cachedTableTexKey = null; }
+
+  function updateTableTexture(force) {
     if (!tableSprite || W === 0 || H === 0) return;
-    var tableCanvas = renderTableToCanvas();
-    var oldTex = tableSprite.texture;
-    tableSprite.texture = PIXI.Texture.from(tableCanvas);
-    tableSprite.width = W;
-    tableSprite.height = H;
-    if (oldTex && oldTex !== PIXI.Texture.EMPTY) {
-      oldTex.destroy(true);
+    var key = _tableTexKey();
+    if (!force && key === _cachedTableTexKey) return;
+    try {
+      var tableCanvas = renderTableToCanvas();
+      var oldTex = tableSprite.texture;
+      var newTex = PIXI.Texture.from(tableCanvas);
+      tableSprite.texture = newTex;
+      tableSprite.width = W;
+      tableSprite.height = H;
+      _cachedTableTexKey = key;
+      markDirty();
+      // Destroying the old texture synchronously can free GPU memory out
+      // from under the in-flight draw batch (intermittent blank table on
+      // 30) — hold it one swap and destroy the PREVIOUS held texture.
+      if (_tableTexToDestroy && _tableTexToDestroy !== newTex && _tableTexToDestroy !== PIXI.Texture.EMPTY) {
+        try { _tableTexToDestroy.destroy(true); } catch (e) { /* ignore */ }
+      }
+      _tableTexToDestroy = (oldTex !== newTex && oldTex !== PIXI.Texture.EMPTY) ? oldTex : null;
+    } catch (e) {
+      console && console.warn && console.warn('updateTableTexture failed:', e);
     }
   }
 
@@ -735,11 +808,33 @@ var Renderer = (function () {
     }
 
     app = new PIXI.Application();
-    dpr = window.devicePixelRatio || 1;
+    // 30's v125 DPR cap: past 1.5x the extra sharpness is imperceptible
+    // for a procedural felt + card sprites, but per-frame GPU work
+    // scales quadratically with resolution. Windows laptops commonly
+    // report 1.5-2.0 — uncapped they render ~4x the pixels.
+    dpr = Math.min(window.devicePixelRatio || 1, 1.5);
 
     var parent = canvasEl.parentElement;
     W = parent.clientWidth;
     H = parent.clientHeight;
+
+    // WebGL context-loss recovery (30's v125): without preventDefault
+    // the loss is final — blank canvas forever after a long background
+    // stint or GPU reset. On restore, every GPU-side texture is gone.
+    canvasEl.addEventListener('webglcontextlost', function (e) {
+      e.preventDefault();
+    }, false);
+    canvasEl.addEventListener('webglcontextrestored', function () {
+      try {
+        invalidateTableTextureCache();
+        buildCardTextures();
+        buildShadowTexture();
+        buildParticleTexture();
+        updateTableTexture(true);
+        initPixiParticles();
+        markDirty();
+      } catch (err) { /* ignore — render loop will retry */ }
+    }, false);
 
     initPromise = app.init({
       canvas: canvasEl,
@@ -800,8 +895,9 @@ var Renderer = (function () {
     W = newW;
     H = newH;
     app.renderer.resize(W, H);
-    updateTableTexture();
+    updateTableTexture(); // cache-guarded — no-op when the size is unchanged
     initPixiParticles();
+    markDirty();
   }
 
   // ================================================================
@@ -916,6 +1012,7 @@ var Renderer = (function () {
         flyingCards[i].sprite.destroy();
         flyingCards[i].shadowSprite.destroy();
         flyingCards.splice(i, 1);
+        markDirty(); // the frame after a landing must redraw the resting card
         return;
       }
     }
@@ -929,6 +1026,7 @@ var Renderer = (function () {
       flyingCards[i].shadowSprite.destroy();
     }
     flyingCards = [];
+    markDirty();
   }
 
   function syncFlyingCard(entry) {
@@ -1011,28 +1109,73 @@ var Renderer = (function () {
   //  RENDER LOOP (PixiJS ticker)
   // ================================================================
 
+  // Health check (30's v126): every ~60 frames verify the table sprite
+  // still has a real texture — a silent context loss or a 0x0-race can
+  // leave it empty. Cooldown prevents rebuild thrash.
+  var _healthFrameCounter = 0;
+  var _healthCooldownFrames = 0;
+  function checkTableHealth() {
+    _healthFrameCounter++;
+    if (_healthCooldownFrames > 0) { _healthCooldownFrames--; return; }
+    if (_healthFrameCounter < 60) return;
+    _healthFrameCounter = 0;
+    if (!tableSprite || !W || !H) return;
+    var tex = tableSprite.texture;
+    var needsRebuild =
+      !tex ||
+      tex === PIXI.Texture.EMPTY ||
+      !tex.source ||
+      (tex.source.width || 0) === 0 ||
+      (tex.source.height || 0) === 0;
+    if (needsRebuild) {
+      try { updateTableTexture(true); } catch (e) { /* ignore */ }
+      _healthCooldownFrames = 120;
+    }
+  }
+
   function startLoop(callback) {
     gameRenderCallback = callback;
+    _dirty = true; // first frame always renders
     if (tickerFn) app.ticker.remove(tickerFn);
     tickerFn = function () {
-      // Reset sprite pool
-      poolIndex = 0;
+      try {
+        // ALWAYS-RUN PASS — cheap fixed-cost work: ambient particle
+        // drift and the health check (context-loss recovery must never
+        // be gated out).
+        checkTableHealth();
+        updateParticles();
 
-      // Update particles
-      updateParticles();
+        // CONDITIONAL PASS — the full scene rebuild. Skipped when
+        // nothing changed since the last render (30's v125 gate); this
+        // is what makes an idle table cost ~nothing per frame.
+        var forceRender = (typeof window !== 'undefined' && window.DEBUG_RENDER_FORCE);
+        var needsCondPass = forceRender || _dirty || flyingCards.length > 0 || _activeAnims > 0;
+        if (!needsCondPass) {
+          return;
+        }
+        _dirty = false;
 
-      // Call game render callback (populates gameLayer via drawCard/drawDeck calls)
-      if (gameRenderCallback) {
-        gameRenderCallback(null, W, H);
+        // Reset sprite pool
+        poolIndex = 0;
+
+        // Call game render callback (populates gameLayer via drawCard/drawDeck calls)
+        if (gameRenderCallback) {
+          gameRenderCallback(null, W, H);
+        }
+
+        // Hide unused pool sprites
+        for (var i = poolIndex; i < spritePool.length; i++) {
+          spritePool[i].visible = false;
+        }
+
+        // Sync flying card sprite positions
+        syncAllFlyingCards();
+      } catch (err) {
+        // Keep the ticker alive through a bad frame (e.g. mid-resize),
+        // and retry next frame rather than locking into a skip state.
+        console && console.warn && console.warn('render frame error:', err);
+        _dirty = true;
       }
-
-      // Hide unused pool sprites
-      for (var i = poolIndex; i < spritePool.length; i++) {
-        spritePool[i].visible = false;
-      }
-
-      // Sync flying card sprite positions
-      syncAllFlyingCards();
     };
     app.ticker.add(tickerFn);
   }
@@ -1053,17 +1196,23 @@ var Renderer = (function () {
     return 1 - Math.pow(1 - t, 3);
   }
 
-  // Uses setTimeout for consistent timing regardless of tab visibility
+  // Uses setTimeout with elapsed-time progress, so throttled frames
+  // never slow the animation clock. Tracks _activeAnims so the
+  // dirty-frame gate keeps rendering for the tween's whole duration.
   function animate(duration, onUpdate, onComplete) {
     var start = performance.now();
     var interval = 16; // ~60fps
+    _activeAnims++;
     function tick() {
       var now = performance.now();
       var t = Math.min((now - start) / duration, 1);
       onUpdate(t);
+      markDirty();
       if (t < 1) {
         setTimeout(tick, interval);
       } else {
+        _activeAnims = Math.max(0, _activeAnims - 1);
+        markDirty();
         if (onComplete) onComplete();
       }
     }
@@ -1183,6 +1332,7 @@ var Renderer = (function () {
     getSuitStyle: getSuitStyle,
     getSuitColor: getSuitColor,
     rebuildCardTextures: rebuildCardTextures,
+    markDirty: markDirty,
     // Exposed for card-viewer/visual-QA use (offscreen canvases)
     renderCardToImage: renderCardToImage,
     renderCardBackToImage: renderCardBackToImage,

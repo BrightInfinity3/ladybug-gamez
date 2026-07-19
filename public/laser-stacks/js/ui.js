@@ -201,7 +201,7 @@ var UI = (function () {
   function init() {
     // Build stamp — matches the title-screen .build-tag; a device
     // logging an older number is running a cached build.
-    console.log('[LaserStacks] build v2.3');
+    console.log('[LaserStacks] build v2.4');
     initSetupSeats();
     bindEvents();
     bindOnlineEvents();
@@ -925,6 +925,7 @@ var UI = (function () {
           }
         }
       }
+      Renderer.markDirty(); // post-deal re-sort renders with no tween running
 
       // Determine who leads: player with lowest card
       var lowest = Game.findLowestCardPlayer();
@@ -1050,22 +1051,48 @@ var UI = (function () {
   }
 
   // ---- Deal Animation ----
+  // 30's v126 parallelized deal: cards within a round (one to each
+  // player) fire with a short stagger and fly CONCURRENTLY; rounds stay
+  // serialized for a clear visual rhythm. The old strictly-serial chain
+  // was 40 x 200ms = ~8s per deal. Determinism note: Game.dealCardTo
+  // runs inside each staggered timeout, so cards still leave the deck
+  // in exact dealOrder — required for online replay.
   function animateDealSequence(dealOrder) {
-    var promise = Promise.resolve();
+    if (!dealOrder || !dealOrder.length) return Promise.resolve();
 
-    for (var i = 0; i < dealOrder.length; i++) {
-      (function (playerId) {
-        promise = promise.then(function () {
-          var card = Game.dealCardTo(playerId);
-          if (!card) return;
-
-          var player = Game.getPlayerById(playerId);
-          return animateCanvasDeal(card, playerId, player.seatIndex);
-        });
-      })(dealOrder[i]);
+    // dealOrder is round-major (see Game.buildDealOrder): 10 rounds of
+    // one card per player.
+    var perRound = Math.max(1, (Game.getState().players || []).length || 4);
+    var rounds = [];
+    for (var r = 0; r * perRound < dealOrder.length; r++) {
+      rounds.push(dealOrder.slice(r * perRound, (r + 1) * perRound));
     }
 
-    return promise;
+    var STAGGER = 50;            // ms between card starts within a round
+    var INTER_ROUND_PAUSE = 50;  // ms breather between rounds
+
+    function dealRound(roundIds) {
+      var jobs = roundIds.map(function (playerId, idx) {
+        return new Promise(function (resolve) {
+          setTimeout(function () {
+            var card = Game.dealCardTo(playerId);
+            if (!card) { resolve(); return; }
+            var player = Game.getPlayerById(playerId);
+            animateCanvasDeal(card, playerId, player.seatIndex).then(resolve);
+          }, idx * STAGGER);
+        });
+      });
+      return Promise.all(jobs);
+    }
+
+    var seq = Promise.resolve();
+    for (var rr = 0; rr < rounds.length; rr++) {
+      (function (roundIds, isLast) {
+        seq = seq.then(function () { return dealRound(roundIds); });
+        if (!isLast) seq = seq.then(function () { return Animations.delay(INTER_ROUND_PAUSE); });
+      })(rounds[rr], rr === rounds.length - 1);
+    }
+    return seq;
   }
 
   function animateCanvasDeal(card, playerId, seatIndex) {
@@ -1295,6 +1322,7 @@ var UI = (function () {
         }).then(function () {
           // Clear trick display
           trickDisplay = [];
+          Renderer.markDirty();
 
           // Advance to next trick (pass the winner we already determined)
           Game.finishTrick(trickWinnerId);
@@ -1355,6 +1383,7 @@ var UI = (function () {
 
   function playAgain() {
     trickDisplay = [];
+    Renderer.markDirty();
     if (Online.isActive()) {
       if (!Online.isHost()) return; // guests wait for the host's deal
       onlineBeginRound();
@@ -2570,6 +2599,7 @@ var UI = (function () {
         highlightActivePlayer(data.winnerId);
         Animations.delay(1200).then(function () {
           trickDisplay = [];
+          Renderer.markDirty();
         });
         break;
     }
@@ -2614,6 +2644,9 @@ var UI = (function () {
       var tp = Game.getPlayerById(trick[t].playerId);
       if (tp) trickDisplay.push({ playerId: tp.id, card: trick[t].card, seatIndex: tp.seatIndex });
     }
+    // State-sync rebuild happens with no animation in flight — tell the
+    // dirty-frame gate the scene changed.
+    Renderer.markDirty();
   }
 
   // Guest: refresh prompts/HUD after a sync

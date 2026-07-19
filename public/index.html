@@ -557,7 +557,7 @@
           <h2 class="card-title">Laser Stacks</h2>
         </div>
         <p class="card-desc">
-          A trick-taking card game where suit hierarchy beats rank. Bid the exact number of stacks you'll win, then play to hit it — solo against AI or online with friends. Laser-themed suits included.
+          A 4 player trick-taking card game where suit hierarchy beats rank. Bid the number of stacks you think you'll win.
         </p>
         <div class="card-tags">
           <span class="tag">Card Game</span>
@@ -1006,7 +1006,9 @@
       x.stroke();
     })();
 
-    // Laser Stacks icon — fan of three blue cards with a glowing diode pip on the front card
+    // Laser Stacks icon — four white card faces fanned like the in-game
+    // logo (rightmost on top), one pip per suit in hierarchy order:
+    // diode (diamonds) < prism (hearts) < blade (spades) < combiner (clubs)
     (function () {
       const c = document.getElementById('laser-stacks-icon');
       if (!c) return;
@@ -1017,100 +1019,165 @@
       x.scale(1.3, 1.3);
       x.translate(-24, -24);
 
-      // Card fan
-      const cardW = 17, cardH = 24, cardR = 2.2;
-      const pivotX = 24, pivotY = 36;
+      const cardW = 15, cardH = 21, cardR = 2;
+      const pivotX = 24, pivotY = 35;
 
-      function drawFanCard(angleDeg) {
+      // --- mini pip drawers (card-local coords, pip centered on px,py) ---
+
+      function drawDiodePip(px, py) {
+        // Blue LED: glow, dome, base, legs
+        const glow = x.createRadialGradient(px, py - 1, 0, px, py - 1, 6);
+        glow.addColorStop(0, 'rgba(100, 160, 255, 0.5)');
+        glow.addColorStop(1, 'rgba(60, 120, 255, 0)');
+        x.fillStyle = glow;
+        x.beginPath();
+        x.arc(px, py - 1, 6, 0, Math.PI * 2);
+        x.fill();
+        const bw = 2.6, domeTop = py - 2, bodyBot = py + 1.4;
+        x.beginPath();
+        x.arc(px, domeTop, bw, Math.PI, 0);
+        x.lineTo(px + bw, bodyBot);
+        x.lineTo(px - bw, bodyBot);
+        x.closePath();
+        const body = x.createLinearGradient(px - bw, domeTop - bw, px + bw, bodyBot);
+        body.addColorStop(0, '#a8ccff');
+        body.addColorStop(0.35, '#4a8cff');
+        body.addColorStop(1, '#0a3a7f');
+        x.fillStyle = body;
+        x.fill();
+        x.fillStyle = '#546E7A';
+        x.fillRect(px - bw * 1.15, bodyBot, bw * 2.3, 1);
+        x.strokeStyle = '#78909C';
+        x.lineWidth = 0.6;
+        x.beginPath();
+        x.moveTo(px - 1, bodyBot + 1); x.lineTo(px - 1, bodyBot + 2.6);
+        x.moveTo(px + 1, bodyBot + 1); x.lineTo(px + 1, bodyBot + 2.6);
+        x.stroke();
+      }
+
+      function drawPrismPip(px, py) {
+        // Red-lit prism: triangle, input beam left, split beams right
+        x.strokeStyle = '#e53935';
+        x.lineWidth = 0.8;
+        x.beginPath();
+        x.moveTo(px - 4.5, py + 1.5);
+        x.lineTo(px - 1, py + 1.8);
+        x.stroke();
+        x.lineWidth = 0.7;
+        x.beginPath();
+        x.moveTo(px + 1, py + 1);
+        x.lineTo(px + 4.5, py - 0.5);
+        x.moveTo(px + 1, py + 1.6);
+        x.lineTo(px + 4.5, py + 3);
+        x.stroke();
+        const grad = x.createLinearGradient(px - 3, py - 3.5, px + 3, py + 3);
+        grad.addColorStop(0, 'rgba(255, 200, 200, 0.95)');
+        grad.addColorStop(1, 'rgba(229, 57, 53, 0.55)');
+        x.fillStyle = grad;
+        x.strokeStyle = '#b71c1c';
+        x.lineWidth = 0.8;
+        x.beginPath();
+        x.moveTo(px, py - 3.8);
+        x.lineTo(px + 3.4, py + 2.6);
+        x.lineTo(px - 3.4, py + 2.6);
+        x.closePath();
+        x.fill();
+        x.stroke();
+      }
+
+      function drawBladePip(px, py) {
+        // Black folding-fan blade: wedges from a bottom pivot
+        const bx = px, by = py + 3.4;
+        x.fillStyle = '#262626';
+        x.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+        x.lineWidth = 0.4;
+        for (let a = -38; a <= 38; a += 19) {
+          const rad = (a - 90) * Math.PI / 180;
+          const tipX = bx + Math.cos(rad) * 7, tipY = by + Math.sin(rad) * 7;
+          const perp = rad + Math.PI / 2;
+          const halfW = 1.5;
+          x.beginPath();
+          x.moveTo(bx, by);
+          x.lineTo(tipX + Math.cos(perp) * halfW, tipY + Math.sin(perp) * halfW);
+          x.lineTo(tipX - Math.cos(perp) * halfW, tipY - Math.sin(perp) * halfW);
+          x.closePath();
+          x.fill();
+          x.stroke();
+        }
+        x.fillStyle = '#4a4a4a';
+        x.beginPath();
+        x.arc(bx, by, 1, 0, Math.PI * 2);
+        x.fill();
+      }
+
+      function drawCombinerPip(px, py) {
+        // Black beam combiner: three colored beams in, one bright beam out
+        x.lineWidth = 0.8;
+        x.strokeStyle = '#e53935';
+        x.beginPath(); x.moveTo(px - 5, py - 2.6); x.lineTo(px - 1.4, py - 0.7); x.stroke();
+        x.strokeStyle = '#43a047';
+        x.beginPath(); x.moveTo(px - 5.4, py); x.lineTo(px - 1.4, py); x.stroke();
+        x.strokeStyle = '#1e88e5';
+        x.beginPath(); x.moveTo(px - 5, py + 2.6); x.lineTo(px - 1.4, py + 0.7); x.stroke();
+        x.fillStyle = '#1c1c1c';
+        x.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        x.lineWidth = 0.5;
+        x.beginPath();
+        x.roundRect(px - 1.6, py - 1.8, 3.2, 3.6, 0.8);
+        x.fill();
+        x.stroke();
+        x.strokeStyle = '#bfe3ff';
+        x.lineWidth = 1.1;
+        x.beginPath(); x.moveTo(px + 1.6, py); x.lineTo(px + 5.4, py); x.stroke();
+        x.strokeStyle = 'rgba(191, 227, 255, 0.35)';
+        x.lineWidth = 2.2;
+        x.beginPath(); x.moveTo(px + 1.8, py); x.lineTo(px + 5.2, py); x.stroke();
+      }
+
+      // --- fan of four white card faces, left drawn first so each card
+      // --- to the right overlaps its neighbor (matches the title logo) ---
+      const pips = [drawDiodePip, drawPrismPip, drawBladePip, drawCombinerPip];
+      const angles = [-30, -10, 10, 30];
+      for (let k = 0; k < 4; k++) {
         x.save();
         x.translate(pivotX, pivotY);
-        x.rotate(angleDeg * Math.PI / 180);
-        const left = -cardW / 2;
-        const top = -cardH;
-        const grad = x.createLinearGradient(left, top, left + cardW, top + cardH);
-        grad.addColorStop(0, '#1a2a5c');
-        grad.addColorStop(1, '#0d1a3d');
-        x.fillStyle = grad;
+        x.rotate(angles[k] * Math.PI / 180);
+        const left = -cardW / 2, top = -cardH + 2;
+        const face = x.createLinearGradient(left, top, left + cardW, top + cardH);
+        face.addColorStop(0, '#ffffff');
+        face.addColorStop(1, '#e8e4dc');
+        x.fillStyle = face;
         x.beginPath();
         x.roundRect(left, top, cardW, cardH, cardR);
         x.fill();
-        x.strokeStyle = 'rgba(255, 255, 255, 0.28)';
-        x.lineWidth = 1;
+        x.strokeStyle = 'rgba(90, 90, 90, 0.55)';
+        x.lineWidth = 0.8;
         x.beginPath();
         x.roundRect(left, top, cardW, cardH, cardR);
         x.stroke();
+        // subtle shadow along the left edge so the overlap reads
+        if (k > 0) {
+          const sh = x.createLinearGradient(left, 0, left + 4, 0);
+          sh.addColorStop(0, 'rgba(0, 0, 0, 0.18)');
+          sh.addColorStop(1, 'rgba(0, 0, 0, 0)');
+          x.fillStyle = sh;
+          x.beginPath();
+          x.roundRect(left, top, cardW, cardH, cardR);
+          x.fill();
+        }
+        // Pip anchored at the TOP-LEFT corner like a real card index —
+        // the one region every card in a fan keeps visible. Clipped to
+        // the card face so glows can't bleed past the edges.
+        x.save();
+        x.beginPath();
+        x.roundRect(left, top, cardW, cardH, cardR);
+        x.clip();
+        x.translate(left + 4.6, top + 5.2);
+        x.scale(0.85, 0.85);
+        pips[k](0, 0);
+        x.restore();
         x.restore();
       }
-      drawFanCard(-20);
-      drawFanCard(20);
-      drawFanCard(0);
-
-      // Diode pip on the center card — BLUE, matching the game's default
-      // diode scheme (and the blue-diode heritage behind the arcade)
-      const cx = 24, cy = 22;
-      const glow = x.createRadialGradient(cx, cy - 2, 0, cx, cy - 2, 9);
-      glow.addColorStop(0, 'rgba(100, 160, 255, 0.55)');
-      glow.addColorStop(0.5, 'rgba(60, 120, 255, 0.2)');
-      glow.addColorStop(1, 'rgba(40, 100, 255, 0)');
-      x.fillStyle = glow;
-      x.beginPath();
-      x.arc(cx, cy - 2, 9, 0, Math.PI * 2);
-      x.fill();
-
-      // LED dome
-      const bodyW = 4.5, bodyH = 5;
-      const domeR = bodyW;
-      const bodyTop = cy - bodyH * 0.35;
-      const bodyBot = cy + bodyH * 0.35;
-      x.beginPath();
-      x.arc(cx, bodyTop, domeR, Math.PI, 0);
-      x.lineTo(cx + bodyW, bodyBot);
-      x.lineTo(cx - bodyW, bodyBot);
-      x.closePath();
-      const body = x.createLinearGradient(cx - bodyW, bodyTop - domeR, cx + bodyW, bodyBot);
-      body.addColorStop(0, '#a8ccff');
-      body.addColorStop(0.3, '#4a8cff');
-      body.addColorStop(0.7, '#1565c0');
-      body.addColorStop(1, '#0a3a7f');
-      x.fillStyle = body;
-      x.fill();
-      x.strokeStyle = 'rgba(10, 58, 127, 0.6)';
-      x.lineWidth = 0.5;
-      x.stroke();
-
-      // Inner highlight
-      const hl = x.createRadialGradient(cx - 1, bodyTop - 1.5, 0.4, cx, bodyTop, domeR * 0.7);
-      hl.addColorStop(0, 'rgba(255, 255, 255, 0.7)');
-      hl.addColorStop(0.4, 'rgba(180, 210, 255, 0.25)');
-      hl.addColorStop(1, 'rgba(100, 160, 255, 0)');
-      x.fillStyle = hl;
-      x.beginPath();
-      x.arc(cx, bodyTop, domeR * 0.85, Math.PI, 0);
-      x.lineTo(cx + bodyW * 0.85, bodyBot * 0.5 + cy * 0.5);
-      x.lineTo(cx - bodyW * 0.85, bodyBot * 0.5 + cy * 0.5);
-      x.closePath();
-      x.fill();
-
-      // Base/rim
-      x.fillStyle = '#546E7A';
-      x.fillRect(cx - bodyW * 0.9, bodyBot - 0.5, bodyW * 1.8, 1.4);
-
-      // Legs
-      x.strokeStyle = '#78909C';
-      x.lineWidth = 0.7;
-      x.lineCap = 'round';
-      const legTop = bodyBot + 1;
-      const legLen = 2.5;
-      x.beginPath();
-      x.moveTo(cx - 1.5, legTop);
-      x.lineTo(cx - 1.5, legTop + legLen * 0.6);
-      x.lineTo(cx - 2.2, legTop + legLen);
-      x.stroke();
-      x.beginPath();
-      x.moveTo(cx + 1.5, legTop);
-      x.lineTo(cx + 1.5, legTop + legLen);
-      x.lineTo(cx + 2.2, legTop + legLen + 0.6);
-      x.stroke();
 
       x.restore();
     })();
