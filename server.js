@@ -141,6 +141,11 @@ const server = http.createServer(app);
 // with HTTP 400, so the port can only be shared by routing upgrades manually.
 const hubWss = attachGameWebSocketServer(server, { path: "/ws", noServer: true });
 
+// Animal Battle Champions rides its own relay instance at /abc/ws so its
+// room-code namespace can never collide with 30's (same pattern as
+// Alliances). The client lives at public/abc/ (served statically at /abc).
+const abcWss = attachGameWebSocketServer(server, { path: "/abc/ws", noServer: true });
+
 // ---- Alliances (deep-link only: /alliances — no card on the landing page) ----
 // The full multiplayer game lives in ./alliances (published from the
 // Alliances repo via its tools/publish-ladybug.ps1). Its WebSocket rides the
@@ -155,6 +160,7 @@ server.on("upgrade", (req, socket, head) => {
   let pathname = "/";
   try { pathname = new URL(req.url, "http://x").pathname; } catch (e) { /* fall through */ }
   const target = pathname === "/ws" ? hubWss
+    : pathname === "/abc/ws" ? abcWss
     : pathname === alliances.wsPath ? alliances.wss
     : null;
   if (!target) { socket.destroy(); return; }
