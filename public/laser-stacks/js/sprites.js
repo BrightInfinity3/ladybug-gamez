@@ -1,7 +1,8 @@
 /* ============================================================
-   30 - Animal Sprite Engine
-   16 detailed SVG animal portraits with fur/feather textures,
+   Laser Stacks - Animal Sprite Engine
+   24 detailed SVG animal portraits with fur/feather textures,
    multi-gradient shading, and rim lights
+   (Shared with the game "30" — keep in sync with 30/js/sprites.js)
    ============================================================ */
 
 var SpriteEngine = (function () {
@@ -750,22 +751,32 @@ var SpriteEngine = (function () {
           '<circle cx="0" cy="0" r="0.6" fill="rgba(160,80,150,0.04)"/>' +
         '</pattern>' +
       '</defs>' +
-      // Tentacles (behind head, wavy paths)
-      '<path d="M22,68 Q16,78 12,90 Q10,96 16,92 Q20,86 24,76" fill="none" stroke="#885078" stroke-width="5" stroke-linecap="round"/>' +
-      '<path d="M34,74 Q28,84 30,94 Q32,98 36,92 Q38,84 36,76" fill="none" stroke="#886078" stroke-width="4.5" stroke-linecap="round"/>' +
-      '<path d="M66,74 Q72,84 70,94 Q68,98 64,92 Q62,84 64,76" fill="none" stroke="#886078" stroke-width="4.5" stroke-linecap="round"/>' +
-      '<path d="M78,68 Q84,78 88,90 Q90,96 84,92 Q80,86 76,76" fill="none" stroke="#885078" stroke-width="5" stroke-linecap="round"/>' +
-      '<path d="M28,72 Q20,82 18,92" fill="none" stroke="#784068" stroke-width="4" stroke-linecap="round"/>' +
-      '<path d="M72,72 Q80,82 82,92" fill="none" stroke="#784068" stroke-width="4" stroke-linecap="round"/>' +
-      // Sucker dots on tentacles
-      '<circle cx="14" cy="86" r="1.2" fill="#A06898" opacity="0.5"/>' +
-      '<circle cx="18" cy="80" r="1" fill="#A06898" opacity="0.4"/>' +
-      '<circle cx="32" cy="88" r="1.2" fill="#A06898" opacity="0.5"/>' +
-      '<circle cx="30" cy="82" r="1" fill="#A06898" opacity="0.4"/>' +
-      '<circle cx="68" cy="88" r="1.2" fill="#A06898" opacity="0.5"/>' +
-      '<circle cx="70" cy="82" r="1" fill="#A06898" opacity="0.4"/>' +
-      '<circle cx="86" cy="86" r="1.2" fill="#A06898" opacity="0.5"/>' +
-      '<circle cx="82" cy="80" r="1" fill="#A06898" opacity="0.4"/>' +
+      // 8 Tentacles — uniform, evenly spaced, all hanging down with gentle S-curves
+      '<path d="M20,66 Q14,78 18,90 Q20,96 16,98" fill="none" stroke="#885078" stroke-width="4" stroke-linecap="round"/>' +
+      '<path d="M28,72 Q24,82 26,92 Q28,98 24,100" fill="none" stroke="#885078" stroke-width="4" stroke-linecap="round"/>' +
+      '<path d="M37,76 Q34,86 36,94 Q37,98 34,100" fill="none" stroke="#885078" stroke-width="4" stroke-linecap="round"/>' +
+      '<path d="M44,78 Q42,88 44,96 Q44,100 42,100" fill="none" stroke="#885078" stroke-width="4" stroke-linecap="round"/>' +
+      '<path d="M56,78 Q58,88 56,96 Q56,100 58,100" fill="none" stroke="#885078" stroke-width="4" stroke-linecap="round"/>' +
+      '<path d="M63,76 Q66,86 64,94 Q63,98 66,100" fill="none" stroke="#885078" stroke-width="4" stroke-linecap="round"/>' +
+      '<path d="M72,72 Q76,82 74,92 Q72,98 76,100" fill="none" stroke="#885078" stroke-width="4" stroke-linecap="round"/>' +
+      '<path d="M80,66 Q86,78 82,90 Q80,96 84,98" fill="none" stroke="#885078" stroke-width="4" stroke-linecap="round"/>' +
+      // Sucker dots (2 per tentacle)
+      '<circle cx="16" cy="82" r="1" fill="#A06898" opacity="0.5"/>' +
+      '<circle cx="18" cy="92" r="1" fill="#A06898" opacity="0.5"/>' +
+      '<circle cx="25" cy="84" r="1" fill="#A06898" opacity="0.5"/>' +
+      '<circle cx="26" cy="94" r="1" fill="#A06898" opacity="0.5"/>' +
+      '<circle cx="35" cy="88" r="1" fill="#A06898" opacity="0.5"/>' +
+      '<circle cx="36" cy="96" r="1" fill="#A06898" opacity="0.5"/>' +
+      '<circle cx="43" cy="90" r="1" fill="#A06898" opacity="0.5"/>' +
+      '<circle cx="44" cy="98" r="1" fill="#A06898" opacity="0.5"/>' +
+      '<circle cx="57" cy="90" r="1" fill="#A06898" opacity="0.5"/>' +
+      '<circle cx="56" cy="98" r="1" fill="#A06898" opacity="0.5"/>' +
+      '<circle cx="65" cy="88" r="1" fill="#A06898" opacity="0.5"/>' +
+      '<circle cx="64" cy="96" r="1" fill="#A06898" opacity="0.5"/>' +
+      '<circle cx="75" cy="84" r="1" fill="#A06898" opacity="0.5"/>' +
+      '<circle cx="74" cy="94" r="1" fill="#A06898" opacity="0.5"/>' +
+      '<circle cx="84" cy="82" r="1" fill="#A06898" opacity="0.5"/>' +
+      '<circle cx="82" cy="92" r="1" fill="#A06898" opacity="0.5"/>' +
       // Head (large bulbous mantle)
       '<ellipse cx="50" cy="44" rx="34" ry="36" fill="url(#ocFur1)"/>' +
       '<ellipse cx="50" cy="44" rx="34" ry="36" fill="url(#ocFurTex)"/>' +
@@ -994,7 +1005,559 @@ var SpriteEngine = (function () {
       '<circle cx="52" cy="27.8" r="0.3" fill="rgba(255,255,255,0.1)"/>' +
       // Mouth (tiny beak-like)
       '<path d="M46,31 Q50,34 54,31" fill="none" stroke="#3A5020" stroke-width="1" stroke-linecap="round"/>' +
+    '</svg>',
+
+    // ---- WAVE 3 NEW ANIMALS ----
+
+    goat: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+      '<defs>' +
+        '<radialGradient id="gtFur1" cx="50%" cy="50%" r="50%">' +
+          '<stop offset="0%" stop-color="#F0EDE8"/>' +
+          '<stop offset="60%" stop-color="#D8D2C8"/>' +
+          '<stop offset="100%" stop-color="#B0A898"/>' +
+        '</radialGradient>' +
+        '<radialGradient id="gtHighlight" cx="40%" cy="25%" r="40%">' +
+          '<stop offset="0%" stop-color="rgba(255,255,255,0.35)"/>' +
+          '<stop offset="100%" stop-color="rgba(255,255,255,0)"/>' +
+        '</radialGradient>' +
+        '<pattern id="gtFurTex" patternUnits="userSpaceOnUse" width="3" height="3">' +
+          '<circle cx="1.5" cy="1.5" r="0.4" fill="rgba(160,150,130,0.06)"/>' +
+          '<line x1="0" y1="1" x2="3" y2="2" stroke="rgba(180,170,150,0.04)" stroke-width="0.3"/>' +
+        '</pattern>' +
+      '</defs>' +
+      // Body
+      '<circle cx="50" cy="55" r="38" fill="url(#gtFur1)"/>' +
+      '<circle cx="50" cy="55" r="38" fill="url(#gtFurTex)"/>' +
+      '<circle cx="50" cy="55" r="38" fill="url(#gtHighlight)"/>' +
+      // Horns
+      '<path d="M32,30 Q28,10 22,5" fill="none" stroke="#8B8070" stroke-width="4" stroke-linecap="round"/>' +
+      '<path d="M68,30 Q72,10 78,5" fill="none" stroke="#8B8070" stroke-width="4" stroke-linecap="round"/>' +
+      '<path d="M32,30 Q28,10 22,5" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2" stroke-linecap="round"/>' +
+      '<path d="M68,30 Q72,10 78,5" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2" stroke-linecap="round"/>' +
+      // Horn ridges
+      '<path d="M30,25 Q27,14 23,8" fill="none" stroke="rgba(100,90,70,0.2)" stroke-width="0.5" stroke-dasharray="1.5,2"/>' +
+      '<path d="M70,25 Q73,14 77,8" fill="none" stroke="rgba(100,90,70,0.2)" stroke-width="0.5" stroke-dasharray="1.5,2"/>' +
+      // Floppy ears
+      '<ellipse cx="22" cy="42" rx="10" ry="6" fill="#D0C8B8" transform="rotate(-25,22,42)"/>' +
+      '<ellipse cx="22" cy="42" rx="7" ry="4" fill="#E0BBA0" opacity="0.4" transform="rotate(-25,22,42)"/>' +
+      '<ellipse cx="78" cy="42" rx="10" ry="6" fill="#D0C8B8" transform="rotate(25,78,42)"/>' +
+      '<ellipse cx="78" cy="42" rx="7" ry="4" fill="#E0BBA0" opacity="0.4" transform="rotate(25,78,42)"/>' +
+      // Rim light
+      '<path d="M30,32 Q50,20 70,32" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.8" stroke-linecap="round"/>' +
+      // Muzzle
+      '<ellipse cx="50" cy="64" rx="18" ry="14" fill="#E8E0D4"/>' +
+      '<ellipse cx="50" cy="66" rx="14" ry="10" fill="#F0EAE0" opacity="0.4"/>' +
+      // Eyes - rectangular horizontal pupils
+      '<ellipse cx="37" cy="46" rx="7" ry="7.5" fill="white"/>' +
+      '<ellipse cx="63" cy="46" rx="7" ry="7.5" fill="white"/>' +
+      '<ellipse cx="37.5" cy="46" rx="4" ry="4.5" fill="#C8A832"/>' +
+      '<ellipse cx="63.5" cy="46" rx="4" ry="4.5" fill="#C8A832"/>' +
+      // Rectangular horizontal slit pupils
+      '<rect x="35" y="45" width="5.5" height="2.5" rx="0.3" fill="#111"/>' +
+      '<rect x="61" y="45" width="5.5" height="2.5" rx="0.3" fill="#111"/>' +
+      // Eye highlights
+      '<circle cx="39" cy="44" r="1.3" fill="white"/>' +
+      '<circle cx="65" cy="44" r="1.3" fill="white"/>' +
+      '<circle cx="36.5" cy="48" r="0.6" fill="rgba(255,255,255,0.4)"/>' +
+      '<circle cx="62.5" cy="48" r="0.6" fill="rgba(255,255,255,0.4)"/>' +
+      // Lower eyelid
+      '<path d="M30,50 Q37,52 44,50" fill="none" stroke="rgba(140,130,110,0.15)" stroke-width="0.5"/>' +
+      '<path d="M56,50 Q63,52 70,50" fill="none" stroke="rgba(140,130,110,0.15)" stroke-width="0.5"/>' +
+      // Nose
+      '<ellipse cx="46" cy="62" rx="2.2" ry="1.8" fill="#B0A090"/>' +
+      '<ellipse cx="54" cy="62" rx="2.2" ry="1.8" fill="#B0A090"/>' +
+      '<ellipse cx="46" cy="61.6" rx="0.8" ry="0.4" fill="rgba(255,255,255,0.12)"/>' +
+      '<ellipse cx="54" cy="61.6" rx="0.8" ry="0.4" fill="rgba(255,255,255,0.12)"/>' +
+      // Mouth
+      '<path d="M44,66 Q50,70 56,66" fill="none" stroke="#A09080" stroke-width="1" stroke-linecap="round"/>' +
+      // Beard tuft
+      '<path d="M46,72 Q50,82 54,72" fill="#C8C0B0" stroke="#B8B0A0" stroke-width="0.5"/>' +
+      '<path d="M48,73 Q50,79 52,73" fill="#D8D0C4" opacity="0.5"/>' +
+      '<line x1="50" y1="72" x2="50" y2="78" stroke="rgba(160,150,130,0.2)" stroke-width="0.4"/>' +
+    '</svg>',
+
+    spider: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+      '<defs>' +
+        '<radialGradient id="sdFur1" cx="50%" cy="50%" r="50%">' +
+          '<stop offset="0%" stop-color="#4A3060"/>' +
+          '<stop offset="60%" stop-color="#2E1A40"/>' +
+          '<stop offset="100%" stop-color="#1A0E28"/>' +
+        '</radialGradient>' +
+        '<radialGradient id="sdHighlight" cx="40%" cy="25%" r="40%">' +
+          '<stop offset="0%" stop-color="rgba(120,80,160,0.3)"/>' +
+          '<stop offset="100%" stop-color="rgba(120,80,160,0)"/>' +
+        '</radialGradient>' +
+        '<pattern id="sdFurTex" patternUnits="userSpaceOnUse" width="10" height="10">' +
+          '<circle cx="5" cy="5" r="4" fill="none" stroke="rgba(100,70,140,0.04)" stroke-width="0.3"/>' +
+          '<line x1="0" y1="5" x2="10" y2="5" stroke="rgba(80,50,120,0.03)" stroke-width="0.2"/>' +
+          '<line x1="5" y1="0" x2="5" y2="10" stroke="rgba(80,50,120,0.03)" stroke-width="0.2"/>' +
+        '</pattern>' +
+      '</defs>' +
+      // Background web pattern
+      '<circle cx="50" cy="50" r="46" fill="none" stroke="rgba(200,200,220,0.06)" stroke-width="0.5"/>' +
+      '<circle cx="50" cy="50" r="32" fill="none" stroke="rgba(200,200,220,0.05)" stroke-width="0.4"/>' +
+      '<circle cx="50" cy="50" r="18" fill="none" stroke="rgba(200,200,220,0.04)" stroke-width="0.3"/>' +
+      '<line x1="50" y1="4" x2="50" y2="96" stroke="rgba(200,200,220,0.05)" stroke-width="0.3"/>' +
+      '<line x1="4" y1="50" x2="96" y2="50" stroke="rgba(200,200,220,0.05)" stroke-width="0.3"/>' +
+      '<line x1="14" y1="14" x2="86" y2="86" stroke="rgba(200,200,220,0.04)" stroke-width="0.3"/>' +
+      '<line x1="86" y1="14" x2="14" y2="86" stroke="rgba(200,200,220,0.04)" stroke-width="0.3"/>' +
+      // 8 Legs (4 per side — jointed, angular, radiating from cephalothorax)
+      // Left legs (front to back)
+      '<path d="M34,30 L18,18 L6,28" fill="none" stroke="#3A2050" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<path d="M32,36 L12,34 L2,46" fill="none" stroke="#3A2050" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<path d="M30,42 L10,48 L2,64" fill="none" stroke="#3A2050" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<path d="M32,48 L14,60 L6,78" fill="none" stroke="#3A2050" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>' +
+      // Right legs (front to back)
+      '<path d="M66,30 L82,18 L94,28" fill="none" stroke="#3A2050" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<path d="M68,36 L88,34 L98,46" fill="none" stroke="#3A2050" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<path d="M70,42 L90,48 L98,64" fill="none" stroke="#3A2050" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<path d="M68,48 L86,60 L94,78" fill="none" stroke="#3A2050" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>' +
+      // Leg joint highlights
+      '<circle cx="18" cy="18" r="1" fill="rgba(100,60,140,0.3)"/>' +
+      '<circle cx="12" cy="34" r="1" fill="rgba(100,60,140,0.3)"/>' +
+      '<circle cx="10" cy="48" r="1" fill="rgba(100,60,140,0.3)"/>' +
+      '<circle cx="14" cy="60" r="1" fill="rgba(100,60,140,0.3)"/>' +
+      '<circle cx="82" cy="18" r="1" fill="rgba(100,60,140,0.3)"/>' +
+      '<circle cx="88" cy="34" r="1" fill="rgba(100,60,140,0.3)"/>' +
+      '<circle cx="90" cy="48" r="1" fill="rgba(100,60,140,0.3)"/>' +
+      '<circle cx="86" cy="60" r="1" fill="rgba(100,60,140,0.3)"/>' +
+      // Abdomen (large, round)
+      '<ellipse cx="50" cy="62" rx="30" ry="28" fill="url(#sdFur1)"/>' +
+      '<ellipse cx="50" cy="62" rx="30" ry="28" fill="url(#sdFurTex)"/>' +
+      '<ellipse cx="50" cy="62" rx="30" ry="28" fill="url(#sdHighlight)"/>' +
+      // Abdomen markings
+      '<ellipse cx="50" cy="68" rx="8" ry="12" fill="rgba(80,50,110,0.15)"/>' +
+      '<path d="M42,58 L50,64 L58,58" fill="none" stroke="rgba(100,60,140,0.12)" stroke-width="1"/>' +
+      '<path d="M40,66 L50,72 L60,66" fill="none" stroke="rgba(100,60,140,0.1)" stroke-width="0.8"/>' +
+      // Head (cephalothorax)
+      '<ellipse cx="50" cy="34" rx="22" ry="20" fill="#3A2050"/>' +
+      '<ellipse cx="50" cy="33" rx="18" ry="16" fill="#4A2860" opacity="0.5"/>' +
+      // Rim light
+      '<path d="M32,26 Q50,14 68,26" fill="none" stroke="rgba(160,120,200,0.25)" stroke-width="1.5" stroke-linecap="round"/>' +
+      // 4 large front eyes
+      '<ellipse cx="40" cy="32" rx="6" ry="6.5" fill="#1A1020"/>' +
+      '<ellipse cx="60" cy="32" rx="6" ry="6.5" fill="#1A1020"/>' +
+      '<ellipse cx="40" cy="32" rx="5" ry="5.5" fill="#201428"/>' +
+      '<ellipse cx="60" cy="32" rx="5" ry="5.5" fill="#201428"/>' +
+      '<circle cx="40" cy="32" r="3.5" fill="#2A1A35"/>' +
+      '<circle cx="60" cy="32" r="3.5" fill="#2A1A35"/>' +
+      // Large eye highlights
+      '<circle cx="42" cy="30" r="1.8" fill="rgba(255,255,255,0.7)"/>' +
+      '<circle cx="62" cy="30" r="1.8" fill="rgba(255,255,255,0.7)"/>' +
+      '<circle cx="39" cy="34" r="0.8" fill="rgba(255,255,255,0.3)"/>' +
+      '<circle cx="59" cy="34" r="0.8" fill="rgba(255,255,255,0.3)"/>' +
+      // 4 small upper eyes
+      '<circle cx="36" cy="24" r="3" fill="#1A1020"/>' +
+      '<circle cx="44" cy="22" r="3" fill="#1A1020"/>' +
+      '<circle cx="56" cy="22" r="3" fill="#1A1020"/>' +
+      '<circle cx="64" cy="24" r="3" fill="#1A1020"/>' +
+      '<circle cx="36" cy="24" r="2" fill="#251830"/>' +
+      '<circle cx="44" cy="22" r="2" fill="#251830"/>' +
+      '<circle cx="56" cy="22" r="2" fill="#251830"/>' +
+      '<circle cx="64" cy="24" r="2" fill="#251830"/>' +
+      // Small eye highlights
+      '<circle cx="37" cy="23" r="0.9" fill="rgba(255,255,255,0.5)"/>' +
+      '<circle cx="45" cy="21" r="0.9" fill="rgba(255,255,255,0.5)"/>' +
+      '<circle cx="57" cy="21" r="0.9" fill="rgba(255,255,255,0.5)"/>' +
+      '<circle cx="65" cy="23" r="0.9" fill="rgba(255,255,255,0.5)"/>' +
+      // Fangs (chelicerae)
+      '<path d="M44,40 Q43,46 45,48" fill="none" stroke="#6A4880" stroke-width="1.8" stroke-linecap="round"/>' +
+      '<path d="M56,40 Q57,46 55,48" fill="none" stroke="#6A4880" stroke-width="1.8" stroke-linecap="round"/>' +
+      '<circle cx="45" cy="48" r="0.8" fill="#8A6898"/>' +
+      '<circle cx="55" cy="48" r="0.8" fill="#8A6898"/>' +
+    '</svg>',
+
+    ladybug: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+      '<defs>' +
+        '<radialGradient id="lbShell1" cx="50%" cy="45%" r="50%">' +
+          '<stop offset="0%" stop-color="#E83020"/>' +
+          '<stop offset="60%" stop-color="#CC2218"/>' +
+          '<stop offset="100%" stop-color="#A01810"/>' +
+        '</radialGradient>' +
+        '<radialGradient id="lbHighlight" cx="38%" cy="28%" r="35%">' +
+          '<stop offset="0%" stop-color="rgba(255,200,180,0.4)"/>' +
+          '<stop offset="100%" stop-color="rgba(255,200,180,0)"/>' +
+        '</radialGradient>' +
+        '<pattern id="lbShellTex" patternUnits="userSpaceOnUse" width="4" height="4">' +
+          '<circle cx="2" cy="2" r="0.3" fill="rgba(180,20,10,0.05)"/>' +
+        '</pattern>' +
+      '</defs>' +
+      // Shell body
+      '<ellipse cx="50" cy="56" rx="38" ry="34" fill="url(#lbShell1)"/>' +
+      '<ellipse cx="50" cy="56" rx="38" ry="34" fill="url(#lbShellTex)"/>' +
+      '<ellipse cx="50" cy="56" rx="38" ry="34" fill="url(#lbHighlight)"/>' +
+      // Center line (wing split)
+      '<line x1="50" y1="28" x2="50" y2="88" stroke="#1A0A08" stroke-width="1.8"/>' +
+      // Black spots
+      '<circle cx="36" cy="48" r="6" fill="#1A0A08"/>' +
+      '<circle cx="64" cy="48" r="6" fill="#1A0A08"/>' +
+      '<circle cx="32" cy="64" r="5.5" fill="#1A0A08"/>' +
+      '<circle cx="68" cy="64" r="5.5" fill="#1A0A08"/>' +
+      '<circle cx="42" cy="76" r="4.5" fill="#1A0A08"/>' +
+      '<circle cx="58" cy="76" r="4.5" fill="#1A0A08"/>' +
+      '<circle cx="50" cy="58" r="3" fill="#1A0A08"/>' +
+      // Shell rim highlight
+      '<path d="M16,50 Q50,22 84,50" fill="none" stroke="rgba(255,220,200,0.2)" stroke-width="1.5" stroke-linecap="round"/>' +
+      // Head (small, black)
+      '<ellipse cx="50" cy="28" rx="18" ry="16" fill="#1A1018"/>' +
+      '<ellipse cx="50" cy="27" rx="14" ry="12" fill="#2A1828" opacity="0.5"/>' +
+      // Antennae
+      '<path d="M42,18 Q36,6 30,4" fill="none" stroke="#1A1018" stroke-width="1.5" stroke-linecap="round"/>' +
+      '<path d="M58,18 Q64,6 70,4" fill="none" stroke="#1A1018" stroke-width="1.5" stroke-linecap="round"/>' +
+      '<circle cx="30" cy="4" r="2.5" fill="#1A1018"/>' +
+      '<circle cx="70" cy="4" r="2.5" fill="#1A1018"/>' +
+      // Rim light on head
+      '<path d="M36,20 Q50,12 64,20" fill="none" stroke="rgba(180,180,200,0.2)" stroke-width="1.2" stroke-linecap="round"/>' +
+      // Eyes (small, cute)
+      '<ellipse cx="42" cy="28" rx="5" ry="5.5" fill="white"/>' +
+      '<ellipse cx="58" cy="28" rx="5" ry="5.5" fill="white"/>' +
+      '<ellipse cx="42.5" cy="28.5" rx="3" ry="3.5" fill="#111"/>' +
+      '<ellipse cx="58.5" cy="28.5" rx="3" ry="3.5" fill="#111"/>' +
+      // Eye highlights
+      '<circle cx="44" cy="27" r="1.3" fill="white"/>' +
+      '<circle cx="60" cy="27" r="1.3" fill="white"/>' +
+      '<circle cx="41.5" cy="30" r="0.5" fill="rgba(255,255,255,0.4)"/>' +
+      '<circle cx="57.5" cy="30" r="0.5" fill="rgba(255,255,255,0.4)"/>' +
+      // Mouth (tiny smile)
+      '<path d="M46,34 Q50,37 54,34" fill="none" stroke="rgba(100,80,90,0.3)" stroke-width="0.8" stroke-linecap="round"/>' +
+    '</svg>',
+
+    bee: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+      '<defs>' +
+        '<radialGradient id="beFur1" cx="50%" cy="50%" r="50%">' +
+          '<stop offset="0%" stop-color="#FFD640"/>' +
+          '<stop offset="60%" stop-color="#E8B820"/>' +
+          '<stop offset="100%" stop-color="#C89810"/>' +
+        '</radialGradient>' +
+        '<radialGradient id="beHighlight" cx="40%" cy="25%" r="40%">' +
+          '<stop offset="0%" stop-color="rgba(255,240,180,0.35)"/>' +
+          '<stop offset="100%" stop-color="rgba(255,240,180,0)"/>' +
+        '</radialGradient>' +
+        '<pattern id="beFurTex" patternUnits="userSpaceOnUse" width="3" height="3">' +
+          '<circle cx="1.5" cy="1.5" r="0.5" fill="rgba(200,160,20,0.06)"/>' +
+          '<circle cx="0.5" cy="0.5" r="0.3" fill="rgba(220,180,40,0.04)"/>' +
+        '</pattern>' +
+      '</defs>' +
+      // Wings (behind body, translucent)
+      '<ellipse cx="32" cy="30" rx="16" ry="10" fill="rgba(200,220,255,0.3)" stroke="rgba(180,200,240,0.3)" stroke-width="0.5" transform="rotate(-20,32,30)"/>' +
+      '<ellipse cx="68" cy="30" rx="16" ry="10" fill="rgba(200,220,255,0.3)" stroke="rgba(180,200,240,0.3)" stroke-width="0.5" transform="rotate(20,68,30)"/>' +
+      '<ellipse cx="28" cy="36" rx="12" ry="7" fill="rgba(200,220,255,0.2)" stroke="rgba(180,200,240,0.2)" stroke-width="0.4" transform="rotate(-30,28,36)"/>' +
+      '<ellipse cx="72" cy="36" rx="12" ry="7" fill="rgba(200,220,255,0.2)" stroke="rgba(180,200,240,0.2)" stroke-width="0.4" transform="rotate(30,72,36)"/>' +
+      // Body (fuzzy round)
+      '<ellipse cx="50" cy="56" rx="32" ry="34" fill="url(#beFur1)"/>' +
+      '<ellipse cx="50" cy="56" rx="32" ry="34" fill="url(#beFurTex)"/>' +
+      '<ellipse cx="50" cy="56" rx="32" ry="34" fill="url(#beHighlight)"/>' +
+      // Black stripes
+      '<path d="M22,46 Q50,42 78,46" fill="none" stroke="#1A1008" stroke-width="6" opacity="0.8"/>' +
+      '<path d="M20,60 Q50,56 80,60" fill="none" stroke="#1A1008" stroke-width="6" opacity="0.8"/>' +
+      '<path d="M24,74 Q50,70 76,74" fill="none" stroke="#1A1008" stroke-width="6" opacity="0.8"/>' +
+      // Fuzzy edge detail
+      '<ellipse cx="50" cy="56" rx="32" ry="34" fill="none" stroke="rgba(200,170,40,0.15)" stroke-width="1.5"/>' +
+      // Head area
+      '<ellipse cx="50" cy="30" rx="20" ry="18" fill="#FFD640"/>' +
+      '<ellipse cx="50" cy="29" rx="16" ry="14" fill="#FFE060" opacity="0.5"/>' +
+      // Antennae
+      '<path d="M42,16 Q38,6 34,2" fill="none" stroke="#1A1008" stroke-width="1.2" stroke-linecap="round"/>' +
+      '<path d="M58,16 Q62,6 66,2" fill="none" stroke="#1A1008" stroke-width="1.2" stroke-linecap="round"/>' +
+      '<circle cx="34" cy="2" r="2" fill="#1A1008"/>' +
+      '<circle cx="66" cy="2" r="2" fill="#1A1008"/>' +
+      // Rim light
+      '<path d="M34,22 Q50,12 66,22" fill="none" stroke="rgba(255,240,180,0.3)" stroke-width="1.5" stroke-linecap="round"/>' +
+      // Eyes (large compound)
+      '<ellipse cx="38" cy="30" rx="8" ry="8.5" fill="#1A1008"/>' +
+      '<ellipse cx="62" cy="30" rx="8" ry="8.5" fill="#1A1008"/>' +
+      '<ellipse cx="38" cy="30" rx="6.5" ry="7" fill="#2A2018"/>' +
+      '<ellipse cx="62" cy="30" rx="6.5" ry="7" fill="#2A2018"/>' +
+      // Compound eye facets
+      '<circle cx="36" cy="28" r="2" fill="rgba(60,40,20,0.3)"/>' +
+      '<circle cx="40" cy="28" r="2" fill="rgba(60,40,20,0.3)"/>' +
+      '<circle cx="38" cy="32" r="2" fill="rgba(60,40,20,0.3)"/>' +
+      '<circle cx="60" cy="28" r="2" fill="rgba(60,40,20,0.3)"/>' +
+      '<circle cx="64" cy="28" r="2" fill="rgba(60,40,20,0.3)"/>' +
+      '<circle cx="62" cy="32" r="2" fill="rgba(60,40,20,0.3)"/>' +
+      // Eye highlights
+      '<circle cx="40" cy="27" r="2" fill="rgba(255,255,255,0.5)"/>' +
+      '<circle cx="64" cy="27" r="2" fill="rgba(255,255,255,0.5)"/>' +
+      '<circle cx="37" cy="33" r="0.8" fill="rgba(255,255,255,0.25)"/>' +
+      '<circle cx="61" cy="33" r="0.8" fill="rgba(255,255,255,0.25)"/>' +
+      // Mouth (cute smile)
+      '<path d="M44,40 Q50,44 56,40" fill="none" stroke="#A08020" stroke-width="1" stroke-linecap="round"/>' +
+    '</svg>',
+
+    crocodile: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+      '<defs>' +
+        '<radialGradient id="crScale1" cx="50%" cy="50%" r="50%">' +
+          '<stop offset="0%" stop-color="#4A6830"/>' +
+          '<stop offset="60%" stop-color="#3A5420"/>' +
+          '<stop offset="100%" stop-color="#2A3C14"/>' +
+        '</radialGradient>' +
+        '<radialGradient id="crHighlight" cx="40%" cy="25%" r="40%">' +
+          '<stop offset="0%" stop-color="rgba(120,160,80,0.25)"/>' +
+          '<stop offset="100%" stop-color="rgba(120,160,80,0)"/>' +
+        '</radialGradient>' +
+        '<pattern id="crScaleTex" patternUnits="userSpaceOnUse" width="6" height="6">' +
+          '<path d="M0,3 Q3,1 6,3 Q3,5 0,3" fill="none" stroke="rgba(60,80,30,0.1)" stroke-width="0.4"/>' +
+          '<path d="M3,0 Q6,2 3,4 Q0,2 3,0" fill="none" stroke="rgba(80,100,40,0.06)" stroke-width="0.3"/>' +
+        '</pattern>' +
+      '</defs>' +
+      // Long snout
+      '<ellipse cx="50" cy="70" rx="22" ry="14" fill="#4A6830"/>' +
+      '<ellipse cx="50" cy="72" rx="18" ry="10" fill="#5A7840" opacity="0.4"/>' +
+      // Body/head (broad)
+      '<ellipse cx="50" cy="48" rx="36" ry="32" fill="url(#crScale1)"/>' +
+      '<ellipse cx="50" cy="48" rx="36" ry="32" fill="url(#crScaleTex)"/>' +
+      '<ellipse cx="50" cy="48" rx="36" ry="32" fill="url(#crHighlight)"/>' +
+      // Ridged brow bumps
+      '<ellipse cx="34" cy="30" rx="10" ry="6" fill="#3E5824"/>' +
+      '<ellipse cx="66" cy="30" rx="10" ry="6" fill="#3E5824"/>' +
+      '<ellipse cx="34" cy="29" rx="8" ry="4" fill="#4A6830" opacity="0.5"/>' +
+      '<ellipse cx="66" cy="29" rx="8" ry="4" fill="#4A6830" opacity="0.5"/>' +
+      // Ridge bumps along top
+      '<circle cx="42" cy="22" r="3" fill="#3E5824"/>' +
+      '<circle cx="50" cy="20" r="3.5" fill="#3E5824"/>' +
+      '<circle cx="58" cy="22" r="3" fill="#3E5824"/>' +
+      // Rim light
+      '<path d="M28,28 Q50,16 72,28" fill="none" stroke="rgba(140,180,100,0.2)" stroke-width="1.5" stroke-linecap="round"/>' +
+      // Snout nostrils
+      '<ellipse cx="44" cy="68" rx="2.5" ry="2" fill="#2A3C14"/>' +
+      '<ellipse cx="56" cy="68" rx="2.5" ry="2" fill="#2A3C14"/>' +
+      // Teeth peeking out
+      '<polygon points="36,60 37.5,64 39,60" fill="#F0F0E0" opacity="0.7"/>' +
+      '<polygon points="43,61 44.5,65 46,61" fill="#F0F0E0" opacity="0.6"/>' +
+      '<polygon points="54,61 55.5,65 57,61" fill="#F0F0E0" opacity="0.6"/>' +
+      '<polygon points="61,60 62.5,64 64,60" fill="#F0F0E0" opacity="0.7"/>' +
+      // Jawline
+      '<path d="M30,58 Q50,66 70,58" fill="none" stroke="#2A3C14" stroke-width="1.2"/>' +
+      // Eyes (yellow, reptilian, on brow ridges)
+      '<ellipse cx="34" cy="34" rx="6.5" ry="7" fill="#C8CC30"/>' +
+      '<ellipse cx="66" cy="34" rx="6.5" ry="7" fill="#C8CC30"/>' +
+      '<ellipse cx="34" cy="34" rx="5.5" ry="6" fill="#D8DC40"/>' +
+      '<ellipse cx="66" cy="34" rx="5.5" ry="6" fill="#D8DC40"/>' +
+      // Vertical slit pupils
+      '<ellipse cx="34" cy="34" rx="2" ry="5.5" fill="#111"/>' +
+      '<ellipse cx="66" cy="34" rx="2" ry="5.5" fill="#111"/>' +
+      // Eye highlights
+      '<circle cx="36" cy="31" r="1.5" fill="rgba(255,255,255,0.6)"/>' +
+      '<circle cx="68" cy="31" r="1.5" fill="rgba(255,255,255,0.6)"/>' +
+      '<circle cx="33" cy="37" r="0.6" fill="rgba(255,255,255,0.3)"/>' +
+      '<circle cx="65" cy="37" r="0.6" fill="rgba(255,255,255,0.3)"/>' +
+      // Lower eyelid
+      '<path d="M28,38 Q34,40 40,38" fill="none" stroke="rgba(40,60,20,0.2)" stroke-width="0.5"/>' +
+      '<path d="M60,38 Q66,40 72,38" fill="none" stroke="rgba(40,60,20,0.2)" stroke-width="0.5"/>' +
+    '</svg>',
+
+    dolphin: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+      '<defs>' +
+        '<radialGradient id="dlSkin1" cx="50%" cy="45%" r="50%">' +
+          '<stop offset="0%" stop-color="#7090B8"/>' +
+          '<stop offset="60%" stop-color="#5878A0"/>' +
+          '<stop offset="100%" stop-color="#405878"/>' +
+        '</radialGradient>' +
+        '<radialGradient id="dlHighlight" cx="40%" cy="25%" r="40%">' +
+          '<stop offset="0%" stop-color="rgba(160,200,240,0.35)"/>' +
+          '<stop offset="100%" stop-color="rgba(160,200,240,0)"/>' +
+        '</radialGradient>' +
+        '<pattern id="dlSkinTex" patternUnits="userSpaceOnUse" width="4" height="4">' +
+          '<circle cx="2" cy="2" r="0.3" fill="rgba(80,110,150,0.04)"/>' +
+        '</pattern>' +
+      '</defs>' +
+      // Body (smooth, rounded)
+      '<ellipse cx="50" cy="55" rx="36" ry="34" fill="url(#dlSkin1)"/>' +
+      '<ellipse cx="50" cy="55" rx="36" ry="34" fill="url(#dlSkinTex)"/>' +
+      '<ellipse cx="50" cy="55" rx="36" ry="34" fill="url(#dlHighlight)"/>' +
+      // Belly (lighter underside)
+      '<ellipse cx="50" cy="65" rx="24" ry="18" fill="#A0B8D0" opacity="0.35"/>' +
+      // Dorsal fin
+      '<path d="M50,22 Q46,10 42,6 Q50,14 52,22" fill="#506888"/>' +
+      '<path d="M50,22 Q46,10 42,6" fill="none" stroke="rgba(160,200,240,0.2)" stroke-width="0.8"/>' +
+      // Bottle nose snout
+      '<ellipse cx="50" cy="72" rx="14" ry="10" fill="#6888A8"/>' +
+      '<ellipse cx="50" cy="74" rx="10" ry="6" fill="#7898B4" opacity="0.4"/>' +
+      // Rim light
+      '<path d="M28,36 Q50,22 72,36" fill="none" stroke="rgba(180,210,240,0.25)" stroke-width="1.8" stroke-linecap="round"/>' +
+      // Always-smiling mouth
+      '<path d="M38,74 Q50,82 62,74" fill="none" stroke="#405060" stroke-width="1.2" stroke-linecap="round"/>' +
+      // Mouth line (the rostrum split)
+      '<path d="M36,70 Q50,72 64,70" fill="none" stroke="rgba(50,70,90,0.3)" stroke-width="0.8"/>' +
+      // Eyes (intelligent, dark with big highlights)
+      '<ellipse cx="35" cy="50" rx="6.5" ry="7" fill="white"/>' +
+      '<ellipse cx="65" cy="50" rx="6.5" ry="7" fill="white"/>' +
+      '<ellipse cx="35.5" cy="50.5" rx="4.5" ry="5" fill="#1A2838"/>' +
+      '<ellipse cx="65.5" cy="50.5" rx="4.5" ry="5" fill="#1A2838"/>' +
+      '<ellipse cx="36" cy="51" rx="3" ry="3.5" fill="#0A1420"/>' +
+      '<ellipse cx="66" cy="51" rx="3" ry="3.5" fill="#0A1420"/>' +
+      // Big highlights (intelligent look)
+      '<circle cx="37.5" cy="48.5" r="2" fill="white" opacity="0.85"/>' +
+      '<circle cx="67.5" cy="48.5" r="2" fill="white" opacity="0.85"/>' +
+      '<circle cx="34" cy="52" r="1" fill="rgba(255,255,255,0.4)"/>' +
+      '<circle cx="64" cy="52" r="1" fill="rgba(255,255,255,0.4)"/>' +
+      '<circle cx="37" cy="53" r="0.6" fill="rgba(255,255,255,0.25)"/>' +
+      '<circle cx="67" cy="53" r="0.6" fill="rgba(255,255,255,0.25)"/>' +
+      // Lower eyelid
+      '<path d="M29,54 Q35,56 41,54" fill="none" stroke="rgba(60,80,110,0.15)" stroke-width="0.5"/>' +
+      '<path d="M59,54 Q65,56 71,54" fill="none" stroke="rgba(60,80,110,0.15)" stroke-width="0.5"/>' +
+    '</svg>',
+
+    rabbit: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+      '<defs>' +
+        '<radialGradient id="rbFur1" cx="50%" cy="55%" r="50%">' +
+          '<stop offset="0%" stop-color="#F5EDE0"/>' +
+          '<stop offset="60%" stop-color="#E0D0B8"/>' +
+          '<stop offset="100%" stop-color="#C8B898"/>' +
+        '</radialGradient>' +
+        '<radialGradient id="rbHighlight" cx="40%" cy="25%" r="40%">' +
+          '<stop offset="0%" stop-color="rgba(255,255,255,0.35)"/>' +
+          '<stop offset="100%" stop-color="rgba(255,255,255,0)"/>' +
+        '</radialGradient>' +
+        '<pattern id="rbFurTex" patternUnits="userSpaceOnUse" width="3" height="3">' +
+          '<circle cx="1.5" cy="1.5" r="0.4" fill="rgba(180,160,130,0.05)"/>' +
+          '<line x1="0" y1="1" x2="3" y2="2" stroke="rgba(200,180,150,0.03)" stroke-width="0.3"/>' +
+        '</pattern>' +
+      '</defs>' +
+      // Very long upright ears (signature feature)
+      '<ellipse cx="36" cy="20" rx="9" ry="28" fill="#E0D0B8"/>' +
+      '<ellipse cx="64" cy="20" rx="9" ry="28" fill="#E0D0B8"/>' +
+      // Inner ears (pink)
+      '<ellipse cx="36" cy="18" rx="5.5" ry="22" fill="#E8A8A0" opacity="0.45"/>' +
+      '<ellipse cx="64" cy="18" rx="5.5" ry="22" fill="#E8A8A0" opacity="0.45"/>' +
+      '<ellipse cx="36" cy="16" rx="3" ry="16" fill="#F0B8B0" opacity="0.2"/>' +
+      '<ellipse cx="64" cy="16" rx="3" ry="16" fill="#F0B8B0" opacity="0.2"/>' +
+      // Ear rim highlights
+      '<path d="M30,8 Q36,-6 42,8" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1" stroke-linecap="round"/>' +
+      '<path d="M58,8 Q64,-6 70,8" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1" stroke-linecap="round"/>' +
+      // Body
+      '<circle cx="50" cy="60" r="34" fill="url(#rbFur1)"/>' +
+      '<circle cx="50" cy="60" r="34" fill="url(#rbFurTex)"/>' +
+      '<circle cx="50" cy="60" r="34" fill="url(#rbHighlight)"/>' +
+      // Cheek fluff
+      '<ellipse cx="30" cy="62" rx="10" ry="8" fill="#F0E4D4" opacity="0.4"/>' +
+      '<ellipse cx="70" cy="62" rx="10" ry="8" fill="#F0E4D4" opacity="0.4"/>' +
+      // Rim light
+      '<path d="M28,44 Q50,34 72,44" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" stroke-linecap="round"/>' +
+      // Eyes (big, round)
+      '<ellipse cx="37" cy="56" rx="7.5" ry="8" fill="white"/>' +
+      '<ellipse cx="63" cy="56" rx="7.5" ry="8" fill="white"/>' +
+      '<ellipse cx="37.5" cy="56.5" rx="4.5" ry="5" fill="#6A3828"/>' +
+      '<ellipse cx="63.5" cy="56.5" rx="4.5" ry="5" fill="#6A3828"/>' +
+      '<ellipse cx="38" cy="57" rx="2.8" ry="3.2" fill="#2A1008"/>' +
+      '<ellipse cx="64" cy="57" rx="2.8" ry="3.2" fill="#2A1008"/>' +
+      // Eye highlights
+      '<circle cx="39.5" cy="54.5" r="1.8" fill="white"/>' +
+      '<circle cx="65.5" cy="54.5" r="1.8" fill="white"/>' +
+      '<circle cx="36.5" cy="58.5" r="0.7" fill="rgba(255,255,255,0.4)"/>' +
+      '<circle cx="62.5" cy="58.5" r="0.7" fill="rgba(255,255,255,0.4)"/>' +
+      // Lower eyelid
+      '<path d="M30,60 Q37,62 44,60" fill="none" stroke="rgba(160,140,110,0.12)" stroke-width="0.5"/>' +
+      '<path d="M56,60 Q63,62 70,60" fill="none" stroke="rgba(160,140,110,0.12)" stroke-width="0.5"/>' +
+      // Small pink nose
+      '<ellipse cx="50" cy="66" rx="3.5" ry="2.8" fill="#E89898"/>' +
+      '<ellipse cx="49.5" cy="65.5" rx="1.2" ry="0.6" fill="rgba(255,255,255,0.2)"/>' +
+      // Nose to mouth line
+      '<line x1="50" y1="68.5" x2="50" y2="71" stroke="#C88888" stroke-width="0.8"/>' +
+      // Mouth (with buck teeth)
+      '<path d="M45,71 Q50,74 55,71" fill="none" stroke="#B08080" stroke-width="0.8" stroke-linecap="round"/>' +
+      // Buck teeth
+      '<rect x="47" y="71" width="3" height="4" rx="0.8" fill="#FFF8F0" stroke="#D0C0B0" stroke-width="0.3"/>' +
+      '<rect x="50" y="71" width="3" height="4" rx="0.8" fill="#FFF8F0" stroke="#D0C0B0" stroke-width="0.3"/>' +
+      '<line x1="50" y1="71" x2="50" y2="75" stroke="rgba(180,160,140,0.2)" stroke-width="0.3"/>' +
+    '</svg>',
+
+    dodo: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+      '<defs>' +
+        '<radialGradient id="ddBody" cx="50%" cy="55%" r="50%">' +
+          '<stop offset="0%" stop-color="#A89888"/>' +
+          '<stop offset="50%" stop-color="#887868"/>' +
+          '<stop offset="100%" stop-color="#685848"/>' +
+        '</radialGradient>' +
+        '<radialGradient id="ddHead" cx="45%" cy="40%" r="50%">' +
+          '<stop offset="0%" stop-color="#8A8090"/>' +
+          '<stop offset="60%" stop-color="#6A6070"/>' +
+          '<stop offset="100%" stop-color="#504858"/>' +
+        '</radialGradient>' +
+        '<radialGradient id="ddHighlight" cx="38%" cy="22%" r="42%">' +
+          '<stop offset="0%" stop-color="rgba(200,190,210,0.35)"/>' +
+          '<stop offset="100%" stop-color="rgba(200,190,210,0)"/>' +
+        '</radialGradient>' +
+        '<pattern id="ddFeatTex" patternUnits="userSpaceOnUse" width="4" height="5">' +
+          '<path d="M0,2.5 Q2,1 4,2.5 Q2,4 0,2.5" fill="none" stroke="rgba(90,70,55,0.06)" stroke-width="0.3"/>' +
+        '</pattern>' +
+      '</defs>' +
+      // Chunky yellow feet (behind body)
+      '<ellipse cx="38" cy="94" rx="10" ry="4" fill="#D4A830"/>' +
+      '<ellipse cx="62" cy="94" rx="10" ry="4" fill="#D4A830"/>' +
+      '<path d="M30,94 L34,88" fill="none" stroke="#C49820" stroke-width="2.5" stroke-linecap="round"/>' +
+      '<path d="M38,94 L38,86" fill="none" stroke="#C49820" stroke-width="2.5" stroke-linecap="round"/>' +
+      '<path d="M46,94 L42,88" fill="none" stroke="#C49820" stroke-width="2.5" stroke-linecap="round"/>' +
+      '<path d="M54,94 L58,88" fill="none" stroke="#C49820" stroke-width="2.5" stroke-linecap="round"/>' +
+      '<path d="M62,94 L62,86" fill="none" stroke="#C49820" stroke-width="2.5" stroke-linecap="round"/>' +
+      '<path d="M70,94 L66,88" fill="none" stroke="#C49820" stroke-width="2.5" stroke-linecap="round"/>' +
+      // Curly tail tuft (behind body)
+      '<path d="M46,82 Q42,76 44,70" fill="none" stroke="#9A8A78" stroke-width="2.5" stroke-linecap="round"/>' +
+      '<path d="M50,80 Q48,72 52,66" fill="none" stroke="#A89888" stroke-width="2" stroke-linecap="round"/>' +
+      '<path d="M54,82 Q58,76 56,70" fill="none" stroke="#8A7A68" stroke-width="2.5" stroke-linecap="round"/>' +
+      '<circle cx="44" cy="69" r="2" fill="#B0A090"/>' +
+      '<circle cx="52" cy="65" r="1.8" fill="#C0B0A0"/>' +
+      '<circle cx="56" cy="69" r="2" fill="#A09080"/>' +
+      // Plump round body
+      '<ellipse cx="50" cy="62" rx="34" ry="30" fill="url(#ddBody)"/>' +
+      '<ellipse cx="50" cy="62" rx="34" ry="30" fill="url(#ddFeatTex)"/>' +
+      // Belly lighter patch
+      '<ellipse cx="50" cy="68" rx="18" ry="14" fill="#C0B0A0" opacity="0.2"/>' +
+      // Stubby little wings (adorably small for such a big bird)
+      '<ellipse cx="20" cy="58" rx="6" ry="12" fill="#786858" transform="rotate(20,20,58)"/>' +
+      '<path d="M16,50 Q14,58 18,66" fill="none" stroke="rgba(200,190,170,0.2)" stroke-width="0.8"/>' +
+      '<ellipse cx="80" cy="58" rx="6" ry="12" fill="#786858" transform="rotate(-20,80,58)"/>' +
+      '<path d="M84,50 Q86,58 82,66" fill="none" stroke="rgba(200,190,170,0.2)" stroke-width="0.8"/>' +
+      // Feather texture marks on body
+      '<path d="M30,55 Q34,53 38,55" fill="none" stroke="rgba(120,100,80,0.08)" stroke-width="0.8"/>' +
+      '<path d="M62,55 Q66,53 70,55" fill="none" stroke="rgba(120,100,80,0.08)" stroke-width="0.8"/>' +
+      '<path d="M34,65 Q38,63 42,65" fill="none" stroke="rgba(120,100,80,0.06)" stroke-width="0.8"/>' +
+      '<path d="M58,65 Q62,63 66,65" fill="none" stroke="rgba(120,100,80,0.06)" stroke-width="0.8"/>' +
+      // Head (slightly grayish-brown, plump)
+      '<ellipse cx="50" cy="30" rx="22" ry="20" fill="url(#ddHead)"/>' +
+      '<ellipse cx="50" cy="30" rx="22" ry="20" fill="url(#ddHighlight)"/>' +
+      // Head tuft — wild messy feathers sticking up
+      '<path d="M42,12 Q38,4 36,2" fill="none" stroke="#6A5858" stroke-width="2" stroke-linecap="round"/>' +
+      '<path d="M46,11 Q44,2 42,0" fill="none" stroke="#7A6868" stroke-width="1.8" stroke-linecap="round"/>' +
+      '<path d="M50,10 Q52,2 50,0" fill="none" stroke="#6A6068" stroke-width="2.2" stroke-linecap="round"/>' +
+      '<path d="M54,11 Q58,3 60,2" fill="none" stroke="#7A6868" stroke-width="1.8" stroke-linecap="round"/>' +
+      '<path d="M58,13 Q62,6 66,4" fill="none" stroke="#6A5858" stroke-width="1.5" stroke-linecap="round"/>' +
+      // Feather tips on tuft
+      '<circle cx="36" cy="2" r="1.5" fill="#8A7878"/>' +
+      '<circle cx="42" cy="0" r="1.2" fill="#9A8888"/>' +
+      '<circle cx="50" cy="0" r="1.5" fill="#8A8090"/>' +
+      '<circle cx="60" cy="2" r="1.2" fill="#9A8888"/>' +
+      '<circle cx="66" cy="4" r="1" fill="#8A7878"/>' +
+      // Rim light on head
+      '<path d="M32,20 Q50,10 68,20" fill="none" stroke="rgba(210,200,220,0.3)" stroke-width="1.5" stroke-linecap="round"/>' +
+      // Eyes — big, round, same size, slightly dopey/lovable
+      '<ellipse cx="38" cy="28" rx="7" ry="7.5" fill="white"/>' +
+      '<ellipse cx="62" cy="28" rx="7" ry="7.5" fill="white"/>' +
+      '<ellipse cx="38.5" cy="28.5" rx="4" ry="4.5" fill="#5A4030"/>' +
+      '<ellipse cx="62.5" cy="28.5" rx="4" ry="4.5" fill="#5A4030"/>' +
+      '<ellipse cx="39" cy="29" rx="2.5" ry="3" fill="#2A1808"/>' +
+      '<ellipse cx="63" cy="29" rx="2.5" ry="3" fill="#2A1808"/>' +
+      // Eye highlights
+      '<circle cx="40.5" cy="26.5" r="2" fill="white"/>' +
+      '<circle cx="64.5" cy="26.5" r="2" fill="white"/>' +
+      '<circle cx="37" cy="31" r="0.8" fill="rgba(255,255,255,0.4)"/>' +
+      '<circle cx="61" cy="31" r="0.8" fill="rgba(255,255,255,0.4)"/>' +
+      // Lower eyelids
+      '<path d="M32,33 Q38,35 44,33" fill="none" stroke="rgba(80,60,60,0.15)" stroke-width="0.5"/>' +
+      '<path d="M56,33 Q62,35 68,33" fill="none" stroke="rgba(80,60,60,0.15)" stroke-width="0.5"/>' +
+      // HUGE distinctive hooked beak (centered below face)
+      '<path d="M44,38 Q50,36 56,38 Q62,40 64,46 Q62,52 56,54 Q50,56 44,54 Q38,52 36,46 Q38,40 44,38 Z" fill="#D8C040"/>' +
+      '<path d="M46,40 Q50,38 54,40 Q58,42 60,46 Q58,50 54,52 Q50,53 46,52 Q42,50 40,46 Q42,42 46,40" fill="#E8D060" opacity="0.35"/>' +
+      // Beak hook (curved downward tip at bottom)
+      '<path d="M48,54 Q50,60 52,54" fill="#C0A828" stroke="#B09020" stroke-width="0.8"/>' +
+      '<path d="M50,56 L50,58" fill="none" stroke="#B09020" stroke-width="1.5" stroke-linecap="round"/>' +
+      // Beak ridge line
+      '<path d="M44,38 Q50,36 56,38" fill="none" stroke="rgba(255,240,160,0.3)" stroke-width="1"/>' +
+      // Nostrils
+      '<ellipse cx="47" cy="44" rx="1.5" ry="1" fill="#B8A030"/>' +
+      '<ellipse cx="53" cy="44" rx="1.5" ry="1" fill="#B8A030"/>' +
     '</svg>'
+
   };
 
   var ANIMAL_NAMES = {
@@ -1013,7 +1576,46 @@ var SpriteEngine = (function () {
     octopus: 'Octopus',
     hamster: 'Hamster',
     parrot: 'Parrot',
-    turtle: 'Turtle'
+    turtle: 'Turtle',
+    goat: 'Goat',
+    spider: 'Spider',
+    ladybug: 'Ladybug',
+    bee: 'Bee',
+    crocodile: 'Crocodile',
+    dolphin: 'Dolphin',
+    rabbit: 'Rabbit',
+    dodo: 'Dodo'
+  };
+
+  // Per-animal nickname pools. Used as default seat names by both the
+  // local-play setup screen (ui.js) and the online lobby (online.js).
+  // Single source of truth — keeping it here avoids drift between the
+  // two modules' tables.
+  var ANIMAL_NICKNAMES = {
+    bear:      ['Bruno',   'Grizzly',  'Kodiak'],
+    cat:       ['Shadow',  'Mittens',  'Whiskers'],
+    owl:       ['Hoot',    'Sage',     'Luna'],
+    penguin:   ['Waddles', 'Tux',      'Frost'],
+    raccoon:   ['Bandit',  'Rascal',   'Stripe'],
+    frog:      ['Ribbit',  'Lily',     'Marsh'],
+    dog:       ['Buddy',   'Rex',      'Scout'],
+    panda:     ['Bamboo',  'Oreo',     'Patches'],
+    monkey:    ['Coco',    'Chip',     'Mango'],
+    deer:      ['Dasher',  'Fawn',     'Buck'],
+    hedgehog:  ['Spike',   'Bramble',  'Thistle'],
+    shark:     ['Finn',    'Jaws',     'Reef'],
+    octopus:   ['Inky',    'Coral',    'Squid'],
+    hamster:   ['Nibbles', 'Peanut',   'Biscuit'],
+    parrot:    ['Polly',   'Stella',   'Rio'],
+    turtle:    ['Shelly',  'Mossy',    'Tank'],
+    goat:      ['Billy',   'Cliffs',   'Bleat'],
+    spider:    ['Webster', 'Silk',     'Fang'],
+    ladybug:   ['Dotty',   'Pepper',   'Ruby'],
+    bee:       ['Buzz',    'Abby',     'Nectar'],
+    crocodile: ['Snappy',  'Chomp',    'Marsh'],
+    dolphin:   ['Splash',  'Snowflake','Echo'],
+    rabbit:    ['Clover',  'Hopper',   'Thumper'],
+    dodo:      ['Doodle',  'Pebble',   'Waddle']
   };
 
   function init() {
@@ -1040,12 +1642,30 @@ var SpriteEngine = (function () {
     return img;
   }
 
+  // Custom display order for character picker (user-defined positions)
+  var ANIMAL_ORDER = [
+    'ladybug', 'cat', 'dog', 'owl', 'penguin', 'raccoon',
+    'bear', 'frog', 'panda', 'monkey', 'deer', 'hedgehog',
+    'dolphin', 'shark', 'octopus', 'hamster', 'goat', 'parrot',
+    'turtle', 'spider', 'bee', 'crocodile', 'rabbit', 'dodo'
+  ];
+
   function getAnimalList() {
-    return Object.keys(SVG_DEFS);
+    return ANIMAL_ORDER.slice();
   }
 
   function getAnimalName(id) {
     return ANIMAL_NAMES[id] || id;
+  }
+
+  // Pick one of the animal's nickname pool entries at random. Falls
+  // back to the species name (e.g. 'Bear') if the pool is missing.
+  function pickNickname(animalId) {
+    var arr = ANIMAL_NICKNAMES[animalId];
+    if (arr && arr.length) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+    return getAnimalName(animalId);
   }
 
   // Initialize on load
@@ -1055,6 +1675,7 @@ var SpriteEngine = (function () {
     getSprite: getSprite,
     createSpriteImg: createSpriteImg,
     getAnimalList: getAnimalList,
-    getAnimalName: getAnimalName
+    getAnimalName: getAnimalName,
+    pickNickname: pickNickname
   };
 })();

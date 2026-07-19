@@ -1,68 +1,18 @@
 /* ============================================================
-   Laser Stacks - Save/Load System
-   localStorage persistence
+   Laser Stacks - Persistence
+   localStorage for the setup-screen memory and options.
+   (No mid-game save/resume — rounds are quick; MK removed the
+   Continue feature in the 2026-07 round-2 refinements.)
    ============================================================ */
 
 var SaveSystem = (function () {
   'use strict';
 
-  var SAVE_KEY = 'laser_stacks_save';
   var SETUP_KEY = 'laser_stacks_setup';
   var OPTIONS_KEY = 'laser_stacks_options';
-  var DEFAULT_OPTIONS = { suitStyle: 'classic' };
+  var DEFAULT_OPTIONS = { suitStyle: 'laser' };
 
-  function saveGame() {
-    try {
-      var data = {
-        version: 1,
-        gameState: Game.serialize(),
-        timestamp: Date.now()
-      };
-      localStorage.setItem(SAVE_KEY, JSON.stringify(data));
-    } catch (e) {
-      console.warn('Save failed:', e);
-    }
-  }
-
-  function loadGame() {
-    try {
-      var raw = localStorage.getItem(SAVE_KEY);
-      if (!raw) return null;
-      var data = JSON.parse(raw);
-      if (data.version !== 1) return null;
-      return data;
-    } catch (e) {
-      console.warn('Load failed:', e);
-      return null;
-    }
-  }
-
-  function hasSave() {
-    try {
-      var raw = localStorage.getItem(SAVE_KEY);
-      if (!raw) return false;
-      var data = JSON.parse(raw);
-      return data && data.version === 1 && data.gameState && data.gameState.roundPhase !== 'idle';
-    } catch (e) {
-      return false;
-    }
-  }
-
-  function clearSave() {
-    localStorage.removeItem(SAVE_KEY);
-  }
-
-  function getSaveTimestamp() {
-    try {
-      var raw = localStorage.getItem(SAVE_KEY);
-      if (!raw) return null;
-      var data = JSON.parse(raw);
-      return data.timestamp || null;
-    } catch (e) {
-      return null;
-    }
-  }
-
+  // ---- Setup memory (last table: characters, names, human/AI) ----
   function saveSetup(config) {
     try {
       localStorage.setItem(SETUP_KEY, JSON.stringify(config));
@@ -81,18 +31,7 @@ var SaveSystem = (function () {
     }
   }
 
-  function timeAgo(timestamp) {
-    if (!timestamp) return '';
-    var diff = Date.now() - timestamp;
-    var minutes = Math.floor(diff / 60000);
-    if (minutes < 1) return 'just now';
-    if (minutes < 60) return minutes + ' min ago';
-    var hours = Math.floor(minutes / 60);
-    if (hours < 24) return hours + 'h ago';
-    var days = Math.floor(hours / 24);
-    return days + 'd ago';
-  }
-
+  // ---- Options ----
   function getOptions() {
     try {
       var raw = localStorage.getItem(OPTIONS_KEY);
@@ -117,22 +56,17 @@ var SaveSystem = (function () {
 
   function getSuitStyle() {
     var s = getOptions().suitStyle;
-    return s === 'laser' ? 'laser' : 'classic';
+    return (s === 'classic' || s === 'laser' || s === 'animals') ? s : 'laser';
   }
 
   function setSuitStyle(style) {
-    setOptions({ suitStyle: style === 'laser' ? 'laser' : 'classic' });
+    var s = (style === 'classic' || style === 'animals') ? style : 'laser';
+    setOptions({ suitStyle: s });
   }
 
   return {
-    saveGame: saveGame,
-    loadGame: loadGame,
-    hasSave: hasSave,
-    clearSave: clearSave,
-    getSaveTimestamp: getSaveTimestamp,
     saveSetup: saveSetup,
     loadSetup: loadSetup,
-    timeAgo: timeAgo,
     getOptions: getOptions,
     setOptions: setOptions,
     getSuitStyle: getSuitStyle,

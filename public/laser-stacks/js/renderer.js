@@ -43,38 +43,28 @@ var Renderer = (function () {
   var SUIT_SYM = { hearts: '\u2665', diamonds: '\u2666', clubs: '\u2663', spades: '\u2660' };
   var SUIT_COLORS = { hearts: SUIT_RED, diamonds: SUIT_RED, clubs: SUIT_BLACK, spades: SUIT_BLACK };
 
-  // ---- Suit style ('classic' Unicode pips or 'laser' canvas pips from SoloTerra) ----
-  var suitStyle = 'classic';
+  // ---- Suit style: 'classic' Unicode pips, 'laser' (SoloTerra art),
+  //      or 'animals' (Solitairra art) ----
+  var suitStyle = 'laser';
   function setSuitStyle(style) {
-    suitStyle = (style === 'laser') ? 'laser' : 'classic';
+    suitStyle = (style === 'classic' || style === 'animals') ? style : 'laser';
   }
   function getSuitStyle() { return suitStyle; }
-  function getSuitColorForStyle(suit) {
-    if (suitStyle === 'laser' && typeof LaserPips !== 'undefined') {
-      return LaserPips.LASER_TEXT_COLORS[suit] || SUIT_COLORS[suit];
-    }
+  // In laser/animals mode every suit is "custom" (drawn pip art; the
+  // solitaire games have per-suit skins — Laser Stacks collapses that
+  // to the single Options toggle)
+  function isCustomSuit(suit) {
+    return suitStyle !== 'classic';
+  }
+  function getSuitColor(suit) {
+    if (isCustomSuit(suit)) return LaserPips.getSuitColor(suit, suitStyle);
     return SUIT_COLORS[suit];
   }
-
-  // ---- Pip Layouts ----
-  var PIP_LAYOUTS = {
-    1:  [[0.5, 0.5, false]],
-    2:  [[0.5, 0.2, false], [0.5, 0.8, true]],
-    3:  [[0.5, 0.2, false], [0.5, 0.5, false], [0.5, 0.8, true]],
-    4:  [[0.3, 0.2, false], [0.7, 0.2, false], [0.3, 0.8, true], [0.7, 0.8, true]],
-    5:  [[0.3, 0.2, false], [0.7, 0.2, false], [0.5, 0.5, false], [0.3, 0.8, true], [0.7, 0.8, true]],
-    6:  [[0.3, 0.2, false], [0.7, 0.2, false], [0.3, 0.5, false], [0.7, 0.5, false], [0.3, 0.8, true], [0.7, 0.8, true]],
-    7:  [[0.3, 0.2, false], [0.7, 0.2, false], [0.3, 0.5, false], [0.7, 0.5, false], [0.5, 0.35, false], [0.3, 0.8, true], [0.7, 0.8, true]],
-    8:  [[0.3, 0.2, false], [0.7, 0.2, false], [0.3, 0.5, false], [0.7, 0.5, false], [0.5, 0.35, false], [0.5, 0.65, true], [0.3, 0.8, true], [0.7, 0.8, true]],
-    9:  [[0.3, 0.18, false], [0.7, 0.18, false], [0.3, 0.39, false], [0.7, 0.39, false], [0.5, 0.5, false], [0.3, 0.61, true], [0.7, 0.61, true], [0.3, 0.82, true], [0.7, 0.82, true]],
-    10: [[0.3, 0.18, false], [0.7, 0.18, false], [0.5, 0.28, false], [0.3, 0.39, false], [0.7, 0.39, false], [0.3, 0.61, true], [0.7, 0.61, true], [0.5, 0.72, true], [0.3, 0.82, true], [0.7, 0.82, true]]
-  };
 
   // ---- Textures ----
   var cardTextures = {};    // rank_suit -> PIXI.Texture
   var backTexture = null;
   var shadowTexture = null;
-  var glowTexture = null;
   var particleTex = null;
   var particleTextures = [];
 
@@ -88,9 +78,6 @@ var Renderer = (function () {
   // ---- Particles ----
   var particles = [];
   var PARTICLE_COUNT = 100;
-
-  // ---- Deck count text ----
-  var deckCountText = null;
 
   // ---- Render callback ----
   var gameRenderCallback = null;
@@ -135,7 +122,6 @@ var Renderer = (function () {
     var c = off.getContext('2d');
     c.scale(scale, scale);
 
-    // Card shape with warm paper background
     roundRect(c, 0.5, 0.5, CARD_W - 1, CARD_H - 1, CARD_R);
     var bgGrad = c.createLinearGradient(0, 0, 0, CARD_H);
     bgGrad.addColorStop(0, '#fffef8');
@@ -144,74 +130,78 @@ var Renderer = (function () {
     c.fillStyle = bgGrad;
     c.fill();
 
-    // Linen paper texture overlay
     c.save();
     roundRect(c, 0.5, 0.5, CARD_W - 1, CARD_H - 1, CARD_R);
     c.clip();
     Textures.paperTexture(c, CARD_W, CARD_H);
     c.restore();
 
-    // Gold double border
     Textures.drawGoldBorder(c, 1, 1, CARD_W - 2, CARD_H - 2, CARD_R, 0.8);
 
-    // Corner flourishes
     var fs = 10;
     Textures.drawCornerFlourish(c, 5, 5, fs, 0);
     Textures.drawCornerFlourish(c, CARD_W - 5, 5, fs, Math.PI / 2);
     Textures.drawCornerFlourish(c, CARD_W - 5, CARD_H - 5, fs, Math.PI);
     Textures.drawCornerFlourish(c, 5, CARD_H - 5, fs, Math.PI * 1.5);
 
-    var color = getSuitColorForStyle(suit);
+    var color = getSuitColor(suit);
     var sym = SUIT_SYM[suit];
-    var useLaser = (suitStyle === 'laser' && typeof LaserPips !== 'undefined');
-
-    // Top-left rank + suit with subtle shadow
-    c.save();
-    c.font = 'bold 11px Cinzel, Georgia, serif';
-    c.textAlign = 'center';
-    // Shadow
-    c.fillStyle = 'rgba(0,0,0,0.1)';
-    c.fillText(rank, 10.5, 16.5);
-    // Main
-    c.fillStyle = color;
-    c.fillText(rank, 10, 16);
-    if (useLaser) {
-      LaserPips.drawPip(c, 10, 28, suit, 7, false);
-    } else {
-      c.font = '10px serif';
-      c.fillStyle = 'rgba(0,0,0,0.1)';
-      c.fillText(sym, 10.5, 27.5);
-      c.fillStyle = color;
-      c.fillText(sym, 10, 27);
-    }
-    c.restore();
-
-    // Bottom-right rank + suit (inverted)
-    c.save();
-    c.translate(CARD_W - 10, CARD_H - 8);
-    c.rotate(Math.PI);
-    c.font = 'bold 11px Cinzel, Georgia, serif';
-    c.textAlign = 'center';
-    c.fillStyle = 'rgba(0,0,0,0.1)';
-    c.fillText(rank, 0.5, 8.5);
-    c.fillStyle = color;
-    c.fillText(rank, 0, 8);
-    if (useLaser) {
-      LaserPips.drawPip(c, 0, 19, suit, 7, false);
-    } else {
-      c.font = '10px serif';
-      c.fillStyle = 'rgba(0,0,0,0.1)';
-      c.fillText(sym, 0.5, 19.5);
-      c.fillStyle = color;
-      c.fillText(sym, 0, 19);
-    }
-    c.restore();
-
-    // Center area for pips
-    var area = { x: 14, y: 18, w: CARD_W - 28, h: CARD_H - 36 };
+    var isCustom = isCustomSuit(suit);
     var numericRank = parseInt(rank);
 
-    if (!isNaN(numericRank) && PIP_LAYOUTS[numericRank]) {
+    // Corner insets (symmetric from card edges)
+    var cornerX = 10;
+    var rankY = 5;   // distance from edge to top/bottom of rank text
+    var symY = 17;   // distance from edge to top/bottom of suit symbol
+
+    // Use Georgia for numeric ranks (Cinzel digits read like capitals) and for J & K
+    var isNumeric = !isNaN(numericRank);
+    var useGeorgia = isNumeric || rank === 'J' || rank === 'K';
+    var rankFont = useGeorgia ? 'bold 11px Georgia, serif' : 'bold 11px Cinzel, Georgia, serif';
+    var cornerSymSize = 10;
+
+    // Top-left corner: rank then suit below (laser suits show rank only)
+    c.save();
+    c.textAlign = 'center';
+    c.textBaseline = 'top';
+    c.font = rankFont;
+    c.fillStyle = 'rgba(0,0,0,0.1)';
+    c.fillText(rank, cornerX + 0.5, rankY + 0.5);
+    c.fillStyle = color;
+    c.fillText(rank, cornerX, rankY);
+    if (!isCustom) {
+      c.font = cornerSymSize + 'px serif';
+      c.fillStyle = 'rgba(0,0,0,0.1)';
+      c.fillText(sym, cornerX + 0.5, symY + 0.5);
+      c.fillStyle = color;
+      c.fillText(sym, cornerX, symY);
+    }
+    c.restore();
+
+    // Bottom-right corner: suit then rank below (rank closest to corner)
+    c.save();
+    c.textAlign = 'center';
+    c.textBaseline = 'bottom';
+    c.font = rankFont;
+    c.fillStyle = 'rgba(0,0,0,0.1)';
+    c.fillText(rank, CARD_W - cornerX + 0.5, CARD_H - rankY + 0.5);
+    c.fillStyle = color;
+    c.fillText(rank, CARD_W - cornerX, CARD_H - rankY);
+    if (!isCustom) {
+      c.font = cornerSymSize + 'px serif';
+      c.fillStyle = 'rgba(0,0,0,0.1)';
+      c.fillText(sym, CARD_W - cornerX + 0.5, CARD_H - symY + 0.5);
+      c.fillStyle = color;
+      c.fillText(sym, CARD_W - cornerX, CARD_H - symY);
+    }
+    c.restore();
+
+    // Pip area — vertically centered with equal top/bottom margins
+    var pipMarginX = 14;
+    var pipMarginY = 18;
+    var area = { x: pipMarginX, y: pipMarginY, w: CARD_W - pipMarginX * 2, h: CARD_H - pipMarginY * 2 };
+
+    if (!isNaN(numericRank) && numericRank >= 2 && numericRank <= 10) {
       renderPips(c, area, suit, numericRank);
     } else {
       renderFaceCard(c, area, rank, suit);
@@ -221,56 +211,47 @@ var Renderer = (function () {
   }
 
   function renderPips(c, area, suit, count) {
-    var layout = PIP_LAYOUTS[count];
+    var sym = SUIT_SYM[suit];
+    var color = getSuitColor(suit);
+    var isCustom = isCustomSuit(suit);
+    var layout = LaserPips.getLayout(suit, count, isCustom);
     if (!layout) return;
 
-    if (suitStyle === 'laser' && typeof LaserPips !== 'undefined') {
-      // Laser pips draw centered & oriented at (px, py); flip rotates 180°.
-      var pipSize = count <= 3 ? 18 : 13;
-      for (var i = 0; i < layout.length; i++) {
-        var lx = area.x + layout[i][0] * area.w;
-        var ly = area.y + layout[i][1] * area.h;
-        var lflip = layout[i][2];
-        LaserPips.drawPip(c, lx, ly, suit, pipSize, lflip);
-      }
-      return;
+    var fontSize = 20; // uniform 20px for classic pips (all ranks)
+    var customSize = LaserPips.getCustomPipSize(suit, count, suitStyle);
+
+    c.save();
+    if (!isCustom) {
+      c.font = fontSize + 'px serif';
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
     }
 
-    var sym = SUIT_SYM[suit];
-    var color = SUIT_COLORS[suit];
-    var fontSize = count <= 3 ? 20 : 16;
-    c.save();
-    c.font = fontSize + 'px serif';
-    c.textAlign = 'center';
-    c.textBaseline = 'middle';
+    for (var i = 0; i < layout.length; i++) {
+      var px = area.x + layout[i][0] * area.w;
+      var py = area.y + layout[i][1] * area.h;
 
-    for (var j = 0; j < layout.length; j++) {
-      var px = area.x + layout[j][0] * area.w;
-      var py = area.y + layout[j][1] * area.h;
-      var flip = layout[j][2];
-
-      c.save();
-      c.translate(px, py);
-      if (flip) c.rotate(Math.PI);
-
-      c.fillStyle = 'rgba(0,0,0,0.12)';
-      c.fillText(sym, 0.6, 0.8);
-      c.fillStyle = color;
-      c.fillText(sym, 0, 0);
-
-      c.restore();
+      if (isCustom) {
+        LaserPips.drawPip(c, px, py, suit, customSize, false, suitStyle);
+      } else {
+        c.save();
+        c.translate(px, py);
+        c.fillStyle = 'rgba(0,0,0,0.12)';
+        c.fillText(sym, 0.6, 0.8);
+        c.fillStyle = color;
+        c.fillText(sym, 0, 0);
+        c.restore();
+      }
     }
     c.restore();
   }
 
   function renderFaceCard(c, area, rank, suit) {
     var sym = SUIT_SYM[suit];
-    var color = getSuitColorForStyle(suit);
-    var useLaser = (suitStyle === 'laser' && typeof LaserPips !== 'undefined');
+    var color = getSuitColor(suit);
     var cx = area.x + area.w / 2;
     var cy = area.y + area.h / 2;
 
-    // Decorative inner frame with gold border
     c.save();
     var frameInset = 2;
     var frameR = 3;
@@ -282,49 +263,55 @@ var Renderer = (function () {
     c.stroke();
     c.restore();
 
-    // Background chess symbol (large, behind rank)
+    // All face card ranks positioned at the same vertical center
+    // Q's descender tail hangs below \u2014 textBaseline 'middle' includes tail,
+    // so the O-body sits too high. Push Q DOWN to align O-body with A/J/K.
+    var rankCenterY = cy - 4;
+    var qDescenderOffset = (rank === 'Q') ? 2 : 0;
+    var rankY = rankCenterY + qDescenderOffset;
+
+    // Background watermark (chess glyphs for J/Q/K, a star for A)
     c.save();
     c.textAlign = 'center';
     c.textBaseline = 'middle';
-    var chessSym = rank === 'K' ? '\u265A' : rank === 'Q' ? '\u265B' : '\u2658';
+    var chessSym = rank === 'K' ? '\u265A' : rank === 'Q' ? '\u265B' : rank === 'J' ? '\u2658' : '\u2726';
     c.font = 'bold 30px serif';
     c.fillStyle = color;
     c.globalAlpha = 0.08;
-    c.fillText(chessSym, cx, cy - 2);
+    c.fillText(chessSym, cx, rankY);
     c.globalAlpha = 1;
     c.restore();
 
-    // Large rank letter with drop shadow
     c.save();
-    c.font = '900 28px Cinzel, Georgia, serif';
+    // A & Q use Cinzel for decorative serifs; J & K use Georgia for classic letterforms
+    var faceFont = (rank === 'A' || rank === 'Q') ? '900 28px Cinzel, Georgia, serif' : '900 28px Georgia, serif';
+    c.font = faceFont;
     c.textAlign = 'center';
     c.textBaseline = 'middle';
-    // Shadow
     c.fillStyle = 'rgba(0,0,0,0.15)';
-    c.fillText(rank, cx + 1, cy - 1);
-    // Gold-tinted fill for face cards
-    var goldGrad = Textures.goldFoilGradient(c, cx - 14, cy - 14, 28, 28);
+    c.fillText(rank, cx + 1, rankY + 1);
+    var goldGrad = Textures.goldFoilGradient(c, cx - 14, rankY - 14, 28, 28);
     c.fillStyle = goldGrad;
     c.globalAlpha = 0.3;
-    c.fillText(rank, cx, cy - 2);
+    c.fillText(rank, cx, rankY);
     c.globalAlpha = 1;
-    // Main color on top
     c.fillStyle = color;
-    c.fillText(rank, cx, cy - 2);
+    c.fillText(rank, cx, rankY);
     c.restore();
 
-    // Large suit below with shadow (or laser pip when laser style is on)
-    if (useLaser) {
-      LaserPips.drawPip(c, cx, cy + 14, suit, 14, false);
+    // Suit symbol below rank on face cards
+    var suitPipY = rankCenterY + 24;
+    if (isCustomSuit(suit)) {
+      LaserPips.drawPip(c, cx, suitPipY, suit, LaserPips.getFaceCardPipSize(suit, suitStyle), false, suitStyle);
     } else {
       c.save();
       c.font = '18px serif';
       c.textAlign = 'center';
       c.textBaseline = 'middle';
       c.fillStyle = 'rgba(0,0,0,0.1)';
-      c.fillText(sym, cx + 0.5, cy + 14.5);
+      c.fillText(sym, cx + 0.5, suitPipY + 0.5);
       c.fillStyle = color;
-      c.fillText(sym, cx, cy + 14);
+      c.fillText(sym, cx, suitPipY);
       c.restore();
     }
 
@@ -333,31 +320,22 @@ var Renderer = (function () {
     c.strokeStyle = '#c9952a';
     c.globalAlpha = 0.18;
     c.lineWidth = 0.8;
-
-    // Top-left
     c.beginPath();
     c.moveTo(area.x + 2, area.y + 12);
     c.quadraticCurveTo(area.x + 2, area.y + 2, area.x + 12, area.y + 2);
     c.stroke();
-
-    // Top-right
     c.beginPath();
     c.moveTo(area.x + area.w - 2, area.y + 12);
     c.quadraticCurveTo(area.x + area.w - 2, area.y + 2, area.x + area.w - 12, area.y + 2);
     c.stroke();
-
-    // Bottom-left
     c.beginPath();
     c.moveTo(area.x + 2, area.y + area.h - 12);
     c.quadraticCurveTo(area.x + 2, area.y + area.h - 2, area.x + 12, area.y + area.h - 2);
     c.stroke();
-
-    // Bottom-right
     c.beginPath();
     c.moveTo(area.x + area.w - 2, area.y + area.h - 12);
     c.quadraticCurveTo(area.x + area.w - 2, area.y + area.h - 2, area.x + area.w - 12, area.y + area.h - 2);
     c.stroke();
-
     c.restore();
   }
 
@@ -469,31 +447,30 @@ var Renderer = (function () {
     }
     c.restore();
 
-    // Center "Laser Stacks" in gold with glow (two lines)
+    // Center "Laser" / "Stacks" in gold (two lines, SoloTerra's larger sizing)
     c.save();
+    c.font = '900 14px Cinzel, Georgia, serif';
     c.textAlign = 'center';
     c.textBaseline = 'middle';
     var midX = CARD_W / 2;
     var midY = CARD_H / 2;
-    var lineGap = 8;
+    var lineH = 16;
 
-    // Glow layers
     c.fillStyle = '#d4a849';
-    c.font = '900 9px Cinzel, Georgia, serif';
     c.globalAlpha = 0.08;
-    c.fillText('Laser', midX, midY - lineGap / 2);
-    c.fillText('Stacks', midX, midY + lineGap / 2 + 9);
+    c.fillText('Laser', midX, midY - lineH / 2);
+    c.fillText('Stacks', midX, midY + lineH / 2);
+    c.font = '900 15px Cinzel, Georgia, serif';
     c.globalAlpha = 0.06;
-    c.fillText('Laser', midX, midY - lineGap / 2);
-    c.fillText('Stacks', midX, midY + lineGap / 2 + 9);
+    c.fillText('Laser', midX, midY - lineH / 2);
+    c.fillText('Stacks', midX, midY + lineH / 2);
 
-    // Main gold text
-    c.font = '900 9px Cinzel, Georgia, serif';
-    var goldG = Textures.goldFoilGradient(c, midX - 20, midY - 12, 40, 28);
+    c.font = '900 14px Cinzel, Georgia, serif';
+    var goldG = Textures.goldFoilGradient(c, midX - 26, midY - 17, 52, 34);
     c.fillStyle = goldG;
-    c.globalAlpha = 0.55;
-    c.fillText('Laser', midX, midY - lineGap / 2);
-    c.fillText('Stacks', midX, midY + lineGap / 2 + 9);
+    c.globalAlpha = 0.50;
+    c.fillText('Laser', midX, midY - lineH / 2);
+    c.fillText('Stacks', midX, midY + lineH / 2);
     c.restore();
 
     // Subtle vignette
@@ -518,11 +495,13 @@ var Renderer = (function () {
     var c = tableCanvas.getContext('2d');
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    var cx = W / 2;
-    var cy = H / 2;
+    var center = getTableCenter();
+    var cx = center.x;
+    var cy = center.y;
     var radii = getTableRadii();
     var rx = radii.rx;
     var ry = radii.ry;
+    var wood = getWoodBorder();
 
     // Dark background
     c.fillStyle = '#080c0a';
@@ -548,8 +527,8 @@ var Renderer = (function () {
     c.fillRect(0, 0, W, H);
 
     // Wood border (outer ring)
-    drawEllipse(c, cx, cy, rx + 24, ry + 24);
-    var woodGrad = c.createRadialGradient(cx - rx * 0.3, cy - ry * 0.3, 0, cx, cy, Math.max(rx, ry) + 30);
+    drawEllipse(c, cx, cy, rx + wood, ry + wood);
+    var woodGrad = c.createRadialGradient(cx - rx * 0.3, cy - ry * 0.3, 0, cx, cy, Math.max(rx, ry) + wood * 1.25);
     woodGrad.addColorStop(0, WOOD_LIGHT);
     woodGrad.addColorStop(0.4, WOOD_MID);
     woodGrad.addColorStop(1, WOOD_DARK);
@@ -558,13 +537,13 @@ var Renderer = (function () {
 
     // Perlin noise wood grain (replaces random ellipses)
     c.save();
-    drawEllipse(c, cx, cy, rx + 24, ry + 24);
+    drawEllipse(c, cx, cy, rx + wood, ry + wood);
     c.clip();
     Textures.woodGrainTexture(c, W, H, cx, cy);
     c.restore();
 
     // Inner wood edge (deeper shadow for dimension)
-    drawEllipse(c, cx, cy, rx + 5, ry + 5);
+    drawEllipse(c, cx, cy, rx + wood * 0.2, ry + wood * 0.2);
     var edgeShadow = c.createRadialGradient(cx, cy, Math.max(rx, ry), cx, cy, Math.max(rx, ry) + 6);
     edgeShadow.addColorStop(0, WOOD_DARK);
     edgeShadow.addColorStop(1, 'rgba(15, 8, 2, 0.8)');
@@ -572,7 +551,7 @@ var Renderer = (function () {
     c.fill();
 
     // Gold filigree ring at felt/wood junction
-    Textures.drawFiligree(c, cx, cy, rx + 3, ry + 3);
+    Textures.drawFiligree(c, cx, cy, rx + wood * 0.12, ry + wood * 0.12);
 
     // Felt surface
     drawEllipse(c, cx, cy, rx, ry);
@@ -634,24 +613,24 @@ var Renderer = (function () {
 
     // Outer wood highlight (top edge reflection — warmer)
     c.save();
-    drawEllipse(c, cx, cy, rx + 22, ry + 22);
+    drawEllipse(c, cx, cy, rx + wood * 0.9, ry + wood * 0.9);
     c.clip();
     var highlightGrad = c.createLinearGradient(cx, cy - ry - 30, cx, cy - ry + 12);
     highlightGrad.addColorStop(0, 'rgba(255,220,160,0.18)');
     highlightGrad.addColorStop(1, 'rgba(255,220,160,0)');
     c.fillStyle = highlightGrad;
-    c.fillRect(cx - rx - 30, cy - ry - 30, (rx + 30) * 2, 55);
+    c.fillRect(cx - rx - wood * 1.25, cy - ry - wood * 1.25, (rx + wood * 1.25) * 2, 55);
     c.restore();
 
     // Bottom edge subtle reflection
     c.save();
-    drawEllipse(c, cx, cy, rx + 22, ry + 22);
+    drawEllipse(c, cx, cy, rx + wood * 0.9, ry + wood * 0.9);
     c.clip();
     var bottomHighlight = c.createLinearGradient(cx, cy + ry - 5, cx, cy + ry + 25);
     bottomHighlight.addColorStop(0, 'rgba(255,200,140,0)');
     bottomHighlight.addColorStop(1, 'rgba(255,200,140,0.06)');
     c.fillStyle = bottomHighlight;
-    c.fillRect(cx - rx - 30, cy + ry - 5, (rx + 30) * 2, 40);
+    c.fillRect(cx - rx - wood * 1.25, cy + ry - 5, (rx + wood * 1.25) * 2, 40);
     c.restore();
 
     return tableCanvas;
@@ -698,33 +677,6 @@ var Renderer = (function () {
     c.fill();
 
     shadowTexture = PIXI.Texture.from(off);
-  }
-
-  function buildGlowTexture() {
-    var pad = 28;
-    var sw = (CARD_W + pad * 2) * TEX_SCALE;
-    var sh = (CARD_H + pad * 2) * TEX_SCALE;
-    var off = document.createElement('canvas');
-    off.width = sw;
-    off.height = sh;
-    var c = off.getContext('2d');
-    c.scale(TEX_SCALE, TEX_SCALE);
-
-    // Draw golden glow shape
-    c.shadowColor = 'rgba(212, 160, 23, 1)';
-    c.shadowBlur = 20;
-    c.shadowOffsetX = 0;
-    c.shadowOffsetY = 0;
-    c.fillStyle = 'rgba(212, 160, 23, 0.6)';
-    roundRect(c, pad, pad, CARD_W, CARD_H, CARD_R);
-    c.fill();
-    // Second pass for extra intensity
-    c.shadowBlur = 12;
-    c.fillStyle = 'rgba(255, 200, 50, 0.3)';
-    roundRect(c, pad, pad, CARD_W, CARD_H, CARD_R);
-    c.fill();
-
-    glowTexture = PIXI.Texture.from(off);
   }
 
   function buildParticleTexture() {
@@ -808,7 +760,6 @@ var Renderer = (function () {
       // Pre-render all textures
       buildCardTextures();
       buildShadowTexture();
-      buildGlowTexture();
       buildParticleTexture();
 
       // Scene hierarchy
@@ -824,21 +775,6 @@ var Renderer = (function () {
       flyingCardsLayer = new PIXI.Container();
       app.stage.addChild(flyingCardsLayer);
 
-      // Deck count text
-      deckCountText = new PIXI.Text({
-        text: '',
-        style: {
-          fontSize: 14,
-          fontFamily: 'Cinzel, Georgia, serif',
-          fontWeight: 'bold',
-          fill: 0xc8c8c8
-        }
-      });
-      deckCountText.anchor.set(0.5, 0);
-      deckCountText.alpha = 0.5;
-      deckCountText.visible = false;
-      gameLayer.addChild(deckCountText);
-
       // Render table and particles
       updateTableTexture();
       initPixiParticles();
@@ -848,10 +784,21 @@ var Renderer = (function () {
   }
 
   function resize() {
-    if (!app) return;
+    if (!app || !app.renderer) return;
+    // Size the bitmap from the canvas parent's CLIENT box so canvas pixels
+    // and DOM overlay pixels share one coordinate space. On iPad Safari,
+    // window.innerHeight includes the collapsing URL-bar zone while the
+    // layout viewport doesn't — sizing from window.inner* there squashed
+    // the drawn table vertically under the CSS box, so the top/bottom
+    // avatars floated off the wood while left/right stayed tangent.
+    // Fall back to window.inner* if the parent briefly reports 0 during
+    // CSS screen transitions.
     var parent = app.canvas.parentElement;
-    W = parent.clientWidth;
-    H = parent.clientHeight;
+    var newW = (parent && parent.clientWidth) || window.innerWidth;
+    var newH = (parent && parent.clientHeight) || window.innerHeight;
+    if (newW === 0 || newH === 0) return;
+    W = newW;
+    H = newH;
     app.renderer.resize(W, H);
     updateTableTexture();
     initPixiParticles();
@@ -910,50 +857,9 @@ var Renderer = (function () {
     s.scale.set(texScale);
   }
 
-  function drawCardGlow(x, y, rotation, scale, pulseAlpha) {
-    scale = scale || 1;
-    rotation = rotation || 0;
-    pulseAlpha = pulseAlpha !== undefined ? pulseAlpha : 1;
-    var texScale = scale / TEX_SCALE;
-    // Glow texture is slightly larger due to bigger padding
-    var glowScale = texScale * (CARD_W + 56) / (CARD_W + 32);
-    var g = acquireSprite();
-    g.texture = glowTexture;
-    g.position.set(x, y);
-    g.rotation = rotation;
-    g.scale.set(glowScale);
-    g.alpha = pulseAlpha;
-  }
-
-  function drawCardFlipping(x, y, card, flipProgress, scale, rotation) {
-    scale = scale || 1;
-    rotation = rotation || 0;
-    var scaleX = Math.abs(Math.cos(flipProgress * Math.PI));
-    if (scaleX < 0.02) scaleX = 0.02;
-    var showFace = flipProgress > 0.5;
-
-    var texScale = scale / TEX_SCALE;
-
-    // Shadow
-    var shadow = acquireSprite();
-    shadow.texture = shadowTexture;
-    shadow.position.set(x + 2 * scale, y + 3 * scale);
-    shadow.rotation = rotation;
-    shadow.scale.set(texScale * scaleX, texScale);
-    shadow.alpha = 0.3;
-
-    // Card
-    var s = acquireSprite();
-    var tex = showFace ? cardTextures[card.rank + '_' + card.suit] : backTexture;
-    s.texture = tex;
-    s.position.set(x, y);
-    s.rotation = rotation;
-    s.scale.set(texScale * scaleX, texScale);
-  }
-
   function drawDeck(x, y, count) {
     var stackHeight = Math.min(count, 10);
-    var deckScale = 1.45;
+    var deckScale = 1.1 * (Math.min(W, H) / 1080);
     var texScale = deckScale / TEX_SCALE;
 
     // Bottom shadow for the whole stack
@@ -972,9 +878,6 @@ var Renderer = (function () {
       s.position.set(x - offset, y - offset);
       s.scale.set(texScale);
     }
-
-    // Deck count text removed — redundant with HUD display
-    deckCountText.visible = false;
   }
 
   // ================================================================
@@ -1123,9 +1026,6 @@ var Renderer = (function () {
         gameRenderCallback(null, W, H);
       }
 
-      // Move deck count text to top of game layer
-      if (deckCountText) gameLayer.addChild(deckCountText);
-
       // Hide unused pool sprites
       for (var i = poolIndex; i < spritePool.length; i++) {
         spritePool[i].visible = false;
@@ -1153,10 +1053,6 @@ var Renderer = (function () {
     return 1 - Math.pow(1 - t, 3);
   }
 
-  function easeInOutCubic(t) {
-    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-  }
-
   // Uses setTimeout for consistent timing regardless of tab visibility
   function animate(duration, onUpdate, onComplete) {
     var start = performance.now();
@@ -1175,31 +1071,61 @@ var Renderer = (function () {
   }
 
   // ================================================================
-  //  TABLE GEOMETRY (seat positions, etc.)
+  //  TABLE GEOMETRY (30's vmin system, adapted for the bottom hand-bar)
   // ================================================================
 
-  function getTableCenter() {
-    // Shift up slightly to center between header/HUD and footer/action-bar
-    return { x: W / 2, y: H / 2 - 10 };
+  // Universal scale unit: 1 vmin in pixels. All table-world dimensions
+  // derive from this so the layout stays proportional on every screen.
+  // ui.js has an identical DOM-side getVmin() — keep the two in sync.
+  function getVmin() {
+    return Math.min(W, H) / 100;
   }
 
+  // Wood border thickness (proportional for a consistent look)
+  function getWoodBorder() {
+    return 2.5 * getVmin();
+  }
+
+  function getTableCenter() {
+    // Shifted UP (30 shifts down 1.5vmin): Laser Stacks spends its bottom
+    // band on the DOM hand-bar, so the table yields space at the bottom.
+    return { x: W / 2, y: H / 2 - 4 * getVmin() };
+  }
+
+  // Felt radius 28vmin (30 uses 32) — the difference is the hand-bar's home.
+  //   28vmin felt + 2.5vmin wood = 30.5vmin outer radius.
+  //   Avatar tangent: orbit = 30.5 + 3.9 = 34.4vmin.
   function getTableRadii() {
-    // Circular table: sized so players on wood border clear HUD/footer
-    var r = Math.min(W * 0.33, H * 0.33);
+    var r = 28 * getVmin();
     return { rx: r, ry: r };
   }
 
+  function getTableOuterRadius() {
+    return getTableRadii().rx + getWoodBorder();
+  }
+
+  // Setup avatar radius (matches .seat-avatar CSS: 10.4vmin diameter —
+  // setup has no hand bar, so its avatars get to be bigger)
+  function getSetupAvatarRadius() {
+    return 5.2 * getVmin();
+  }
+
+  // Game avatar radius (matches .game-seat-avatar CSS: 7.8vmin diameter)
+  function getGameAvatarRadius() {
+    return 3.9 * getVmin();
+  }
+
+  // Setup seats — avatar's inner edge exactly tangent to the table's
+  // outer wood edge: adjacent to the table, never overlapping the felt.
   function getSeatPositions(numSeats) {
     var center = getTableCenter();
-    var radii = getTableRadii();
-    var r = radii.rx * 0.98;
+    var orbit = getTableOuterRadius() + getSetupAvatarRadius();
     var positions = [];
-    // 8 evenly spaced positions, always 8 slots, starting from bottom (PI/2)
     for (var i = 0; i < numSeats; i++) {
       var angle = (Math.PI / 2) + (i * 2 * Math.PI / numSeats);
       positions.push({
-        x: center.x + r * Math.cos(angle),
-        y: center.y + r * Math.sin(angle),
+        x: center.x + orbit * Math.cos(angle),
+        y: center.y + orbit * Math.sin(angle),
         angle: angle
       });
     }
@@ -1207,34 +1133,29 @@ var Renderer = (function () {
   }
 
   function getHandPosition(seatPos, tableCenter) {
+    // 38% of the way from the seat toward the center (30 uses 34%) —
+    // keeps the 5-wide fan's outer row clear of the seat statline while
+    // leaving the trick pile room in the middle.
     return {
-      x: seatPos.x + (tableCenter.x - seatPos.x) * 0.25,
-      y: seatPos.y + (tableCenter.y - seatPos.y) * 0.25
+      x: seatPos.x + (tableCenter.x - seatPos.x) * 0.38,
+      y: seatPos.y + (tableCenter.y - seatPos.y) * 0.38
     };
   }
 
+  // Game seats — same tangency rule as setup, with the game avatar size.
   function getSeatOverlayPositions(numSeats) {
     var positions = [];
     var center = getTableCenter();
-    // Position icons so the TOP of their circle is tangential to the table outer edge
-    var tableR = getTableRadii().rx;
-    var outerEdge = tableR + 24; // wood border width
-    var viewW = document.documentElement.clientWidth || window.innerWidth || W;
-    var avatarHalf = (viewW <= 480) ? 32 : (viewW <= 768) ? 38 : 48;
-    var or = outerEdge + avatarHalf + 12; // center offset = outer edge + half icon + gap
+    var orbit = getTableOuterRadius() + getGameAvatarRadius();
     for (var i = 0; i < numSeats; i++) {
       var angle = (Math.PI / 2) + (i * 2 * Math.PI / numSeats);
       positions.push({
-        x: center.x + or * Math.cos(angle),
-        y: center.y + or * Math.sin(angle),
+        x: center.x + orbit * Math.cos(angle),
+        y: center.y + orbit * Math.sin(angle),
         angle: angle
       });
     }
     return positions;
-  }
-
-  function getCanvasSize() {
-    return { w: W, h: H };
   }
 
   // ================================================================
@@ -1245,8 +1166,6 @@ var Renderer = (function () {
     init: init,
     resize: resize,
     drawCard: drawCard,
-    drawCardGlow: drawCardGlow,
-    drawCardFlipping: drawCardFlipping,
     drawDeck: drawDeck,
     startLoop: startLoop,
     stopLoop: stopLoop,
@@ -1255,17 +1174,26 @@ var Renderer = (function () {
     clearFlyingCards: clearFlyingCards,
     animate: animate,
     easeOutCubic: easeOutCubic,
-    easeInOutCubic: easeInOutCubic,
     getTableCenter: getTableCenter,
     getTableRadii: getTableRadii,
     getSeatPositions: getSeatPositions,
     getHandPosition: getHandPosition,
     getSeatOverlayPositions: getSeatOverlayPositions,
-    hideDeckCount: function () { if (deckCountText) deckCountText.visible = false; },
-    getCanvasSize: getCanvasSize,
     setSuitStyle: setSuitStyle,
     getSuitStyle: getSuitStyle,
+    getSuitColor: getSuitColor,
     rebuildCardTextures: rebuildCardTextures,
+    // Exposed for card-viewer/visual-QA use (offscreen canvases)
+    renderCardToImage: renderCardToImage,
+    renderCardBackToImage: renderCardBackToImage,
+    // Force a synchronous render and return the frame as a data URL
+    // (WebGL back-buffers don't survive to async readback)
+    captureFrame: function () {
+      if (!app || !app.renderer) return null;
+      if (tickerFn) tickerFn();
+      app.renderer.render(app.stage);
+      return app.canvas.toDataURL('image/png');
+    },
     CARD_W: CARD_W,
     CARD_H: CARD_H
   };

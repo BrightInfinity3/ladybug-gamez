@@ -2,12 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>Laser Stacks - A Card Game</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=1">
+  <link rel="stylesheet" href="css/style.css?v=5">
 </head>
 <body>
 
@@ -21,13 +23,58 @@
         <div class="title-card tc-1"></div>
         <div class="title-card tc-2"></div>
         <div class="title-card tc-3"></div>
+        <div class="title-card tc-4"></div>
       </div>
       <h1 class="game-title">Laser<br>Stacks</h1>
+      <!-- Bump with every deploy — a device showing an old number is
+           provably running a cached build (see CLAUDE.md deploy ritual) -->
+      <div class="build-tag">v2.3</div>
       <div class="title-buttons">
-        <button class="btn btn-gold btn-play" id="btn-play">Play</button>
+        <button class="btn btn-gold btn-play" id="btn-play">Local Play</button>
+        <button class="btn btn-gold btn-play" id="btn-online">Online Play</button>
         <button class="btn btn-outline btn-menu-size" id="btn-how-to-play">How to Play</button>
         <button class="btn btn-outline btn-menu-size" id="btn-options">Options</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ========== ONLINE SCREEN (Host or Join) ========== -->
+  <div id="screen-online" class="screen">
+    <div class="online-panel">
+      <h2>Online Play</h2>
+
+      <!-- Tab buttons -->
+      <div class="online-tabs">
+        <button class="btn btn-gold online-tab active" id="tab-host">Host a Game</button>
+        <button class="btn btn-outline online-tab" id="tab-join">Join a Game</button>
+      </div>
+
+      <!-- Host form -->
+      <div class="online-form" id="form-host">
+        <div class="online-field">
+          <label>Your Username</label>
+          <input type="text" id="host-username" maxlength="16" placeholder="Enter your name">
+        </div>
+        <button class="btn btn-gold btn-large" id="btn-create-room">Create Room</button>
+        <div class="online-status" id="host-status"></div>
+      </div>
+
+      <!-- Join form (joiners connect as observers until the host
+           assigns them a seat) -->
+      <div class="online-form" id="form-join" style="display:none">
+        <div class="online-field">
+          <label>Room Code</label>
+          <input type="text" id="join-room-code" maxlength="3" placeholder="ABC" style="text-transform:uppercase; letter-spacing:0.3em; text-align:center;">
+        </div>
+        <div class="online-field">
+          <label>Your Username</label>
+          <input type="text" id="join-username" maxlength="16" placeholder="Enter your name">
+        </div>
+        <button class="btn btn-gold btn-large" id="btn-join-room">Join Room</button>
+        <div class="online-status" id="join-status"></div>
+      </div>
+
+      <button class="btn btn-outline" id="btn-online-back">Back</button>
     </div>
   </div>
 
@@ -40,14 +87,24 @@
           <h3>Suits</h3>
           <p>Choose how the four suits are drawn on the cards, the suit hierarchy legend, and in the rulebook.</p>
           <div class="options-row" id="opt-suit-style">
+            <button class="btn btn-outline opt-choice" data-value="laser">
+              <span class="opt-choice-label">Laser</span>
+              <span class="opt-choice-sub" data-style-sub="laser"></span>
+            </button>
+            <button class="btn btn-outline opt-choice" data-value="animals">
+              <span class="opt-choice-label">Animals</span>
+              <span class="opt-choice-sub" data-style-sub="animals"></span>
+            </button>
             <button class="btn btn-outline opt-choice" data-value="classic">
               <span class="opt-choice-label">Classic</span>
               <span class="opt-choice-sub">&clubs; &spades; &hearts; &diams;</span>
             </button>
-            <button class="btn btn-outline opt-choice" data-value="laser">
-              <span class="opt-choice-label">Laser</span>
-              <span class="opt-choice-sub">Combiners &middot; Blades &middot; Prisms &middot; Diodes</span>
-            </button>
+          </div>
+        </div>
+        <div class="rule-section">
+          <h3>Preview</h3>
+          <div class="suit-preview">
+            <canvas id="preview-canvas" width="560" height="280"></canvas>
           </div>
         </div>
       </div>
@@ -68,7 +125,7 @@
         </div>
         <div class="rule-section">
           <h3>Setup</h3>
-          <p>4 players, <strong>9 cards</strong> each from a standard deck (16 left out).</p>
+          <p>4 players, <strong>10 cards</strong> each from a standard deck (12 left out).</p>
           <p>Action moves clockwise. The player with the <strong>lowest-ranked card</strong> leads the first Stack.</p>
         </div>
         <div class="rule-section">
@@ -95,11 +152,11 @@
         </div>
         <div class="rule-section">
           <h3>Bidding &amp; Scoring</h3>
-          <p>Before play, bid <strong>0&ndash;9</strong> Stacks you think you'll win.</p>
-          <p><strong>Hit your bid:</strong> bid &times; 11 points.</p>
+          <p>Before play, bid <strong>0&ndash;10</strong> Stacks you think you'll win.</p>
+          <p><strong>Hit your bid:</strong> bid &times; 10 points.</p>
           <p><strong>Under bid:</strong> score 0 for the round.</p>
-          <p><strong>Over bid:</strong> bid &times; 11 minus compiling penalty &mdash; &minus;11 for 1 over, &minus;22 for 2 over, etc.</p>
-          <p><strong>Bid 0 and win 0:</strong> score <strong>99</strong> points!</p>
+          <p><strong>Over bid:</strong> bid &times; 10 minus <strong>10</strong> for every Stack over.</p>
+          <p><strong>Bid 0 and win 0:</strong> score <strong>100</strong> points!</p>
           <p>Minimum round score is 0. Aces are high.</p>
         </div>
         <div class="rule-section">
@@ -127,6 +184,12 @@
       <button class="btn btn-outline btn-action-menu" id="btn-menu">Main Menu</button>
     </div>
 
+    <!-- Room-code row — online-only, sits just below the HUD -->
+    <div class="hud-room-row" id="hud-room-row" style="display:none">
+      <span class="hud-label">Room:</span>
+      <span class="hud-value lobby-code" id="hud-room-code">---</span>
+    </div>
+
     <!-- Suit rank diagram (positioned above left player during gameplay) -->
     <div class="suit-stack" id="suit-stack" style="display:none">
       <div class="suit-stack-arrow">&uarr;</div>
@@ -140,7 +203,7 @@
     <!-- Trick counter (positioned on right side of table during gameplay) -->
     <div class="trick-info" id="trick-info" style="display:none">
       <span class="trick-info-label">Stack:</span>
-      <div><span class="trick-info-value" id="hud-trick">1</span><span class="trick-info-slash">/9</span></div>
+      <div><span class="trick-info-value" id="hud-trick">1</span><span class="trick-info-slash">/10</span></div>
     </div>
 
     <!-- Setup bar -->
@@ -149,14 +212,14 @@
       <button class="btn btn-outline btn-action-menu" id="btn-setup-back">Main Menu</button>
     </div>
 
-    <!-- Player count control (hidden for Laser Stacks — always 4) -->
-    <div class="player-count-control" id="player-count-control" style="display:none">
-      <label class="pcc-label">Players:</label>
-      <div class="pcc-row">
-        <button class="btn btn-gold btn-large" id="btn-fewer">&minus;</button>
-        <span id="player-count-display">4</span>
-        <button class="btn btn-gold btn-large" id="btn-more">+</button>
+    <!-- Online lobby header (visible during online lobby phase) -->
+    <div class="setup-header" id="online-lobby-header" style="display:none">
+      <div class="lobby-info">
+        <span class="lobby-label">Room:</span>
+        <span class="lobby-code" id="online-room-code">---</span>
+        <span class="lobby-player-count" id="online-player-count">0/4 Players</span>
       </div>
+      <button class="btn btn-outline btn-action-menu" id="btn-leave-room">Leave Room</button>
     </div>
 
     <div class="table-container">
@@ -172,10 +235,92 @@
     <!-- Deal button -->
     <button class="btn btn-gold btn-large setup-deal-btn" id="btn-deal" disabled>Deal!</button>
 
+    <!-- Online Deal button (host only, floating over table center) -->
+    <button class="btn btn-gold btn-large setup-deal-btn" id="btn-online-deal" style="display:none" disabled>Deal!</button>
+
+    <!-- Waiting message (guest, floating over table center) -->
+    <div class="lobby-waiting" id="lobby-waiting" style="display:none">
+      Tap an AI seat to sit there.<br>Waiting for host to deal...
+    </div>
+
+    <!-- Join request popup (host only) -->
+    <div class="join-requests-overlay" id="join-requests" style="display:none">
+      <div class="join-requests-panel">
+        <h3>Join Requests</h3>
+        <div class="join-request-list"></div>
+      </div>
+    </div>
+
+    <!-- Device-leave popup (host only): pick a controller per departed seat -->
+    <div class="device-leave-overlay" id="device-leave-overlay" style="display:none">
+      <div class="device-leave-panel">
+        <h3 id="device-leave-title">A player has left</h3>
+        <p class="device-leave-subtitle">Choose how to handle each of their players:</p>
+        <div class="device-leave-players" id="device-leave-players"></div>
+        <div class="device-leave-actions">
+          <button class="btn btn-gold" id="btn-device-leave-confirm">Apply</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Global toast banner -->
+    <div class="game-toast" id="game-toast" style="display:none"></div>
+
+    <!-- Reassign-player popup (host only): AI / Host / any joiner -->
+    <div class="reassign-overlay" id="reassign-overlay" style="display:none">
+      <div class="reassign-panel">
+        <h3 id="reassign-title">Who controls this player?</h3>
+        <div class="reassign-player-card" id="reassign-player-card"></div>
+        <div class="reassign-options" id="reassign-options"></div>
+        <div class="reassign-actions">
+          <button class="btn btn-outline btn-sm" id="btn-reassign-cancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reconnect-after-reassign gate (host only) -->
+    <div class="reconnect-gate-overlay" id="reconnect-gate-overlay" style="display:none">
+      <div class="reconnect-gate-panel">
+        <h3 id="reconnect-gate-title">Someone is reconnecting</h3>
+        <p class="reconnect-gate-sub" id="reconnect-gate-sub">Allow them back into the room as an observer?</p>
+        <div class="reconnect-gate-actions">
+          <button class="btn btn-gold" id="btn-reconnect-gate-allow">Allow</button>
+          <button class="btn btn-outline" id="btn-reconnect-gate-deny">Deny</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Host-handoff request popup (cascade migration candidate) -->
+    <div class="host-request-overlay" id="host-request-overlay" style="display:none">
+      <div class="host-request-panel">
+        <h3 id="host-request-title">Become the New Host?</h3>
+        <p class="host-request-sub" id="host-request-sub">The host disconnected. Take over hosting?</p>
+        <div class="host-request-actions">
+          <button class="btn btn-gold" id="btn-host-request-accept">Accept</button>
+          <button class="btn btn-outline" id="btn-host-request-deny">Decline</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Leave room confirm (online) -->
+    <div class="confirm-overlay" id="confirm-leave-room" style="display:none">
+      <div class="confirm-panel">
+        <p class="confirm-title" id="leave-room-title">Leave Room?</p>
+        <p class="confirm-sub" id="leave-room-sub">The room will be disbanded for everyone.</p>
+        <div class="confirm-buttons">
+          <button class="btn btn-gold" id="btn-confirm-leave-yes">Yes, Exit</button>
+          <button class="btn btn-outline" id="btn-confirm-leave-no">Cancel</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Human player's hand bar (bottom of screen) -->
     <div class="hand-bar" id="hand-bar" style="display:none">
       <div class="hand-bar-cards" id="hand-bar-cards"></div>
     </div>
+
+    <!-- Portrait-mode status message (mirrors #hud-message, shown above the hand bar) -->
+    <div id="pbar-message"></div>
 
     <!-- Bidding overlay -->
     <div class="bid-overlay" id="bid-overlay" style="display:none">
@@ -223,8 +368,10 @@
         <button class="btn btn-gold btn-large" id="btn-play-again">Play Again</button>
         <button class="btn btn-outline btn-large" id="btn-new-game">Main Menu</button>
       </div>
+      <div class="results-waiting" id="results-waiting" style="display:none">
+        Waiting for the host to start the next round...
+      </div>
     </div>
-    <div class="confetti-container" id="confetti-container"></div>
     <div class="confirm-overlay" id="confirm-exit-results" style="display:none">
       <div class="confirm-panel">
         <p class="confirm-title">Return to Main Menu?</p>
@@ -237,17 +384,27 @@
     </div>
   </div>
 
+  <!-- Room-disbanded overlay (document level, above every screen) -->
+  <div class="disband-overlay" id="disband-overlay" style="display:none">
+    <div class="disband-panel">
+      <p class="disband-message">Room has been disbanded.</p>
+      <button class="btn btn-gold" id="btn-disband-ok">OK</button>
+    </div>
+  </div>
+
   <!-- Scripts in dependency order -->
   <script src="https://cdn.jsdelivr.net/npm/pixi.js@8/dist/pixi.min.js"></script>
-  <script src="js/sprites.js?v=2"></script>
-  <script src="js/cards.js?v=2"></script>
-  <script src="js/game.js?v=2"></script>
-  <script src="js/animations.js?v=2"></script>
-  <script src="js/textures.js?v=2"></script>
-  <script src="js/laser-pips.js?v=2"></script>
-  <script src="js/renderer.js?v=2"></script>
-  <script src="js/save.js?v=2"></script>
-  <script src="js/ui.js?v=2"></script>
+  <script src="js/sprites.js?v=6"></script>
+  <script src="js/cards.js?v=6"></script>
+  <script src="js/game.js?v=6"></script>
+  <script src="js/animations.js?v=6"></script>
+  <script src="js/textures.js?v=6"></script>
+  <script src="js/laser-pips.js?v=6"></script>
+  <script src="js/renderer.js?v=6"></script>
+  <script src="js/network.js?v=6"></script>
+  <script src="js/online.js?v=6"></script>
+  <script src="js/save.js?v=6"></script>
+  <script src="js/ui.js?v=6"></script>
 
 </body>
 </html>

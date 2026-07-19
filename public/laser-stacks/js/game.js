@@ -6,21 +6,21 @@
 var Game = (function () {
   'use strict';
 
-  var CARDS_PER_PLAYER = 9;
+  var CARDS_PER_PLAYER = 10;
   var NUM_PLAYERS = 4;
-  var POINTS_PER_STACK = 11;
-  var PERFECT_ZERO_BONUS = 99;
+  var POINTS_PER_STACK = 10;
+  var OVER_PENALTY = 10; // flat, per stack over the bid
+  var PERFECT_ZERO_BONUS = 100;
 
   // ---- State ----
   var state = {
     players: [],
-    dealerIndex: 0,
     deck: [],
     hands: {},             // playerId -> [cards]
     bids: {},              // playerId -> number (0-9)
     tricksWon: {},         // playerId -> count
     currentTrick: [],      // [{playerId, card}]
-    trickNumber: 0,        // 0-8
+    trickNumber: 0,        // 0 to CARDS_PER_PLAYER-1
     unlockedSuits: {},     // suitName -> boolean
     turnOrder: [],         // player IDs in clockwise order from dealer's left
     currentTurnIndex: -1,
@@ -30,21 +30,17 @@ var Game = (function () {
     roundScores: {},       // playerId -> score for current round
     roundNumber: 0,
     bidOrder: [],          // order in which players bid (clockwise from dealer's left)
-    currentBidIndex: -1,
-    lastTrickWinnerId: null, // who won the last trick this round (for tiebreaking)
-    roundsWon: {},          // playerId -> count of rounds won
-    lastRoundWinnerId: null  // who won the most recent round (for scoreboard tiebreak)
+    currentBidIndex: -1
   };
 
   // ---- Player Factory ----
-  function createPlayer(id, seatIndex, animal, name, isHuman, isDealer) {
+  function createPlayer(id, seatIndex, animal, name, isHuman) {
     return {
       id: id,
       seatIndex: seatIndex,
       animal: animal,
       name: name,
-      isHuman: isHuman,
-      isDealer: isDealer
+      isHuman: isHuman
     };
   }
 
@@ -52,39 +48,13 @@ var Game = (function () {
   function setupGame(players) {
     state.players = players;
     state.scores = {};
-    state.roundsWon = {};
-    state.lastRoundWinnerId = null;
     state.roundNumber = 0;
     for (var i = 0; i < players.length; i++) {
       state.scores[players[i].id] = 0;
-      state.roundsWon[players[i].id] = 0;
     }
   }
 
-  // ---- Build Turn Order ----
-  // Clockwise from dealer's left
-  function buildTurnOrder() {
-    var players = state.players;
-    var dealerSeat = players[state.dealerIndex].seatIndex;
-    var sorted = players.slice().sort(function (a, b) { return a.seatIndex - b.seatIndex; });
-
-    var dealerPos = -1;
-    for (var i = 0; i < sorted.length; i++) {
-      if (sorted[i].seatIndex === dealerSeat) {
-        dealerPos = i;
-        break;
-      }
-    }
-
-    var order = [];
-    for (var j = 1; j <= sorted.length; j++) {
-      var idx = (dealerPos + j) % sorted.length;
-      order.push(sorted[idx].id);
-    }
-    return order;
-  }
-
-  // ---- Build Deal Order (9 cards each, one at a time) ----
+  // ---- Build Deal Order (10 cards each, one at a time) ----
   function buildDealOrder() {
     var turnOrder = state.turnOrder;
     var dealOrder = [];
@@ -163,7 +133,7 @@ var Game = (function () {
   }
 
   function setBid(playerId, bid) {
-    state.bids[playerId] = Math.max(0, Math.min(9, bid));
+    state.bids[playerId] = Math.max(0, Math.min(CARDS_PER_PLAYER, bid));
   }
 
   function advanceBid() {
@@ -209,7 +179,7 @@ var Game = (function () {
     var bid = Math.round(estimate);
     // Add some randomness
     if (Math.random() < 0.2) bid += (Math.random() < 0.5 ? 1 : -1);
-    bid = Math.max(0, Math.min(9, bid));
+    bid = Math.max(0, Math.min(CARDS_PER_PLAYER, bid));
 
     return bid;
   }
@@ -368,7 +338,6 @@ var Game = (function () {
 
     var winnerId = state.currentTrick[bestIdx].playerId;
     state.tricksWon[winnerId] = (state.tricksWon[winnerId] || 0) + 1;
-    state.lastTrickWinnerId = winnerId;
 
     return winnerId;
   }
@@ -463,15 +432,9 @@ var Game = (function () {
         // Met bid exactly
         score = won * POINTS_PER_STACK;
       } else {
-        // Went over: earn points for bid amount, lose compiling penalty
-        var base = bid * POINTS_PER_STACK;
-        var overage = won - bid;
-        // Penalty: 11 for 1st over, 22 for 2nd, 33 for 3rd, etc.
-        var penalty = 0;
-        for (var p = 1; p <= overage; p++) {
-          penalty += p * POINTS_PER_STACK;
-        }
-        score = base - penalty;
+        // Went over: earn points for the bid, minus a flat penalty per
+        // extra stack (10 each)
+        score = bid * POINTS_PER_STACK - (won - bid) * OVER_PENALTY;
       }
 
       // Minimum score per round is 0
@@ -479,72 +442,6 @@ var Game = (function () {
       state.roundScores[pid] = score;
       state.scores[pid] = (state.scores[pid] || 0) + score;
     }
-
-    // Determine round winner with tiebreaking
-    var roundWinnerId = determineRoundWinner();
-    if (roundWinnerId !== null) {
-      state.roundsWon[roundWinnerId] = (state.roundsWon[roundWinnerId] || 0) + 1;
-      state.lastRoundWinnerId = roundWinnerId;
-    }
-  }
-
-  // ---- Round Winner Tiebreaking ----
-  // Priority: 1) perfect zero (bid 0 won 0), 2) least gap bid-won, 3) most stacks, 4) last stack winner
-  function determineRoundWinner() {
-    var bestScore = -1;
-    for (var i = 0; i < state.players.length; i++) {
-      var rs = state.roundScores[state.players[i].id] || 0;
-      if (rs > bestScore) bestScore = rs;
-    }
-    if (bestScore <= 0) return null;
-
-    // Collect players tied for the top round score
-    var candidates = [];
-    for (var j = 0; j < state.players.length; j++) {
-      if ((state.roundScores[state.players[j].id] || 0) === bestScore) {
-        candidates.push(state.players[j].id);
-      }
-    }
-    if (candidates.length === 1) return candidates[0];
-
-    // Tiebreak 1: perfect zero (bid 0, won 0) beats all
-    var perfectZeros = candidates.filter(function (pid) {
-      return state.bids[pid] === 0 && (state.tricksWon[pid] || 0) === 0;
-    });
-    if (perfectZeros.length === 1) return perfectZeros[0];
-    if (perfectZeros.length > 1) candidates = perfectZeros;
-
-    // Tiebreak 2: least gap between bid and won
-    var minGap = Infinity;
-    for (var k = 0; k < candidates.length; k++) {
-      var gap = Math.abs((state.tricksWon[candidates[k]] || 0) - (state.bids[candidates[k]] || 0));
-      if (gap < minGap) minGap = gap;
-    }
-    var leastGap = candidates.filter(function (pid) {
-      return Math.abs((state.tricksWon[pid] || 0) - (state.bids[pid] || 0)) === minGap;
-    });
-    if (leastGap.length === 1) return leastGap[0];
-    candidates = leastGap;
-
-    // Tiebreak 3: most stacks won
-    var maxWon = -1;
-    for (var m = 0; m < candidates.length; m++) {
-      var w = state.tricksWon[candidates[m]] || 0;
-      if (w > maxWon) maxWon = w;
-    }
-    var mostStacks = candidates.filter(function (pid) {
-      return (state.tricksWon[pid] || 0) === maxWon;
-    });
-    if (mostStacks.length === 1) return mostStacks[0];
-    candidates = mostStacks;
-
-    // Tiebreak 4: whoever won the last stack of the round
-    if (state.lastTrickWinnerId !== null && candidates.indexOf(state.lastTrickWinnerId) !== -1) {
-      return state.lastTrickWinnerId;
-    }
-
-    // Still tied: return first candidate
-    return candidates[0];
   }
 
   // ================================================================
@@ -605,9 +502,6 @@ var Game = (function () {
   function getCurrentTrick() { return state.currentTrick; }
   function getUnlockedSuits() { return state.unlockedSuits; }
   function isRoundFinished() { return state.roundPhase === 'finished'; }
-  function getRoundsWon() { return state.roundsWon; }
-  function getLastRoundWinnerId() { return state.lastRoundWinnerId; }
-  function getLastTrickWinnerId() { return state.lastTrickWinnerId; }
   function isLastTrick() { return state.trickNumber === CARDS_PER_PLAYER - 1; }
 
   // ---- Serialization ----
@@ -617,7 +511,6 @@ var Game = (function () {
 
   function deserialize(saved) {
     state.players = saved.players;
-    state.dealerIndex = saved.dealerIndex;
     state.deck = saved.deck;
     state.hands = saved.hands;
     state.bids = saved.bids || {};
@@ -634,9 +527,6 @@ var Game = (function () {
     state.roundNumber = saved.roundNumber;
     state.bidOrder = saved.bidOrder || saved.turnOrder;
     state.currentBidIndex = saved.currentBidIndex || 0;
-    state.lastTrickWinnerId = saved.lastTrickWinnerId || null;
-    state.roundsWon = saved.roundsWon || {};
-    state.lastRoundWinnerId = saved.lastRoundWinnerId || null;
   }
 
   return {
@@ -679,9 +569,6 @@ var Game = (function () {
     getCurrentTrick: getCurrentTrick,
     getUnlockedSuits: getUnlockedSuits,
     isRoundFinished: isRoundFinished,
-    getRoundsWon: getRoundsWon,
-    getLastRoundWinnerId: getLastRoundWinnerId,
-    getLastTrickWinnerId: getLastTrickWinnerId,
     isLastTrick: isLastTrick,
     serialize: serialize,
     deserialize: deserialize
