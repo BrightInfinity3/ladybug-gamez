@@ -21,6 +21,8 @@
          onReadyToggle(ready)     room: ready toggled (bool)
          onSeatAiToggle(i, makeAi) room: host toggles empty seat <-> AI
          onLeaveRoom()            room/lobby: leave
+         onForfeit()              battle: forfeit flag / settings row tapped
+                                  (main.js confirms + routes offline/online)
        }
        Any missing hook console.warns instead of crashing, so the
        page runs standalone before main.js exists. If init() is
@@ -36,8 +38,13 @@
      Screens.renderRoom(lobbyState, {isHost, mySeat})
        lobbyState = {code, seats:[{name, controller:'human'|'ai'|null,
                      ready, connected} x3], canStart}
-     Screens.showSheet(name)      settings|battle-log|animal-detail|rps-hint
+     Screens.showSheet(name)      settings|battle-log|animal-detail|rps-hint|
+                                  animal-guide|stat-guide
      Screens.hideSheet()
+     Screens.openGuide()          global 24-animal encyclopedia sheet
+     Screens.openAnimalDetail(id, opts?)
+       opts {fromGuide:true} = encyclopedia view + back-to-guide button;
+       opts {plain:true} = encyclopedia view (battle ally inspect)
      Screens.getPartySetup()      -> [{controller:'human'|'ai'}, ...]
      Screens.showVictory({boss, restoreLine, unlocked, defer})
        Builds the restoration DOM (classes only). Unless defer:true,
@@ -49,7 +56,7 @@
   'use strict';
 
   var SCREEN_NAMES = ['title', 'mode', 'party', 'lobby', 'room', 'team', 'ladder', 'battle', 'result'];
-  var SHEET_NAMES = ['settings', 'battle-log', 'animal-detail', 'rps-hint'];
+  var SHEET_NAMES = ['settings', 'battle-log', 'animal-detail', 'rps-hint', 'animal-guide', 'stat-guide'];
   var LONG_PRESS_MS = 450;
   var TOAST_MS = 2400;
 
@@ -168,6 +175,12 @@
       return;
     }
     hideSheet();
+    if (name === 'settings') {
+      // FORFEIT BATTLE row only makes sense mid-battle
+      var forfeitRow = $('btn-settings-forfeit');
+      if (forfeitRow) { forfeitRow.hidden = state.screen !== 'battle'; }
+    }
+    if (name === 'animal-guide') { buildGuideList(); }
     var sheet = $('sheet-' + name);
     var backdrop = $('sheet-backdrop');
     if (sheet) { sheet.classList.add('open'); }
@@ -298,9 +311,28 @@
 
   // opts: object = use these; null = CLEAR back to Save-based locking;
   // undefined (no arg) = keep whatever was last set.
+  function statTotal() {
+    return (window.GameData && GameData.TUNING && GameData.TUNING.STAT_TOTAL) || 260;
+  }
+
+  function fillTeamLegend() {
+    var legend = $('team-legend');
+    if (!legend || legend.firstChild) { return; }
+    var text = el('span', 'legend-text');
+    text.innerHTML = '<b>HP</b> health · <b>ATK</b> attack · <b>DEF</b> defense · ' +
+      '<b>SPD</b> speed — every animal totals ' + statTotal() + ' points';
+    legend.appendChild(text);
+    var infoBtn = el('button', 'btn-info', 'i');
+    infoBtn.type = 'button';
+    infoBtn.setAttribute('aria-label', 'What do the stats mean?');
+    infoBtn.addEventListener('click', function () { showSheet('stat-guide'); });
+    legend.appendChild(infoBtn);
+  }
+
   function renderTeamSelect(opts) {
     if (opts === null) { state.teamOpts = null; }
     else if (opts) { state.teamOpts = opts; }
+    fillTeamLegend();
     var grid = $('team-grid');
     if (!grid || !window.GameData || !window.SpriteEngine) { return; }
     grid.innerHTML = '';
@@ -329,15 +361,20 @@
     card.appendChild(spr);
     card.appendChild(el('span', 'card-name', a ? a.name : id));
 
+    // labeled stat rows: LABEL + colored micro-bar + NUMBER
     var bars = el('div', 'card-bars');
-    var stats = ['hp', 'atk', 'def', 'spd'];
+    var stats = [['hp', 'HP'], ['atk', 'ATK'], ['def', 'DEF'], ['spd', 'SPD']];
     for (var i = 0; i < stats.length; i++) {
-      var bar = el('i', 'bar bar-' + stats[i]);
+      var val = a ? a[stats[i][0]] : 0;
+      var row = el('span', 'crow');
+      row.appendChild(el('span', 'crow-label', stats[i][1]));
+      var bar = el('i', 'bar bar-' + stats[i][0]);
       var fill = el('b');
-      var val = a ? a[stats[i]] : 0;
       fill.style.transform = 'scaleX(' + Math.min(1, val / 100) + ')';
       bar.appendChild(fill);
-      bars.appendChild(bar);
+      row.appendChild(bar);
+      row.appendChild(el('span', 'crow-val', String(val)));
+      bars.appendChild(row);
     }
     card.appendChild(bars);
 
@@ -457,14 +494,55 @@
   }
 
   // === ANIMAL DETAIL SHEET =================================================
-  function openAnimalDetail(id) {
+  // Compact numeric summary of a move (mirrors battle-render's moveSub).
+  function describeMoveMeta(move) {
+    if (!move) { return ''; }
+    if (move.chargeTurns) { return 'CHARGE ' + move.power; }
+    if (move.hits) { return move.hits + 'x' + move.power + ' PWR · ' + (move.acc || 100) + '% ACC'; }
+    if (move.power != null && move.acc != null) { return move.power + ' PWR · ' + move.acc + '% ACC'; }
+    if (move.block) { return move.counter ? 'BLOCK + COUNTER ' + move.counter : (move.reflectPct ? 'BLOCK + REFLECT' : 'BLOCK'); }
+    if (move.evade) { return 'EVADE ' + move.evade + '%'; }
+    if (move.teamGuard) { return 'GUARD ALLY'; }
+    if (move.extraReduce) { return 'IRONHIDE'; }
+    if (move.thorns) { return 'THORNS ' + move.thorns; }
+    if (move.heal != null) { return 'HEAL ' + move.heal; }
+    if (move.healAll != null) { return 'TEAM HEAL ' + move.healAll; }
+    if (move.shieldAll != null) { return 'TEAM SHIELD ' + move.shieldAll; }
+    if (move.buffAll) { return 'TEAM BUFF'; }
+    if (move.buffSelf) { return 'SELF BUFF'; }
+    if (move.debuff) { return 'DEBUFF BOSS'; }
+    if (move.dot) { return 'POISON'; }
+    if (move.taunt) { return 'TAUNT'; }
+    if (move.untargetable) { return 'VANISH'; }
+    if (move.revivePct != null) { return 'REVIVE'; }
+    if (move.revealBossNext) { return 'REVEAL'; }
+    if (move.luckBuff) { return 'TEAM LUCK'; }
+    if (move.roulette) { return 'RANDOM!'; }
+    if (move.echoLastBossDamage) { return 'ECHO DMG'; }
+    return '';
+  }
+
+  // opts: {fromGuide:true}  opened from the Animal Guide (encyclopedia
+  //       view: never corrupted/locked, adds a back-to-guide button)
+  //       {plain:true}      encyclopedia view without the back button
+  //       (omitted)         roster context: locked = corrupted look
+  function openAnimalDetail(id, opts) {
+    opts = opts || {};
     var body = $('animal-detail-body');
     if (!body || !window.GameData) { return; }
     var a = GameData.ANIMALS[id];
     var moves = GameData.MOVES[id];
     if (!a || !moves) { return; }
-    var locked = isLockedForSelect(id);
+    var plain = !!(opts.fromGuide || opts.plain);
+    var locked = plain ? false : isLockedForSelect(id);
     body.innerHTML = '';
+
+    if (opts.fromGuide) {
+      var backBtn = el('button', 'btn-mini btn-back-guide', '‹ ANIMAL GUIDE');
+      backBtn.type = 'button';
+      backBtn.addEventListener('click', function () { openGuide(); });
+      body.appendChild(backBtn);
+    }
 
     var head = el('div', 'detail-head');
     var img = SpriteEngine.createSpriteImg(id);
@@ -514,13 +592,15 @@
       var info = el('div', 'detail-move-info');
       var nm = mv.name + (mv.cd ? '  (CD ' + mv.cd + ')' : '');
       info.appendChild(el('div', 'detail-move-name', nm));
+      var meta = describeMoveMeta(mv);
+      if (meta) { info.appendChild(el('div', 'detail-move-meta', meta)); }
       info.appendChild(el('div', 'detail-move-desc', mv.desc));
       moveRow.appendChild(info);
       movesBox.appendChild(moveRow);
     }
     body.appendChild(movesBox);
 
-    if (!locked && state.teamPicks.indexOf(id) !== -1) {
+    if (!plain && !locked && state.teamPicks.indexOf(id) !== -1) {
       var removeBtn = el('button', 'btn btn-secondary btn-wide', 'REMOVE FROM TEAM');
       removeBtn.addEventListener('click', function () {
         removePick(id);
@@ -530,6 +610,69 @@
     }
 
     showSheet('animal-detail');
+  }
+
+  // === ANIMAL GUIDE (global encyclopedia sheet) ============================
+  var guideBuilt = false;
+
+  function buildGuideList() {
+    if (guideBuilt) { return; }
+    var list = $('animal-guide-list');
+    if (!list || !window.GameData || !window.SpriteEngine) { return; }
+    guideBuilt = true;
+    list.innerHTML = '';
+    var ids = SpriteEngine.getAnimalList();
+    var statKeys = [['hp', 'HP'], ['atk', 'ATK'], ['def', 'DEF'], ['spd', 'SPD']];
+    for (var i = 0; i < ids.length; i++) {
+      var a = GameData.ANIMALS[ids[i]];
+      if (!a) { continue; }
+      var row = el('button', 'guide-row');
+      row.type = 'button';
+      row.setAttribute('data-animal', ids[i]);
+      row.appendChild(SpriteEngine.createSpriteImg(ids[i]));
+      var info = el('div', 'guide-row-info');
+      info.appendChild(el('span', 'guide-row-name', a.name));
+      info.appendChild(el('span', 'guide-row-arch', a.archetype));
+      row.appendChild(info);
+      var statsBox = el('div', 'guide-row-stats');
+      for (var s = 0; s < statKeys.length; s++) {
+        var cell = el('span', 'guide-stat');
+        cell.appendChild(el('i', 'gs gs-' + statKeys[s][0], statKeys[s][1]));
+        cell.appendChild(document.createTextNode(String(a[statKeys[s][0]])));
+        statsBox.appendChild(cell);
+      }
+      row.appendChild(statsBox);
+      list.appendChild(row);
+    }
+    list.addEventListener('click', function (e) {
+      var row = e.target.closest ? e.target.closest('.guide-row') : null;
+      if (row) { openAnimalDetail(row.getAttribute('data-animal'), { fromGuide: true }); }
+    });
+  }
+
+  function openGuide() {
+    showSheet('animal-guide');   // showSheet builds the list on demand
+  }
+
+  // === STAT GUIDE SHEET ====================================================
+  function buildStatGuide() {
+    var body = $('stat-guide-body');
+    if (!body || body.firstChild) { return; }
+    var defs = [
+      ['HP', 'Health - how much damage an animal can take before it faints.'],
+      ['ATK', 'Attack - raises the damage its moves deal.'],
+      ['DEF', 'Defense - reduces the damage it takes from hits.'],
+      ['SPD', 'Speed - faster animals act first each round.']
+    ];
+    for (var i = 0; i < defs.length; i++) {
+      var row = el('div', 'stat-guide-row');
+      row.appendChild(el('b', 't-' + ['good', 'attack', 'defense', 'special'][i], defs[i][0]));
+      row.appendChild(el('span', null, defs[i][1]));
+      body.appendChild(row);
+    }
+    body.appendChild(el('p', 'stat-guide-note',
+      'Fair fight: every animal’s four stats add up to exactly ' + statTotal() +
+      ' points — no animal is simply better, just different.'));
   }
 
   // === LADDER ==============================================================
@@ -942,10 +1085,41 @@
     on('btn-ladder-back', 'click', function () { show('mode'); });
     on('btn-settings', 'click', function () { showSheet('settings'); });
 
+    // battle settings gear (top-right, left of the forfeit flag) - the
+    // settings sheet is the fallback FORFEIT path, so it must be
+    // reachable mid-battle. stopPropagation: arena taps fast-forward.
+    on('btn-battle-settings', 'click', function (e) {
+      e.stopPropagation();
+      showSheet('settings');
+    });
+
     // battle chrome owned here: ticker opens the log sheet, [?] the hint
     on('log-ticker', 'click', function () { showSheet('battle-log'); });
     on('btn-rps-hint', 'click', function () { showSheet('rps-hint'); });
     on('btn-rps-close', 'click', hideSheet);
+
+    // ANIMAL GUIDE: one book button per screen (shared class) + battle
+    var guideBtns = document.querySelectorAll('.btn-open-guide');
+    for (var g = 0; g < guideBtns.length; g++) {
+      guideBtns[g].addEventListener('click', function (e) {
+        e.stopPropagation();   // battle arena taps fast-forward playback
+        openGuide();
+      });
+    }
+    on('btn-settings-guide', 'click', function () { openGuide(); });
+    on('btn-stat-guide-close', 'click', hideSheet);
+    buildStatGuide();
+
+    // FORFEIT: flag button (battle top-right) + settings row.
+    // main.js owns the confirm modal + offline/online routing.
+    on('btn-forfeit', 'click', function (e) {
+      e.stopPropagation();     // don't also fast-forward the arena
+      callHook('onForfeit', []);
+    });
+    on('btn-settings-forfeit', 'click', function () {
+      hideSheet();
+      callHook('onForfeit', []);
+    });
 
     // result
     on('btn-victory-continue', 'click', function () { show('ladder'); });
@@ -997,7 +1171,9 @@
     hideSheet: hideSheet,
     getPartySetup: getPartySetup,
     showVictory: showVictory,
-    showDefeat: showDefeat
+    showDefeat: showDefeat,
+    openGuide: openGuide,
+    openAnimalDetail: openAnimalDetail
   };
 
   window.Screens = api;

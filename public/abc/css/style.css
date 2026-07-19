@@ -132,6 +132,7 @@ button { font-family: inherit; color: inherit; background: none; border: none; c
   text-align: center;
   font-family: var(--font-pixel);
   font-size: 13px;
+  line-height: 1.5;   /* headers can wrap to 2 lines on phones */
   letter-spacing: 1px;
   color: var(--text);
   text-shadow: 0 0 12px var(--accent-glow);
@@ -583,11 +584,16 @@ input.switch:checked::after { transform: translateX(22px); background: var(--res
   min-height: 0;
   overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* 3-across on phones so the labeled stat rows stay readable;
+     4-across from 480px, 6 on desktop */
+  grid-template-columns: repeat(3, 1fr);
   gap: var(--sp-2);
   align-content: start;
   padding-bottom: var(--sp-2);
   -webkit-overflow-scrolling: touch;
+}
+@media (min-width: 480px) {
+  .team-grid { grid-template-columns: repeat(4, 1fr); }
 }
 @media (min-width: 760px) {
   .team-grid { grid-template-columns: repeat(6, 1fr); }
@@ -797,9 +803,21 @@ input.switch:checked::after { transform: translateX(22px); background: var(--res
    up with the sprite box, and lifts the sprite above the aura glow */
 .rung-stage { position: relative; z-index: 2; display: flex; }
 
-/* === BATTLE: BOSS HEADER ================================= */
+/* === BATTLE: BOSS INFO BOX (compact card, arena top-left) = */
 #screen-battle { padding: var(--sp-3) var(--sp-3) var(--sp-2); gap: var(--sp-2); }
-.boss-header { flex: none; }
+.boss-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 9;
+  width: 56%;
+  max-width: 290px;
+  background: rgba(16, 16, 34, 0.92);
+  border: 1px solid var(--corrupt-500);
+  border-radius: var(--rad-2);
+  box-shadow: var(--card-shadow);
+  padding: 7px 9px 8px;
+}
 .boss-title-row {
   display: flex;
   justify-content: space-between;
@@ -809,13 +827,19 @@ input.switch:checked::after { transform: translateX(22px); background: var(--res
 }
 .boss-name {
   font-family: var(--font-pixel);
-  font-size: 11px;
+  font-size: 10px;
   color: var(--corrupt-300);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .boss-hp-text { font-family: var(--font-pixel); font-size: 9px; color: var(--text-dim); flex: none; }
+/* phones: smaller name + let the HP numbers wrap under it instead
+   of ellipsizing the boss's name away */
+@media (max-width: 430px) {
+  .boss-name { font-size: 8px; }
+  .boss-title-row { flex-wrap: wrap; }
+}
 
 /* === HP BARS (transform:scaleX ONLY - never width) ======= */
 .hp-track {
@@ -849,22 +873,43 @@ input.switch:checked::after { transform: translateX(22px); background: var(--res
 .boss-hp .hp-fill.hp-low { background: linear-gradient(to bottom, #ff6f60, var(--hp-red)); }
 .hp-track.mini { height: 6px; border-radius: 3px; }
 
-/* === BATTLE: BOSS ARENA ================================== */
+/* === BATTLE: BOSS ARENA (Pokemon diagonal) ===============
+   Boss info box top-left, flipped boss sprite upper-right,
+   ally cluster bottom-left. All children absolute. */
 .boss-arena {
   position: relative;
   flex: 1;
-  min-height: 140px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  min-height: 236px;
   overflow: hidden;
 }
+/* boss anchor: shrink-wraps the stage on the arena's right side */
+.boss-side {
+  position: absolute;
+  top: 64px;
+  right: 2px;
+  z-index: 2;
+}
 .boss-stage { position: relative; z-index: 2; }
+/* static mirror flip: sprite + eye overlay face down-left together.
+   Damage numbers & hit flash live OUTSIDE this wrapper (unmirrored). */
+.boss-flip { position: relative; z-index: 2; transform: scaleX(-1); }
 .boss-sprite { position: relative; display: flex; }
 .boss-sprite img {
-  width: min(46vw, 176px);
-  height: min(46vw, 176px);
+  width: min(40vw, 150px);
+  height: min(40vw, 150px);
   display: block;
+}
+/* elliptical pedestal shadow under the boss */
+.boss-shadow {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  bottom: -6px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55) 0%, rgba(13, 6, 22, 0.35) 45%, transparent 72%);
+  z-index: 0;
+  pointer-events: none;
 }
 
 /* static corruption recipe - applied to the sprite <img> */
@@ -961,31 +1006,52 @@ input.switch:checked::after { transform: translateX(22px); background: var(--res
   100% { opacity: 0; transform: scale(1.65); }
 }
 
-/* === BATTLE: ALLY ROW ==================================== */
+/* === BATTLE: ALLY CLUSTER (arena bottom-left, stepped) ==== */
 .ally-row {
-  flex: none;
+  position: absolute;
+  left: 2px;
+  bottom: 8px;
+  z-index: 6;
   display: flex;
-  gap: var(--sp-2);
-  justify-content: center;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 4px;
 }
 .ally-card {
   position: relative;
-  flex: 1;
-  max-width: 132px;
+  flex: none;
+  width: 74px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: var(--sp-2);
-  background: var(--bg-card);
+  gap: 2px;
+  padding: 4px 4px 5px;
+  background: rgba(20, 20, 40, 0.86);
   border: 1px solid #2a2a4a;
   border-radius: var(--rad-2);
   box-shadow: var(--card-shadow);
 }
-.ally-card.mine { border-color: var(--accent); }
+/* shallow diagonal: leftmost lowest & in front */
+.ally-card:nth-child(1) { z-index: 3; }
+.ally-card:nth-child(2) { z-index: 2; transform: translateY(-12px); }
+.ally-card:nth-child(3) { z-index: 1; transform: translateY(-24px); }
+/* elliptical platform shadow under each battler */
+.ally-card::after {
+  content: '';
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: -7px;
+  height: 13px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.5) 0%, transparent 70%);
+  z-index: -1;
+  pointer-events: none;
+}
+.ally-card.mine { border-color: var(--accent); box-shadow: 0 0 10px var(--accent-glow), var(--card-shadow); }
 .ally-card.fainted { opacity: 0.45; }
-.ally-sprite { position: relative; width: 56px; height: 56px; }
-.ally-sprite img { width: 56px; height: 56px; display: block; }
+.ally-sprite { position: relative; width: 52px; height: 52px; }
+.ally-sprite img { width: 52px; height: 52px; display: block; }
 .ally-name {
   font-family: var(--font-pixel);
   font-size: 7px;
@@ -1085,14 +1151,20 @@ input.switch:checked::after { transform: translateX(22px); background: var(--res
   color: var(--restore-gold);
 }
 
-/* === BATTLE ANIMATIONS (transform/opacity ONLY) ========== */
+/* === BATTLE ANIMATIONS (transform/opacity ONLY) ==========
+   Diagonal layout: allies (bottom-left) lunge up-right at the
+   boss; the boss (top-right) lunges down-left at the party. */
 .anim-lunge-up   { animation: lunge-up 250ms ease-out; }
 .anim-lunge-down { animation: lunge-down 250ms ease-out; }
 @keyframes lunge-up {
-  0% { transform: translateY(0); } 40% { transform: translateY(-14px); } 100% { transform: translateY(0); }
+  0%   { transform: translate(0, 0); }
+  40%  { transform: translate(11px, -11px); }
+  100% { transform: translate(0, 0); }
 }
 @keyframes lunge-down {
-  0% { transform: translateY(0); } 40% { transform: translateY(14px); } 100% { transform: translateY(0); }
+  0%   { transform: translate(0, 0); }
+  40%  { transform: translate(-13px, 11px); }
+  100% { transform: translate(0, 0); }
 }
 
 .hit-flash {
@@ -1505,8 +1577,10 @@ body.reduced-motion .boss-embers { display: none !important; }
    static filters allowed; NO animated filter, NO backdrop-filter)
    ============================================================ */
 
-/* boss header chips (enrage / phase 2 / foresight) */
-.boss-chips { display: flex; gap: 4px; flex: none; align-items: center; }
+/* boss info box chips (enrage / phase 2 / charging / foresight) -
+   their own wrapping row under the HP bar; collapses when empty */
+.boss-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding-top: 6px; }
+.boss-chips:empty { display: none; }
 .boss-chip {
   font-family: var(--font-pixel);
   font-size: 7px;
@@ -1542,11 +1616,12 @@ body.reduced-motion .boss-embers { display: none !important; }
 }
 .ally-bench-minis .mini-fainted { filter: grayscale(1) brightness(0.4); }
 
-/* playback SKIP control (lives inside the boss arena) */
+/* playback SKIP control (lives inside the boss arena, below
+   the forfeit flag that now owns the top-right corner) */
 .btn-skip {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: 50px;
+  right: 2px;
   z-index: 8;
   font-family: var(--font-pixel);
   font-size: 8px;
@@ -1579,9 +1654,13 @@ body.reduced-motion .boss-embers { display: none !important; }
 /* restoration: dim the battle chrome, fade the corruption dressing */
 #screen-battle .ally-row,
 #screen-battle .log-ticker,
+#screen-battle .btn-flag,
+#screen-battle .btn-battle-settings,
 #screen-battle .command-panel { transition: opacity 600ms ease; }
 #screen-battle.restoring .ally-row,
 #screen-battle.restoring .log-ticker,
+#screen-battle.restoring .btn-flag,
+#screen-battle.restoring .btn-battle-settings,
 #screen-battle.restoring .command-panel { opacity: 0.12; pointer-events: none; }
 .faded {
   animation: none !important;
@@ -1603,3 +1682,169 @@ body.reduced-motion .boss-embers { display: none !important; }
 .seat-ai-btn:active { transform: translateY(1px); }
 .seat-card .seat-ai-btn { margin-left: 2px; }
 .room-actions #btn-room-team { flex: 0.7; }
+
+/* ============================================================
+   v5 UI ITERATION - Pokemon layout extras, visible stats,
+   animal guide, forfeit. (transform/opacity only; static
+   filters/gradients only; NO backdrop-filter.)
+   ============================================================ */
+
+/* --- guide (book) buttons: 44px+ targets, right side of bars - */
+.btn-guide {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  color: var(--restore-gold);
+  border-color: var(--corrupt-500);
+}
+.btn-guide .icon { width: 20px; height: 20px; }
+.corner-btn-2 { right: 64px; }
+#btn-battle-guide { color: var(--restore-gold); border-color: var(--corrupt-500); }
+#btn-battle-guide .icon { width: 20px; height: 20px; }
+
+/* --- forfeit flag (battle screen top-right, clear of boss box) */
+.btn-flag {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 9;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--rad-2);
+  background: rgba(16, 16, 34, 0.88);
+  border: 1px solid var(--corrupt-500);
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-flag .icon { width: 20px; height: 20px; }
+.btn-flag:active { transform: scale(0.94); }
+/* battle settings gear: sits left of the flag; the settings sheet is
+   the fallback FORFEIT path, so it must be reachable mid-battle */
+.btn-battle-settings { right: 50px; }
+
+/* --- team select: stat legend + labeled card stat rows ------- */
+.team-legend {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-1) var(--sp-2);
+  color: var(--text-dim);
+  font-size: 10.5px;
+  line-height: 1.4;
+  text-align: center;
+}
+.team-legend .legend-text b { color: var(--text); font-weight: 600; }
+.btn-info {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 1px solid var(--corrupt-300);
+  color: var(--corrupt-300);
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  line-height: 1;
+}
+.crow { display: flex; align-items: center; gap: 3px; width: 100%; }
+.crow-label {
+  font-family: var(--font-pixel);
+  font-size: 6px;
+  width: 21px;
+  flex: none;
+  color: var(--text-dim);
+  text-align: left;
+}
+.crow-val {
+  font-family: var(--font-pixel);
+  font-size: 6px;
+  width: 20px;   /* fits 3-digit stats (Panda HP 100) without clipping */
+  flex: none;
+  color: var(--text);
+  text-align: right;
+}
+.crow .bar { flex: 1; }
+.animal-card { min-height: 136px; }
+.card-bars { width: 94%; gap: 3px; }
+
+/* --- stat guide sheet ---------------------------------------- */
+.stat-guide-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.55;
+}
+.stat-guide-row {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  padding: var(--sp-2) var(--sp-3);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid #22223a;
+  border-radius: var(--rad-2);
+}
+.stat-guide-row b {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  width: 38px;
+  flex: none;
+  margin-top: 2px;
+}
+.stat-guide-note {
+  text-align: center;
+  font-size: 12px;
+  color: var(--restore-gold);
+  padding: var(--sp-1) var(--sp-2);
+  line-height: 1.5;
+}
+
+/* --- animal guide sheet -------------------------------------- */
+.guide-hint { text-align: center; color: var(--text-dim); font-size: 11px; }
+.guide-list { display: flex; flex-direction: column; gap: 6px; }
+.guide-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 56px;
+  padding: 5px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid #22223a;
+  border-radius: var(--rad-2);
+  text-align: left;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+.guide-row:active { transform: scale(0.98); border-color: var(--corrupt-300); }
+.guide-row img { width: 42px; height: 42px; flex: none; }
+.guide-row-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.guide-row-name { font-family: var(--font-pixel); font-size: 9px; color: var(--text); }
+.guide-row-arch { font-size: 10px; color: var(--corrupt-300); letter-spacing: 0.5px; }
+.guide-row-stats {
+  flex: none;
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 3px 10px;
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  color: var(--text);
+}
+.guide-row-stats .gs { display: inline-block; width: 26px; color: var(--text-dim); }
+.guide-row-stats .gs-hp  { color: var(--hp-green); }
+.guide-row-stats .gs-atk { color: var(--rps-atk); }
+.guide-row-stats .gs-def { color: var(--rps-def); }
+.guide-row-stats .gs-spd { color: var(--rps-spc); }
+.btn-back-guide { align-self: flex-start; }
+
+/* move meta line (power/acc/effect) in the detail sheet */
+.detail-move-meta {
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+}

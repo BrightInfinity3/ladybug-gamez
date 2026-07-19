@@ -12,7 +12,8 @@
        opts = { mySeats:[seats this device controls],
                 onIntent(seat, intent),      // locked a move/switch
                 onForcedSwitch(seat, slot),  // picked a KO replacement
-                onPlaybackDone() }           // playback queue drained
+                onPlaybackDone(),            // playback queue drained
+                onInspect(animalId) }        // ally card tapped (detail sheet)
      BattleRender.play(events) -> Promise    // sequential playback;
                                              // batches queue up, the
                                              // promise resolves when
@@ -209,13 +210,13 @@
     if (aura) { aura.classList.remove('faded'); }
     var embers = $('boss-embers');
     if (embers) { embers.classList.remove('faded'); }
-    // chip holder lives inside the existing title row
-    var row = document.querySelector('#battle-boss-header .boss-title-row');
-    if (row && !$('boss-chips')) {
-      var holder = el('span', 'boss-chips');
+    // chip holder: its own row at the bottom of the boss info box
+    // (present in index.html; created here as a fallback)
+    var header = $('battle-boss-header');
+    if (header && !$('boss-chips')) {
+      var holder = el('div', 'boss-chips');
       holder.id = 'boss-chips';
-      var hpText = $('boss-hp-text');
-      row.insertBefore(holder, hpText || null);
+      header.appendChild(holder);
     }
     // light burst node inside the stage (used by playRestoration)
     var stage = $('boss-stage');
@@ -1200,15 +1201,30 @@
       });
       arena.appendChild(skip);
     }
-    // tapping a bench mini on MY card selects that switch
+    // Ally cluster taps (cluster lives INSIDE the arena now, so stop
+    // propagation - arena taps fast-forward playback):
+    //  - bench mini on MY card selects that switch
+    //  - anywhere else on a card inspects the active animal
     var allyRow = $('ally-row');
     if (allyRow) {
       allyRow.addEventListener('click', function (e) {
         var mini = e.target.closest ? e.target.closest('.bench-mini') : null;
-        if (!mini) { return; }
-        var seat = Number(mini.getAttribute('data-seat'));
-        if (isMine(seat) && seat === cmdSeat()) {
-          selectBench(Number(mini.getAttribute('data-slot')));
+        if (mini) {
+          e.stopPropagation();
+          var seat = Number(mini.getAttribute('data-seat'));
+          if (isMine(seat) && seat === cmdSeat()) {
+            selectBench(Number(mini.getAttribute('data-slot')));
+          }
+          return;
+        }
+        var card = e.target.closest ? e.target.closest('.ally-card') : null;
+        if (card) {
+          e.stopPropagation();
+          var cardSeat = Number(card.getAttribute('data-seat'));
+          var ent = activeEnt(cardSeat);
+          if (ent && typeof state.opts.onInspect === 'function') {
+            state.opts.onInspect(ent.id);
+          }
         }
       });
     }

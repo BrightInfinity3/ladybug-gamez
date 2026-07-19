@@ -241,8 +241,100 @@
       mySeats: mySeats.slice(),
       onIntent: onIntent,
       onForcedSwitch: onForcedSwitch,
-      onPlaybackDone: onPlaybackDone
+      onPlaybackDone: onPlaybackDone,
+      // tapping an ally battler inspects its animal (encyclopedia view -
+      // teammates may field animals we haven't unlocked ourselves)
+      onInspect: guard('onInspect', function (animalId) {
+        Screens.openAnimalDetail(animalId, { plain: true });
+      })
     };
+  }
+
+  // === forfeit (flag button / settings row) ================================
+  function showConfirm(title, bodyLines, confirmLabel, onConfirm, onCancel) {
+    var modal = $('modal');
+    var titleNode = $('modal-title');
+    var body = $('modal-body');
+    var actions = $('modal-actions');
+    if (!modal || !body || !actions) { onConfirm(); return; }
+    if (titleNode) { titleNode.textContent = title; }
+    body.innerHTML = '';
+    for (var i = 0; i < bodyLines.length; i++) {
+      var p = document.createElement('p');
+      p.textContent = bodyLines[i];
+      if (i > 0) { p.style.marginTop = '8px'; }
+      body.appendChild(p);
+    }
+    actions.innerHTML = '';
+    var cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'btn btn-secondary';
+    cancelBtn.textContent = 'CANCEL';
+    cancelBtn.addEventListener('click', function () {
+      modal.hidden = true;
+      if (onCancel) { onCancel(); }
+    });
+    var okBtn = document.createElement('button');
+    okBtn.type = 'button';
+    okBtn.className = 'btn btn-primary';
+    okBtn.textContent = confirmLabel;
+    okBtn.addEventListener('click', function () {
+      modal.hidden = true;
+      onConfirm();
+    });
+    actions.appendChild(cancelBtn);
+    actions.appendChild(okBtn);
+    modal.hidden = false;
+  }
+
+  // If the confirm dialog displaced an open forced-switch picker,
+  // put the picker back so the battle can't stall.
+  function restoreForcedSwitchPrompt() {
+    var snap = latestSnapshot();
+    if (!snap || snap.phase !== 'awaitSwitch' || !snap.pendingSwitchSeats) { return; }
+    for (var i = 0; i < mySeats.length; i++) {
+      if (snap.pendingSwitchSeats.indexOf(mySeats[i]) !== -1) {
+        BattleRender.promptForcedSwitch(mySeats[i]);
+        return;
+      }
+    }
+  }
+
+  function doForfeit() {
+    var battleScreen = $('screen-battle');
+    if (!battleScreen || !battleScreen.classList.contains('active')) { return; }
+    var online = netMode === 'host' || netMode === 'guest';
+    if (online) {
+      // Same path as leaving the room: the relay converts our seat to AI
+      // for the others (or migrates/disbands if we were the host).
+      showConfirm('FORFEIT?',
+        ['Forfeit & leave the room?',
+         'Your teammates keep playing - your seat becomes an AI ally.'],
+        'FORFEIT', function () {
+          Online.leaveRoom();
+          clearOnlineState();
+          Flow.reset();
+          BattleRender.reset();
+          Screens.show('title');
+          Screens.toast('You left the battle.');
+        }, restoreForcedSwitchPrompt);
+    } else {
+      // Offline: mirror the reload-abandon path - drop the live battle
+      // (Flow.reset), keep the saved run resumable from the title screen.
+      showConfirm('FORFEIT?',
+        ['Forfeit the battle? Your ladder progress is kept.',
+         'You can resume this run from the title screen.'],
+        'FORFEIT', function () {
+          pendingEnd = null;
+          pendingSwitchSeats = [];
+          guestLockedRound = null;
+          Flow.reset();
+          BattleRender.reset();
+          resumePending = !!run;
+          Screens.show('title');
+          Screens.toast('Battle forfeited - your run is saved.');
+        }, restoreForcedSwitchPrompt);
+    }
   }
 
   function startBattle(rung) {   // offline solo
@@ -677,7 +769,9 @@
       clearOnlineState();
       Flow.reset();
       BattleRender.reset();
-    })
+    }),
+
+    onForfeit: guard('onForfeit', doForfeit)
   };
 
   // === boot ================================================================
