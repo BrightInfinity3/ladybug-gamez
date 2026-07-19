@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0a14">
+  <title>Animal Battle Champions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=4">
+</head>
+<body>
+
+  <!-- ==================== SVG ICON DEFS ==================== -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="icon-sword" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M20.9 3.1l-4.6 1.5-9.4 9.4 3.1 3.1 9.4-9.4 1.5-4.6zM5.9 15l-1.5 1.5-1.1 3.3 .9 .9 3.3-1.1L9 18.1 5.9 15zM3 19.6l1.4 1.4-1.9 .5 .5-1.9z"/>
+    </symbol>
+    <symbol id="icon-shield" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M12 1.8l8.2 3.1v6.3c0 5.1-3.5 9.6-8.2 11-4.7-1.4-8.2-5.9-8.2-11V4.9L12 1.8z"/>
+    </symbol>
+    <symbol id="icon-star" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M12 1.2l2.7 8.1 8.1 2.7-8.1 2.7L12 22.8l-2.7-8.1L1.2 12l8.1-2.7L12 1.2z"/>
+    </symbol>
+    <symbol id="icon-swap" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M7 3.5L2.5 8 7 12.5V9.5h9v-3H7v-3zM17 11.5v3H8v3h9v3l4.5-4.5L17 11.5z"/>
+    </symbol>
+    <symbol id="icon-lock" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M12 2a5 5 0 0 0-5 5v3H5.5v12h13V10H17V7a5 5 0 0 0-5-5zm0 2.4A2.6 2.6 0 0 1 14.6 7v3H9.4V7A2.6 2.6 0 0 1 12 4.4zM12 14a1.7 1.7 0 0 1 .9 3.1V19h-1.8v-1.9A1.7 1.7 0 0 1 12 14z"/>
+    </symbol>
+    <symbol id="icon-gear" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M10.3 2h3.4l.5 2.6c.6.2 1.2.5 1.7 1l2.5-.9 1.7 2.9-2 1.8c.1.3.1.7.1 1s0 .7-.1 1l2 1.8-1.7 2.9-2.5-.9c-.5.4-1.1.7-1.7 1l-.5 2.6h-3.4l-.5-2.6c-.6-.2-1.2-.5-1.7-1l-2.5.9-1.7-2.9 2-1.8c-.1-.3-.1-.7-.1-1s0-.7.1-1l-2-1.8 1.7-2.9 2.5.9c.5-.4 1.1-.7 1.7-1L10.3 2zM12 8.8A3.2 3.2 0 1 0 12 15.2 3.2 3.2 0 0 0 12 8.8z"/>
+    </symbol>
+  </svg>
+
+  <div class="app-frame" id="app-frame">
+
+    <!-- ==================== TITLE ==================== -->
+    <section class="screen" id="screen-title">
+      <button class="btn-icon corner-btn" id="btn-title-settings" aria-label="Settings">
+        <svg class="icon" aria-hidden="true"><use href="#icon-gear"></use></svg>
+      </button>
+      <div class="title-stack">
+        <div class="title-sprites">
+          <div class="title-sprite" id="title-sprite-left"></div>
+          <div class="title-sprite title-sprite-mid" id="title-sprite-mid"></div>
+          <div class="title-sprite" id="title-sprite-right"></div>
+        </div>
+        <h1 class="game-title" id="game-title">ANIMAL<br>BATTLE<br>CHAMPIONS</h1>
+        <p class="tagline">Free the corrupted. Climb the ladder.</p>
+        <input type="text" id="input-player-name" maxlength="12" placeholder="YOUR NAME" autocomplete="off" spellcheck="false" enterkeyhint="go">
+        <button class="btn btn-primary btn-wide" id="btn-play">PLAY</button>
+      </div>
+    </section>
+
+    <!-- ==================== MODE SELECT ==================== -->
+    <section class="screen" id="screen-mode">
+      <header class="screen-header">
+        <button class="btn-back" id="btn-mode-back" aria-label="Back">&lt;</button>
+        <h2 class="screen-title">CHOOSE MODE</h2>
+        <span class="header-spacer"></span>
+      </header>
+      <div class="mode-cards">
+        <button class="mode-card" id="btn-mode-solo">
+          <span class="mode-card-title">SOLO ADVENTURE</span>
+          <span class="mode-card-desc">Climb the 8-boss ladder. Bring up to two AI allies.</span>
+        </button>
+        <button class="mode-card mode-card-online" id="btn-mode-online">
+          <span class="mode-card-title">CO-OP ONLINE</span>
+          <span class="mode-card-desc">Team up with friends against one dark boss.</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ==================== PARTY SETUP (solo) ==================== -->
+    <section class="screen" id="screen-party">
+      <header class="screen-header">
+        <button class="btn-back" id="btn-party-back" aria-label="Back">&lt;</button>
+        <h2 class="screen-title">YOUR PARTY</h2>
+        <span class="header-spacer"></span>
+      </header>
+      <div class="party-seats">
+        <div class="seat-row" id="party-seat-1">
+          <div class="seat-face" id="party-face-1"></div>
+          <div class="seat-info">
+            <span class="seat-name" id="party-name-1">You</span>
+            <span class="seat-sub">Player 1</span>
+          </div>
+        </div>
+        <div class="seat-row" id="party-seat-2">
+          <button class="btn-ally-toggle" id="btn-ally-2">+ ADD AI ALLY</button>
+          <div class="seat-filled" id="party-ally-2" hidden>
+            <div class="seat-face" id="party-face-2"></div>
+            <div class="seat-info">
+              <span class="seat-name" id="party-name-2"></span>
+              <span class="seat-sub">AI Ally</span>
+            </div>
+            <button class="btn-seat-remove" id="btn-ally-remove-2" aria-label="Remove ally">&times;</button>
+          </div>
+        </div>
+        <div class="seat-row" id="party-seat-3">
+          <button class="btn-ally-toggle" id="btn-ally-3">+ ADD AI ALLY</button>
+          <div class="seat-filled" id="party-ally-3" hidden>
+            <div class="seat-face" id="party-face-3"></div>
+            <div class="seat-info">
+              <span class="seat-name" id="party-name-3"></span>
+              <span class="seat-sub">AI Ally</span>
+            </div>
+            <button class="btn-seat-remove" id="btn-ally-remove-3" aria-label="Remove ally">&times;</button>
+          </div>
+        </div>
+      </div>
+      <p class="party-hint">More allies make the climb easier. Alone, it is brutal.</p>
+      <div class="screen-footer">
+        <button class="btn btn-primary btn-wide" id="btn-party-continue">CHOOSE YOUR TEAM</button>
+      </div>
+    </section>
+
+    <!-- ==================== ONLINE LOBBY ==================== -->
+    <section class="screen" id="screen-lobby">
+      <header class="screen-header">
+        <button class="btn-back" id="btn-lobby-back" aria-label="Back">&lt;</button>
+        <h2 class="screen-title">CO-OP ONLINE</h2>
+        <span class="header-spacer"></span>
+      </header>
+      <div class="lobby-actions">
+        <button class="btn btn-primary btn-wide" id="btn-create-room">CREATE ROOM</button>
+        <div class="lobby-divider">&mdash; OR &mdash;</div>
+        <input type="text" id="input-join-code" maxlength="6" placeholder="ROOM CODE" autocomplete="off" spellcheck="false" autocapitalize="characters">
+        <button class="btn btn-secondary btn-wide" id="btn-join-room">JOIN ROOM</button>
+        <p class="lobby-status" id="lobby-status"></p>
+      </div>
+    </section>
+
+    <!-- ==================== ROOM ==================== -->
+    <section class="screen" id="screen-room">
+      <header class="screen-header">
+        <button class="btn-back" id="btn-room-leave" aria-label="Leave room">&lt;</button>
+        <h2 class="screen-title">ROOM</h2>
+        <span class="header-spacer"></span>
+      </header>
+      <div class="room-code-row">
+        <span class="room-code" id="room-code">------</span>
+        <button class="btn-mini" id="btn-copy-code">COPY</button>
+      </div>
+      <div class="room-seats" id="room-seats"></div>
+      <div class="screen-footer room-actions">
+        <button class="btn btn-secondary" id="btn-room-ready">READY</button>
+        <button class="btn btn-primary" id="btn-room-start" disabled>START</button>
+      </div>
+    </section>
+
+    <!-- ==================== TEAM SELECT ==================== -->
+    <section class="screen" id="screen-team">
+      <header class="screen-header team-header">
+        <button class="btn-back" id="btn-team-back" aria-label="Back">&lt;</button>
+        <h2 class="screen-title">PICK YOUR 3</h2>
+        <span class="team-count" id="team-count">0 / 3</span>
+      </header>
+      <div class="team-slots" id="team-slots">
+        <button class="team-slot" id="team-slot-1"></button>
+        <button class="team-slot" id="team-slot-2"></button>
+        <button class="team-slot" id="team-slot-3"></button>
+      </div>
+      <div class="team-grid" id="team-grid"></div>
+      <div class="team-footer">
+        <button class="btn btn-primary btn-wide" id="btn-team-ready" disabled>READY</button>
+      </div>
+    </section>
+
+    <!-- ==================== LADDER ==================== -->
+    <section class="screen" id="screen-ladder">
+      <header class="screen-header">
+        <button class="btn-back" id="btn-ladder-back" aria-label="Back">&lt;</button>
+        <h2 class="screen-title">THE DARK LADDER</h2>
+        <button class="btn-icon" id="btn-settings" aria-label="Settings">
+          <svg class="icon" aria-hidden="true"><use href="#icon-gear"></use></svg>
+        </button>
+      </header>
+      <div class="ladder-tower" id="ladder-tower"></div>
+    </section>
+
+    <!-- ==================== BATTLE ==================== -->
+    <section class="screen" id="screen-battle">
+      <header class="boss-header" id="battle-boss-header">
+        <div class="boss-title-row">
+          <span class="boss-name" id="boss-name"></span>
+          <span class="boss-hp-text" id="boss-hp-text"></span>
+        </div>
+        <div class="hp-track boss-hp" id="boss-hp-track">
+          <div class="hp-ghost" id="boss-hp-ghost"></div>
+          <div class="hp-fill" id="boss-hp-fill"></div>
+        </div>
+      </header>
+      <div class="boss-arena" id="boss-arena">
+        <div class="boss-aura" id="boss-aura"></div>
+        <div class="boss-stage" id="boss-stage">
+          <div class="boss-sprite" id="boss-sprite"></div>
+          <div class="boss-eyes" id="boss-eyes"></div>
+          <div class="hit-flash" id="boss-hit-flash"></div>
+        </div>
+        <div class="boss-embers" id="boss-embers"><i></i><i></i><i></i><i></i></div>
+        <div class="fx-layer" id="boss-fx"></div>
+      </div>
+      <div class="ally-row" id="ally-row"></div>
+      <button class="log-ticker" id="log-ticker">
+        <span class="log-ticker-text" id="log-ticker-text">The battle begins...</span>
+      </button>
+      <div class="command-panel" id="command-panel">
+        <div class="move-row">
+          <button class="btn-rps rps-attack" id="btn-move-attack">
+            <svg class="rps-icon" aria-hidden="true"><use href="#icon-sword"></use></svg>
+            <span class="move-name" id="move-name-attack">ATTACK</span>
+            <span class="move-sub" id="move-sub-attack"></span>
+          </button>
+          <button class="btn-rps rps-defense" id="btn-move-defense">
+            <svg class="rps-icon" aria-hidden="true"><use href="#icon-shield"></use></svg>
+            <span class="move-name" id="move-name-defense">DEFEND</span>
+            <span class="move-sub" id="move-sub-defense"></span>
+          </button>
+          <button class="btn-rps rps-special" id="btn-move-special">
+            <svg class="rps-icon" aria-hidden="true"><use href="#icon-star"></use></svg>
+            <span class="move-name" id="move-name-special">SPECIAL</span>
+            <span class="move-sub" id="move-sub-special"></span>
+            <span class="cd-badge" id="move-cd-special" hidden></span>
+          </button>
+        </div>
+        <div class="bench-row" id="bench-chips"></div>
+        <div class="lock-row">
+          <button class="btn-hint" id="btn-rps-hint" aria-label="Matchup hint">?</button>
+          <button class="btn btn-primary btn-lock" id="btn-lock-in" disabled>LOCK IN</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== RESULT ==================== -->
+    <section class="screen" id="screen-result">
+      <div class="result-block" id="result-victory" hidden>
+        <h2 class="result-heading" id="result-heading">VICTORY!</h2>
+        <div class="restore-stage" id="restore-stage">
+          <div class="light-burst" id="light-burst"></div>
+          <div class="restore-sprite" id="restore-sprite"></div>
+        </div>
+        <div class="restore-name" id="restore-name"></div>
+        <p class="restore-line" id="restore-line"></p>
+        <div class="unlock-banner" id="result-unlocked" hidden>JOINS YOUR ROSTER!</div>
+        <div class="screen-footer">
+          <button class="btn btn-primary btn-wide" id="btn-victory-continue">CONTINUE</button>
+        </div>
+      </div>
+      <div class="result-block" id="result-defeat" hidden>
+        <h2 class="result-heading result-heading-defeat">DEFEAT</h2>
+        <div class="defeat-stage">
+          <div class="defeat-sprite" id="defeat-sprite"></div>
+        </div>
+        <p class="defeat-line" id="defeat-line"></p>
+        <div class="screen-footer">
+          <button class="btn btn-primary btn-wide" id="btn-defeat-retry">TRY AGAIN</button>
+          <button class="btn btn-secondary btn-wide" id="btn-defeat-menu">BACK TO LADDER</button>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /.app-frame -->
+
+  <!-- ==================== OVERLAYS ==================== -->
+  <div class="sheet-backdrop" id="sheet-backdrop"></div>
+
+  <div class="sheet" id="sheet-settings">
+    <div class="sheet-grabber"></div>
+    <h3 class="sheet-title">SETTINGS</h3>
+    <label class="setting-row">
+      <span>Sound effects</span>
+      <input type="checkbox" id="toggle-sfx" class="switch">
+    </label>
+    <label class="setting-row">
+      <span>Reduce motion</span>
+      <input type="checkbox" id="toggle-reduce-motion" class="switch">
+    </label>
+    <label class="setting-row">
+      <span>Hide ally picks until locked</span>
+      <input type="checkbox" id="toggle-hide-ally-picks" class="switch">
+    </label>
+    <label class="setting-row">
+      <span>Earn animals by freeing them</span>
+      <input type="checkbox" id="toggle-unlock-mode" class="switch">
+    </label>
+    <button class="btn btn-secondary btn-wide" id="btn-save-reset">RESET SAVE DATA</button>
+    <button class="btn btn-primary btn-wide" id="btn-settings-close">CLOSE</button>
+  </div>
+
+  <div class="sheet" id="sheet-battle-log">
+    <div class="sheet-grabber"></div>
+    <h3 class="sheet-title">BATTLE LOG</h3>
+    <div class="log-entries" id="battle-log-entries"></div>
+  </div>
+
+  <div class="sheet" id="sheet-animal-detail">
+    <div class="sheet-grabber"></div>
+    <div class="animal-detail-body" id="animal-detail-body"></div>
+  </div>
+
+  <div class="sheet" id="sheet-rps-hint">
+    <div class="sheet-grabber"></div>
+    <h3 class="sheet-title">THE TRIANGLE</h3>
+    <div class="rps-triangle">
+      <svg class="rps-arrows" viewBox="0 0 220 190" aria-hidden="true">
+        <defs>
+          <marker id="rps-arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0L10 5L0 10z" fill="currentColor"></path>
+          </marker>
+        </defs>
+        <path class="rps-arrow arrow-atk" d="M132 46 Q 182 78 172 128" fill="none" marker-end="url(#rps-arrowhead)"></path>
+        <path class="rps-arrow arrow-spc" d="M148 158 Q 110 178 72 158" fill="none" marker-end="url(#rps-arrowhead)"></path>
+        <path class="rps-arrow arrow-def" d="M48 128 Q 38 78 88 46" fill="none" marker-end="url(#rps-arrowhead)"></path>
+      </svg>
+      <div class="rps-node rps-node-attack">
+        <svg class="rps-icon" aria-hidden="true"><use href="#icon-sword"></use></svg>
+        <span>ATTACK</span>
+      </div>
+      <div class="rps-node rps-node-special">
+        <svg class="rps-icon" aria-hidden="true"><use href="#icon-star"></use></svg>
+        <span>SPECIAL</span>
+      </div>
+      <div class="rps-node rps-node-defense">
+        <svg class="rps-icon" aria-hidden="true"><use href="#icon-shield"></use></svg>
+        <span>DEFEND</span>
+      </div>
+    </div>
+    <ul class="rps-rules">
+      <li><b class="t-attack">ATTACK</b> cuts through <b class="t-special">SPECIAL</b> &mdash; x1.5 and disrupts it</li>
+      <li><b class="t-special">SPECIAL</b> pierces <b class="t-defense">DEFEND</b> &mdash; x1.5, riders ignored</li>
+      <li><b class="t-defense">DEFEND</b> blocks <b class="t-attack">ATTACK</b> &mdash; x0.5 plus shields &amp; counters</li>
+    </ul>
+    <button class="btn btn-primary btn-wide" id="btn-rps-close">GOT IT</button>
+  </div>
+
+  <div class="modal-backdrop" id="modal" hidden>
+    <div class="modal-box">
+      <h3 class="modal-title" id="modal-title"></h3>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-actions" id="modal-actions"></div>
+    </div>
+  </div>
+
+  <div class="toast-holder" id="toast-holder"></div>
+
+  <div class="rotate-overlay" id="rotate-overlay">
+    <div class="rotate-box">
+      <div class="rotate-icon"></div>
+      <p class="rotate-text">PLEASE ROTATE YOUR DEVICE</p>
+      <p class="rotate-sub">Animal Battle Champions is portrait-only.</p>
+    </div>
+  </div>
+
+  <!-- ==================== SCRIPTS (dependency order) ==================== -->
+  <script src="js/gameData.js?v=4"></script>
+  <script src="js/sprites.js?v=4"></script>
+  <script src="js/engine.js?v=4"></script>
+  <script src="js/bossAI.js?v=4"></script>
+  <script src="js/companionAI.js?v=4"></script>
+  <script src="js/save.js?v=4"></script>
+  <script src="js/flow.js?v=4"></script>
+  <script src="js/net/network.js?v=4"></script>
+  <script src="js/net/online.js?v=4"></script>
+  <script src="js/ui/battle-render.js?v=4"></script>
+  <script src="js/ui/screens.js?v=4"></script>
+  <script src="js/main.js?v=4"></script>
+</body>
+</html>
