@@ -214,11 +214,16 @@
   function buildLabels() {
     map.territories.forEach(function (t) {
       var e = els[t.id];
-      var pos = t.leader || t.anchor;
-      if (t.leader) {
-        // hairline from the territory out to its offshore chip (tiny NE states)
+      // Map contract: leader is { chip: [x, y] } — accept a bare [x, y] too.
+      // (Reading t.leader[0] off the object form put every chip at (0,0),
+      // stacking them in the corner with hairlines fanning across the map.)
+      var chip = t.leader ? (t.leader.chip || t.leader) : null;
+      if (chip && (typeof chip[0] !== "number" || typeof chip[1] !== "number")) chip = null;
+      var pos = chip || t.anchor;
+      if (chip) {
+        // hairline from the territory out to its just-offshore chip
         mk("line", {
-          x1: t.anchor[0], y1: t.anchor[1], x2: t.leader[0], y2: t.leader[1],
+          x1: t.anchor[0], y1: t.anchor[1], x2: chip[0], y2: chip[1],
           "class": "leader-line"
         }, layers.labels);
       }
@@ -234,7 +239,7 @@
       var bg = mk("circle", { "class": "badge-bg", r: 12 }, inner);
       var ring = mk("circle", { "class": "badge-ring", r: 12 }, inner);
       var text = mk("text", { "class": "badge-val", "text-anchor": "middle", dy: "0.35em" }, inner);
-      if (t.leader && t.label) {
+      if (chip && t.label) {
         mk("text", {
           "class": "badge-tag", "text-anchor": "middle", y: -19
         }, inner).textContent = t.label;
