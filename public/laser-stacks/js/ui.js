@@ -208,7 +208,7 @@ var UI = (function () {
   function init() {
     // Build stamp — matches the title-screen .build-tag; a device
     // logging an older number is running a cached build.
-    console.log('[LaserStacks] build v2.6');
+    console.log('[LaserStacks] build v2.7');
     initSetupSeats();
     bindEvents();
     bindOnlineEvents();
@@ -908,8 +908,12 @@ var UI = (function () {
     hideLobbyChrome();
     if (Online.isActive() && !Online.isHost()) _dealLock = true;
 
-    // Re-render the legend now that the stack is laid out at its real size
+    // Re-render the legend now that the stack is laid out at its real size,
+    // and sync lock states to the FRESH round — without this, a game
+    // started after exiting another kept the old game's unlocked suits
+    // showing until the first trick updated them.
     updateSuitStackLegend(SaveSystem.getSuitStyle());
+    updateSuitDiagram();
 
     renderGameTable().then(function () {
       if (flowStale(ep)) return Promise.reject('stale');
