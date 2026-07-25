@@ -35,6 +35,13 @@ var UI = (function () {
   var handDisplay = {};    // playerId -> [{card, faceUp}]
   var trickDisplay = [];   // [{playerId, card, seatIndex}] current trick cards on table
   var resizeListenerAdded = false;
+  // Generation token for game-flow chains. Bumped on every exit/leave
+  // (clearGameDisplay): pending timers and promise chains from the
+  // abandoned game check it and die instead of mutating the next game
+  // (the old flow kept running after Main Menu and e.g. prompted a bid
+  // before the new deal finished).
+  var _flowEpoch = 0;
+  function flowStale(ep) { return ep !== _flowEpoch; }
 
   // ---- Responsive Helpers (30's vmin system) ----
   // DOM-side vmin — must agree with Renderer.getVmin() so canvas geometry
@@ -201,7 +208,7 @@ var UI = (function () {
   function init() {
     // Build stamp — matches the title-screen .build-tag; a device
     // logging an older number is running a cached build.
-    console.log('[LaserStacks] build v2.5');
+    console.log('[LaserStacks] build v2.6');
     initSetupSeats();
     bindEvents();
     bindOnlineEvents();
@@ -529,6 +536,7 @@ var UI = (function () {
     document.getElementById('btn-confirm-yes').addEventListener('click', function () {
       document.getElementById('confirm-exit').style.display = 'none';
       gamePhase = 'none';
+      clearGameDisplay();
       Renderer.stopLoop();
       showScreen('screen-title');
     });
@@ -548,6 +556,7 @@ var UI = (function () {
     document.getElementById('btn-confirm-results-yes').addEventListener('click', function () {
       document.getElementById('confirm-exit-results').style.display = 'none';
       gamePhase = 'none';
+      clearGameDisplay();
       showScreen('screen-title');
     });
     document.getElementById('btn-confirm-results-no').addEventListener('click', function () {
@@ -887,6 +896,7 @@ var UI = (function () {
   // once the host's deck is synced, dealing/sorting/first-leader all
   // replay identically on every device.
   function startRoundFlow(dealOrder) {
+    var ep = _flowEpoch;
     gamePhase = 'playing';
     showScreen('screen-game');
     document.getElementById('setup-header').style.display = 'none';
@@ -902,6 +912,7 @@ var UI = (function () {
     updateSuitStackLegend(SaveSystem.getSuitStyle());
 
     renderGameTable().then(function () {
+      if (flowStale(ep)) return Promise.reject('stale');
       positionSuitStackAndTrickInfo();
       updateHUD();
       gameFlowLocked = true;
@@ -911,6 +922,7 @@ var UI = (function () {
     }).then(function () {
       return animateDealSequence(dealOrder);
     }).then(function () {
+      if (flowStale(ep)) return Promise.reject('stale');
       Game.sortAllHands();
 
       // Sync hand display to sorted order (all face down on canvas)
@@ -937,6 +949,7 @@ var UI = (function () {
 
       return Animations.delay(1500);
     }).then(function () {
+      if (flowStale(ep)) return Promise.reject('stale');
       // Show hand bar with cards visible so the human can see before bidding
       document.getElementById('hand-bar').style.display = '';
       renderHandBar();
@@ -944,6 +957,7 @@ var UI = (function () {
       setMessage('Bidding phase');
       return Animations.delay(500);
     }).then(function () {
+      if (flowStale(ep)) return Promise.reject('stale');
       // Start bidding
       Game.startBidding();
       _dealLock = false;
@@ -954,6 +968,7 @@ var UI = (function () {
         processBidding();
       }
     }).catch(function (e) {
+      if (e === 'stale') return; // abandoned game — intentional bail
       // Surface flow errors — a silent rejection here freezes the round
       console.error('[LaserStacks] Round flow error:', e);
     });
@@ -961,12 +976,14 @@ var UI = (function () {
 
   // ---- Bidding Flow ----
   function processBidding() {
+    var ep = _flowEpoch;
     var bidder = Game.getCurrentBidder();
     if (!bidder) {
       // All bids in — start playing
       setMessage('All bids in!');
       updateAllBidDisplays();
       return Animations.delay(1000).then(function () {
+        if (flowStale(ep)) return;
         Game.startPlaying();
         if (Online.isActive() && Online.isHost()) {
           Online.broadcastGameStateSync({ gameState: Game.serialize() });
@@ -1000,6 +1017,7 @@ var UI = (function () {
       gameFlowLocked = true;
 
       Animations.delay(600 + Math.random() * 400).then(function () {
+        if (flowStale(ep)) return Promise.reject('stale');
         var bid = Game.aiBid(bidder.id);
         Game.setBid(bidder.id, bid);
         if (Online.isActive() && Online.isHost()) {
@@ -1010,8 +1028,11 @@ var UI = (function () {
 
         return Animations.delay(600);
       }).then(function () {
+        if (flowStale(ep)) return;
         Game.advanceBid();
         processBidding();
+      }).catch(function (e) {
+        if (e !== 'stale') throw e;
       });
     }
   }
@@ -1035,6 +1056,7 @@ var UI = (function () {
   // Apply a human bid on the authority (local play, or the online host
   // for both its own and remote players' bids)
   function hostApplyBid(playerId, value) {
+    var ep = _flowEpoch;
     Game.setBid(playerId, value);
     if (Online.isActive() && Online.isHost()) {
       Online.broadcastGameAction({ type: 'action_bid', playerId: playerId, value: value });
@@ -1045,6 +1067,7 @@ var UI = (function () {
     setMessage(mine ? 'You bid ' + value : bidPlayer.name + ' bids ' + value);
 
     Animations.delay(400).then(function () {
+      if (flowStale(ep)) return;
       Game.advanceBid();
       processBidding();
     });
@@ -1059,6 +1082,7 @@ var UI = (function () {
   // in exact dealOrder — required for online replay.
   function animateDealSequence(dealOrder) {
     if (!dealOrder || !dealOrder.length) return Promise.resolve();
+    var ep = _flowEpoch;
 
     // dealOrder is round-major (see Game.buildDealOrder): 10 rounds of
     // one card per player.
@@ -1075,6 +1099,7 @@ var UI = (function () {
       var jobs = roundIds.map(function (playerId, idx) {
         return new Promise(function (resolve) {
           setTimeout(function () {
+            if (flowStale(ep)) { resolve(); return; }
             var card = Game.dealCardTo(playerId);
             if (!card) { resolve(); return; }
             var player = Game.getPlayerById(playerId);
@@ -1160,6 +1185,7 @@ var UI = (function () {
 
   // ---- Turn Flow ----
   function nextTurn() {
+    var ep = _flowEpoch;
     var player = Game.getCurrentPlayer();
     if (!player) {
       endRound();
@@ -1208,6 +1234,7 @@ var UI = (function () {
       gameFlowLocked = true;
 
       Animations.delay(600 + Math.random() * 600).then(function () {
+        if (flowStale(ep)) return;
         var cardIndex = Game.aiPlayCard(player.id);
         return executePlay(player.id, cardIndex);
       });
@@ -1216,6 +1243,7 @@ var UI = (function () {
 
   // ---- Auto-play last stack ----
   function autoPlayLastTrick(firstPlayer) {
+    var ep = _flowEpoch;
     setMessage('Final Stack!');
     gameFlowLocked = true;
     enableHandBar(false);
@@ -1238,6 +1266,7 @@ var UI = (function () {
       }
 
       Animations.delay(800).then(function () {
+        if (flowStale(ep)) return;
         return executePlay(player.id, cardIndex);
       });
     }
@@ -1267,6 +1296,7 @@ var UI = (function () {
   }
 
   function executePlay(playerId, cardIndex) {
+    var ep = _flowEpoch;
     var player = Game.getPlayerById(playerId);
     var card = Game.playCard(playerId, cardIndex);
 
@@ -1293,6 +1323,7 @@ var UI = (function () {
     setMessage(player.name + ' plays ' + card.rank + card.symbol);
 
     return animatePlayCard(card, playerId, player.seatIndex).then(function () {
+      if (flowStale(ep)) return;
       // Refresh the bar with the player's own remaining hand (multi-human:
       // never flash another human's cards here)
       if (player.isHuman) renderHandBar(playerId);
@@ -1306,6 +1337,7 @@ var UI = (function () {
         // Trick complete — determine winner
         var trickWinnerId;
         return Animations.delay(600).then(function () {
+          if (flowStale(ep)) return Promise.reject('stale');
           trickWinnerId = Game.determineTrickWinner();
           var winner = Game.getPlayerById(trickWinnerId);
           setMessage(winner.name + ' wins the Stack!');
@@ -1320,6 +1352,7 @@ var UI = (function () {
 
           return Animations.delay(1200);
         }).then(function () {
+          if (flowStale(ep)) return;
           // Clear trick display
           trickDisplay = [];
           Renderer.markDirty();
@@ -1341,10 +1374,13 @@ var UI = (function () {
             gameFlowLocked = false;
             nextTurn();
           }
+        }).catch(function (e) {
+          if (e !== 'stale') throw e;
         });
       } else {
         // More players to play in this trick
         return Animations.delay(300).then(function () {
+          if (flowStale(ep)) return;
           var next = Game.advanceTrickTurn();
           if (!next) {
             endRound();
@@ -1360,6 +1396,7 @@ var UI = (function () {
               ci = Game.aiPlayCard(nextPlayer.id);
             }
             Animations.delay(800).then(function () {
+              if (flowStale(ep)) return;
               executePlay(nextPlayer.id, ci);
             });
           } else {
@@ -1372,11 +1409,13 @@ var UI = (function () {
   }
 
   function endRound() {
+    var ep = _flowEpoch;
     gameFlowLocked = true;
     enableHandBar(false);
     document.getElementById('hand-bar').style.display = 'none';
 
     Animations.delay(1000).then(function () {
+      if (flowStale(ep)) return;
       showResults();
     });
   }
@@ -2090,8 +2129,11 @@ var UI = (function () {
     document.getElementById('confirm-leave-room').style.display = 'flex';
   }
 
-  // Reset every game-visual so a leave/disband doesn't leak stale state
+  // Reset every game-visual so a leave/disband doesn't leak stale state,
+  // and cancel all pending game-flow continuations (see _flowEpoch).
   function clearGameDisplay() {
+    _flowEpoch++;
+    gameFlowLocked = false;
     handDisplay = {};
     trickDisplay = [];
     _waitingForRemote = false;
@@ -2501,11 +2543,13 @@ var UI = (function () {
 
   // Guest: replay a bid the host applied (our own bids echo back too)
   function guestApplyBid(playerId, value) {
+    var ep = _flowEpoch;
     Game.setBid(playerId, value);
     updateStatLine(playerId);
     var p = Game.getPlayerById(playerId);
     setMessage((Online.isMyPlayer(playerId) ? 'You bid ' : p.name + ' bids ') + value);
     Animations.delay(400).then(function () {
+      if (flowStale(ep)) return;
       Game.advanceBid();
       guestBidPrompt();
     });
@@ -2597,10 +2641,14 @@ var UI = (function () {
       case 'trick_complete':
         setMessage(data.winnerName + ' wins the Stack!');
         highlightActivePlayer(data.winnerId);
-        Animations.delay(1200).then(function () {
-          trickDisplay = [];
-          Renderer.markDirty();
-        });
+        (function () {
+          var ep = _flowEpoch;
+          Animations.delay(1200).then(function () {
+            if (flowStale(ep)) return;
+            trickDisplay = [];
+            Renderer.markDirty();
+          });
+        })();
         break;
     }
   }
@@ -2662,7 +2710,13 @@ var UI = (function () {
       gameFlowLocked = true;
       enableHandBar(false);
       document.getElementById('hand-bar').style.display = 'none';
-      Animations.delay(800).then(function () { showResults(); });
+      (function () {
+        var ep = _flowEpoch;
+        Animations.delay(800).then(function () {
+          if (flowStale(ep)) return;
+          showResults();
+        });
+      })();
       return;
     }
     if (gs.roundPhase === 'bidding') {

@@ -545,8 +545,8 @@ html, body {
 
 .seat-name {
   font-family: var(--font-display);
-  /* 2.6vmin = 1.3rem on a 800px-min desktop */
-  font-size: max(2.6vmin, 0.85rem);
+  /* Same size as .game-seat-name (v2.6, MK's consistency ask) */
+  font-size: max(1.9vmin, 0.6rem);
   color: var(--text-light);
   margin-top: 3px;
   text-align: center;
@@ -564,7 +564,7 @@ html, body {
 /* Inline name editing */
 .seat-name-input {
   font-family: var(--font-display);
-  font-size: max(2.6vmin, 0.85rem);
+  font-size: max(1.9vmin, 0.6rem);
   color: var(--gold-light);
   background: rgba(0, 0, 0, 0.6);
   border: 1px solid var(--gold-dim);
