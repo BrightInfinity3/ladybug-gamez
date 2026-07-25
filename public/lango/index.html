@@ -13,8 +13,12 @@
         html,body{width:100%;height:100%;overflow:hidden}
         body{
             font-family:var(--game-font,'Outfit'),-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
-            display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
-            padding:20px 15px;min-height:100vh;transition:background .4s,color .4s;
+            /* position:fixed pins the page to the viewport — iOS Safari can
+               scroll the body on input focus even with overflow:hidden, which
+               clipped the top of every screen on iPad. */
+            position:fixed;inset:0;
+            display:flex;flex-direction:column;align-items:center;
+            padding:20px 15px;transition:background .4s,color .4s;
             --accent-primary:#8b5cf6;--accent-secondary:#7c3aed;
             --accent-light:rgba(139,92,246,.15);--accent-border:rgba(139,92,246,.3);--accent-glow:rgba(139,92,246,.4);
             --sheet-hue:262;--sheet-L:90%;--sheet-sat:55%;
@@ -173,7 +177,11 @@
         body.shade-1, body.shade-2{color:#1e1b4b}
         body.shade-3, body.shade-4, body.shade-5{color:#ffffff}
 
-        .container{text-align:center;width:100%;max-width:600px;position:relative}
+        /* margin:auto = overflow-safe vertical centering: content centers in
+           the free space (tall viewports like iPad portrait) but falls back
+           to top-aligned when it exceeds the viewport, so nothing clips at
+           the top on short phones. */
+        .container{text-align:center;width:100%;max-width:600px;position:relative;margin:auto}
 
         /* ── Logo ── */
         .logo{font-size:7.5rem;font-weight:900;margin-bottom:1rem;letter-spacing:-2px;line-height:1.4;padding-bottom:.3em;overflow:visible;background:linear-gradient(135deg,var(--accent-secondary),var(--accent-primary));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;filter:drop-shadow(0 2px 8px var(--accent-glow));transition:filter .3s}
@@ -182,15 +190,16 @@
         .menu-buttons{display:flex;flex-direction:column;gap:10px;margin-bottom:2rem;align-items:center;min-height:340px}
 
         /* Home button — Lango take on the icon-style home button used by Laserman / SoloTerra / Solitairra. Sits below Style as the last menu item. */
-        .lango-home-btn{margin-top:6px;background:transparent;border:1.5px solid var(--accent-border);border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--accent-primary);cursor:pointer;padding:0;transition:transform .15s,background .2s,border-color .2s,box-shadow .2s;box-shadow:0 2px 8px rgba(0,0,0,.06);font-family:inherit}
-        .lango-home-btn:hover{background:var(--accent-light);border-color:var(--accent-primary);transform:scale(1.05);box-shadow:0 4px 12px var(--accent-light)}
+        .lango-home-btn{margin-top:6px;background:var(--accent-primary);border:none;border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;padding:0;transition:transform .15s,box-shadow .15s;box-shadow:0 4px 16px var(--accent-light);font-family:inherit}
+        .lango-home-btn:hover{transform:scale(1.05);box-shadow:0 6px 24px var(--accent-glow)}
         .lango-home-btn:active{transform:scale(.95)}
         .lango-home-btn svg{display:block}
         .menu-btn{background:var(--accent-primary);color:#fff;border:none;padding:14px 0;font-size:1.05rem;font-weight:700;font-family:inherit;border-radius:12px;cursor:pointer;width:240px;height:48px;display:flex;align-items:center;justify-content:center;letter-spacing:1px;text-transform:uppercase;box-shadow:0 4px 16px var(--accent-light);transition:transform .15s,box-shadow .15s;touch-action:manipulation}
         .menu-btn:hover{transform:translateY(-1px);box-shadow:0 6px 24px var(--accent-glow)}
         .menu-btn:active{transform:scale(.97);box-shadow:0 2px 8px var(--accent-light)}
-        .menu-btn.sec{background:transparent;color:var(--accent-primary);border:2px solid var(--accent-border);box-shadow:none}
-        .menu-btn.sec:hover{background:var(--accent-light)}
+        /* Rules/Style keep the .sec class in HTML but render solid like the
+           mode buttons — outlined buttons let the scene show through and
+           read as distracting (MK, 2026-07-25). */
 
         /* ── Style Screen ── */
         .style-screen{display:none}
@@ -293,6 +302,23 @@
             background-size:cover;
             background-repeat:no-repeat;
             background-position:center;
+        }
+
+        /* ── Portrait scene variants ──
+           The landscape 1200×800 scenes crop to their middle third on a
+           portrait phone, hiding the fun bits (sun, palms, moon, planet).
+           These 800×1200 portrait re-layouts keep every hero element inside
+           the strip that stays visible after cover-cropping (x≈140-660) and
+           park them above/below where the game card sits. Phones and iPads
+           only ever play in portrait (rotate lock), so orientation is the
+           right switch. */
+        @media (orientation:portrait){
+            body.scene-beach::before{
+                background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 1200' preserveAspectRatio='xMidYMid slice'><defs><linearGradient id='sky' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%23bae6fd'/><stop offset='0.7' stop-color='%23fed7aa'/></linearGradient></defs><rect width='800' height='850' fill='url(%23sky)'/><rect y='800' width='800' height='250' fill='%230ea5e9'/><path d='M0 810 Q133 790 266 810 T533 810 T800 810 L800 1000 L0 1000 Z' fill='%230284c7'/><rect y='1000' width='800' height='200' fill='%23fde68a'/><path d='M0 1000 Q200 990 400 1010 T800 1000 L800 1200 L0 1200 Z' fill='%23fcd34d'/><circle cx='230' cy='200' r='55' fill='%23fef9c3'/><circle cx='230' cy='200' r='42' fill='%23fde047'/><g transform='translate(190,945)'><rect x='-7' y='0' width='14' height='235' fill='%2392400e' rx='3'/><path d='M0 5 Q-50 -25 -90 -10 Q-40 -25 0 -15 Z' fill='%2315803d'/><path d='M0 5 Q-25 -45 -45 -75 Q-5 -45 5 -12 Z' fill='%2316a34a'/><path d='M0 5 Q50 -25 90 -10 Q40 -25 0 -15 Z' fill='%2315803d'/><path d='M0 5 Q25 -45 45 -75 Q5 -45 -5 -12 Z' fill='%2316a34a'/><circle cx='-15' cy='0' r='6' fill='%2378350f'/><circle cx='0' cy='-3' r='6' fill='%2378350f'/><circle cx='15' cy='0' r='6' fill='%2378350f'/></g><g transform='translate(590,965)'><rect x='-7' y='0' width='14' height='215' fill='%2392400e' rx='3'/><path d='M0 5 Q-50 -25 -90 -10 Q-40 -25 0 -15 Z' fill='%2315803d'/><path d='M0 5 Q-25 -45 -45 -75 Q-5 -45 5 -12 Z' fill='%2316a34a'/><path d='M0 5 Q50 -25 90 -10 Q40 -25 0 -15 Z' fill='%2315803d'/><circle cx='-15' cy='0' r='6' fill='%2378350f'/><circle cx='15' cy='0' r='6' fill='%2378350f'/></g><g transform='translate(480,150)' fill='%23ffffff' opacity='0.85'><ellipse cx='0' cy='0' rx='35' ry='13'/><ellipse cx='-22' cy='-8' rx='24' ry='14'/><ellipse cx='20' cy='-6' rx='27' ry='15'/></g><g transform='translate(560,290)' fill='%23ffffff' opacity='0.85'><ellipse cx='0' cy='0' rx='42' ry='15'/><ellipse cx='-25' cy='-10' rx='27' ry='15'/><ellipse cx='24' cy='-8' rx='30' ry='17'/></g><path d='M150 880 Q230 870 310 880 T470 880' stroke='%23ffffff' stroke-width='2' fill='none' opacity='0.6'/><path d='M420 940 Q500 930 580 940 T740 940' stroke='%23ffffff' stroke-width='2' fill='none' opacity='0.6'/></svg>");
+            }
+            body.scene-space::before{
+                background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 1200' preserveAspectRatio='xMidYMid slice'><defs><radialGradient id='spaceBg' cx='35%25' cy='25%25' r='100%25'><stop offset='0' stop-color='%231e1b4b'/><stop offset='0.6' stop-color='%230b1029'/><stop offset='1' stop-color='%23020617'/></radialGradient><radialGradient id='moon' cx='35%25' cy='35%25' r='60%25'><stop offset='0' stop-color='%23fef9c3'/><stop offset='1' stop-color='%2394a3b8'/></radialGradient><radialGradient id='planet' cx='30%25' cy='35%25' r='65%25'><stop offset='0' stop-color='%23fde047'/><stop offset='0.6' stop-color='%23ea580c'/><stop offset='1' stop-color='%2378350f'/></radialGradient></defs><rect width='800' height='1200' fill='url(%23spaceBg)'/><circle cx='70' cy='90' r='1.2' fill='%23fff'/><circle cx='160' cy='240' r='0.8' fill='%23fff'/><circle cx='250' cy='70' r='1.5' fill='%23fff'/><circle cx='340' cy='170' r='1' fill='%23fff'/><circle cx='420' cy='60' r='0.9' fill='%23fff'/><circle cx='480' cy='300' r='1.3' fill='%23fff'/><circle cx='600' cy='90' r='0.8' fill='%23fff'/><circle cx='680' cy='330' r='1' fill='%23fff'/><circle cx='730' cy='150' r='1.4' fill='%23fff'/><circle cx='90' cy='420' r='1' fill='%23fff'/><circle cx='200' cy='540' r='0.9' fill='%23fff'/><circle cx='300' cy='440' r='1.3' fill='%23fff'/><circle cx='420' cy='600' r='0.7' fill='%23fff'/><circle cx='540' cy='480' r='1' fill='%23fff'/><circle cx='660' cy='600' r='0.8' fill='%23fff'/><circle cx='740' cy='480' r='1.5' fill='%23fff'/><circle cx='60' cy='700' r='0.9' fill='%23fff'/><circle cx='170' cy='800' r='1.1' fill='%23fff'/><circle cx='290' cy='720' r='0.8' fill='%23fff'/><circle cx='410' cy='840' r='1.2' fill='%23fff'/><circle cx='530' cy='760' r='0.9' fill='%23fff'/><circle cx='650' cy='860' r='1' fill='%23fff'/><circle cx='750' cy='740' r='1.4' fill='%23fff'/><circle cx='110' cy='950' r='0.8' fill='%23fff'/><circle cx='240' cy='1060' r='1' fill='%23fff'/><circle cx='370' cy='980' r='0.7' fill='%23fff'/><circle cx='500' cy='1100' r='1.3' fill='%23fff'/><circle cx='620' cy='1000' r='1' fill='%23fff'/><circle cx='720' cy='1120' r='0.9' fill='%23fff'/><circle cx='420' cy='1180' r='1.1' fill='%23fff'/><g><circle cx='555' cy='185' r='75' fill='url(%23moon)'/><circle cx='525' cy='160' r='62' fill='%23020617'/></g><g transform='translate(230,1010)'><ellipse cx='0' cy='0' rx='95' ry='22' fill='none' stroke='%23fbbf24' stroke-width='5' opacity='0.85'/><ellipse cx='0' cy='0' rx='95' ry='22' fill='none' stroke='%2392400e' stroke-width='2'/><circle cx='0' cy='0' r='52' fill='url(%23planet)'/><ellipse cx='-12' cy='-10' rx='18' ry='6' fill='%23fef3c7' opacity='0.25'/></g><g><line x1='170' y1='100' x2='320' y2='175' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' opacity='0.7'/><line x1='320' y1='175' x2='300' y2='165' stroke='%23ffffff' stroke-width='3.5' stroke-linecap='round' opacity='0.95'/></g></svg>");
+            }
         }
 
         /* ── Toggle Buttons (On/Off) ── */
@@ -415,7 +441,7 @@
         .links-name-input:focus{border-color:var(--accent-primary);box-shadow:0 0 0 3px var(--accent-light)}
         .links-screen .current-guess{margin-bottom:14px}
         .links-share-help{font-size:.9rem;color:var(--text-secondary);text-align:center;margin-bottom:8px;font-weight:600}
-        #linksMessage{width:100%;min-height:48px;padding:10px 12px;font-size:.85rem;font-family:inherit;border:2px solid var(--cell-border);border-radius:10px;background:var(--input-bg);color:var(--text-primary);resize:none;outline:none;line-height:1.4;text-align:center;white-space:nowrap;overflow-x:auto}
+        #linksMessage{width:100%;min-height:48px;padding:10px 12px;font-size:.85rem;font-family:inherit;border:2px solid var(--cell-border);border-radius:10px;background:var(--input-bg);color:var(--text-primary);resize:none;outline:none;line-height:1.4;text-align:center;white-space:normal;overflow-wrap:anywhere;overflow:hidden}
         #linksMessage:focus{border-color:var(--accent-primary);box-shadow:0 0 0 3px var(--accent-light)}
         /* Locked-height status row so Paste/Share buttons stay put when "Paste Ready!" appears */
         .links-copy-status{height:28px;line-height:28px;font-size:.8rem;font-weight:700;color:var(--accent-primary);text-align:center;margin:6px 0 8px;letter-spacing:1px}
@@ -458,7 +484,10 @@
               by viewport breakpoints. */
         @media(max-width:480px){
             body{padding:12px 8px}
-            .game-card{padding:14px 10px;max-width:calc(100vw - 12px)}
+            /* Narrower card on phones so the scene shows at the sides
+               (MK, 2026-07-25). #linksScreen repeated to beat its
+               desktop id-specificity width. */
+            .game-card,#linksScreen .game-card{width:min(85vw,360px);padding:14px 10px;max-width:calc(100vw - 12px)}
             .letter-cell,.first-letter-display,.letter-input,.letter-input-wrap{width:42px;height:42px;font-size:1.1rem}
             .kb-key{min-width:24px;height:32px;font-size:.7rem;padding:0 4px}
             .kb-key.wide{padding:0 8px;font-size:.62rem}
@@ -482,7 +511,7 @@
 
             /* Style screen — drop the hardcoded 745px height so the card
                can shrink to its actual content; tighten every row. */
-            #styleScreen .game-card{width:auto;max-width:calc(100vw - 12px);height:auto;padding:14px 12px}
+            #styleScreen .game-card{width:min(85vw,360px);max-width:calc(100vw - 12px);height:auto;padding:14px 12px}
             .style-screen h2{font-size:1.2rem;margin-bottom:12px;line-height:1.6rem;min-height:1.6rem}
             .style-section{margin-bottom:14px}
             .style-section-title{font-size:.78rem;margin-bottom:7px;letter-spacing:1.5px}
@@ -525,6 +554,9 @@
             .style-row{height:30px;margin-bottom:6px}
             .links-name-input{width:160px}
             .links-action-btn{width:120px}
+            /* Very narrow phones: loosen the 85vw cap back out so the
+               keyboard row (9 keys) still fits inside the card. */
+            .game-card,#linksScreen .game-card{width:calc(100vw - 20px)}
         }
         /* Short-height tightening — kicks in on iPhone SE class (568px) and
            any mobile/tablet where the gameArea stack would otherwise need
@@ -620,7 +652,7 @@
     <!-- Rotate-to-portrait overlay. Visible on any touch device (mobile + tablet) in landscape. -->
     <div class="rotate-overlay" id="rotateOverlay">
         <div class="rotate-icon">↺</div>
-        <div class="rotate-text">Rotate Lango over to portrait</div>
+        <div class="rotate-text">Rotate Lango to portrait mode.</div>
     </div>
     <div class="modal-overlay" id="confirmModal">
         <div class="modal-box">
@@ -2812,7 +2844,10 @@ function buildLinksUrl(word, name) {
     var fi = Math.max(0, SW_FONTS.indexOf(currentStyleClass('font')));
     var payload = word + '|' + name + '|' + ai + '|' + si + '|' + hi + '|' + fi;
     var token = b64urlEncode(payload);
-    var base = window.location.origin + window.location.pathname;
+    // Trailing index.html adds nothing to the route — drop it so the
+    // shared URL is as short as possible even when is.gd is unreachable
+    var path = window.location.pathname.replace(/index\.html$/i, '');
+    var base = window.location.origin + path;
     return base + '?ll=' + token;
 }
 
@@ -2914,6 +2949,11 @@ function showLinksShare(name, url) {
     var msg = name + ' has shared a Lango! ' + url;
     var ta = document.getElementById('linksMessage');
     ta.value = msg;
+    // Wrapped long-URL fallback can need a 3rd line — grow the box to fit
+    setTimeout(function() {
+        ta.style.height = 'auto';
+        ta.style.height = (ta.scrollHeight + 2) + 'px';
+    }, 0);
     document.getElementById('linksCopyStatus').textContent = '';
     // Hide the native Share button on devices that don't support it; the
     // Paste button always shows (clipboard fallback chain handles failures).
@@ -4458,6 +4498,12 @@ window.addEventListener('load', function() {
     try { updateClashFix(); } catch(e) {}
 
     buildKeyboard();
+
+    // Belt-and-braces with body{position:fixed}: if anything (iOS focus
+    // auto-scroll, in-app browsers) still nudges the page, snap it back
+    window.addEventListener('scroll', function() {
+        if (window.scrollY || window.scrollX) window.scrollTo(0, 0);
+    });
 
     // Keep a running animation's canvas bitmap in sync with the card size —
     // launchers size it once at launch; without this a mid-animation window
