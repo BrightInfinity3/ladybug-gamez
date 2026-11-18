@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=8">
+  <link rel="stylesheet" href="css/style.css?v=9">
 </head>
 <body>
 
@@ -28,12 +28,20 @@
       <h1 class="game-title">Laser<br>Stacks</h1>
       <!-- Bump with every deploy — a device showing an old number is
            provably running a cached build (see CLAUDE.md deploy ritual) -->
-      <div class="build-tag">v2.7</div>
+      <div class="build-tag">v2.8</div>
       <div class="title-buttons">
         <button class="btn btn-gold btn-play" id="btn-play">Local Play</button>
         <button class="btn btn-gold btn-play" id="btn-online">Online Play</button>
         <button class="btn btn-outline btn-menu-size" id="btn-how-to-play">How to Play</button>
         <button class="btn btn-outline btn-menu-size" id="btn-options">Options</button>
+        <!-- Home: "/" is the arcade's front page on BOTH hosts (wbcgamez and
+             ladybug), same as SoloTerra/Solitairra's home link -->
+        <a href="/" class="btn-home" id="btn-home" title="Back to the arcade" aria-label="Home">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10.5z"/>
+            <polyline points="9 22 9 14 15 14 15 22"/>
+          </svg>
+        </a>
       </div>
     </div>
   </div>
@@ -137,6 +145,7 @@
           <h3>Leading a Stack</h3>
           <p data-rules-section="leading">The leader must play a <strong class="suit-diamonds">&diams; Diamond</strong> if they have one.</p>
           <p>Once other suits are <em>introduced</em>, the leader may play any unlocked suit.</p>
+          <p>Playing a suit also unlocks every suit ranked <strong>below</strong> it.</p>
           <p>If they have no unlocked suits, they play their lowest available suit.</p>
         </div>
         <div class="rule-section">
@@ -147,7 +156,7 @@
         <div class="rule-section">
           <h3>Winning a Stack</h3>
           <p>The <strong>highest-ranked card</strong> wins. Suit rank beats card rank &mdash;</p>
-          <p data-rules-section="winning">a 2&clubs; beats a K&spades;, a 2&hearts; beats a K&diams;, and so on.</p>
+          <p data-rules-section="winning">a 2&clubs; beats a K&spades;, a 2&hearts; beats a K&diams;, and so on. Aces are high.</p>
           <p>The winner leads the next Stack.</p>
         </div>
         <div class="rule-section">
@@ -157,7 +166,7 @@
           <p><strong>Under bid:</strong> score 0 for the round.</p>
           <p><strong>Over bid:</strong> bid &times; 10 minus <strong>10</strong> for every Stack over.</p>
           <p><strong>Bid 0 and win 0:</strong> score <strong>100</strong> points!</p>
-          <p>Minimum round score is 0. Aces are high.</p>
+          <p>Minimum round score is 0.</p>
         </div>
         <div class="rule-section">
           <h3>AI</h3>
@@ -316,6 +325,9 @@
 
     <!-- Human player's hand bar (bottom of screen) -->
     <div class="hand-bar" id="hand-bar" style="display:none">
+      <!-- Whose hand this is — shown only when this device runs several
+           players (tap a character to switch) -->
+      <div class="hand-bar-owner" id="hand-bar-owner" style="display:none"></div>
       <div class="hand-bar-cards" id="hand-bar-cards"></div>
     </div>
 
@@ -384,6 +396,19 @@
     </div>
   </div>
 
+  <!-- Phones are portrait-only: held sideways, this card is the only
+       thing on screen (body.rotate-required, set by ui.js) -->
+  <div class="rotate-overlay" id="rotate-overlay" aria-live="polite">
+    <svg class="rotate-icon" viewBox="0 0 64 64" width="72" height="72" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="21" y="8" width="22" height="40" rx="4"/>
+      <line x1="29" y1="42" x2="35" y2="42"/>
+      <path d="M50 22a18 18 0 0 1 2 22"/>
+      <polyline points="47 41 52 45 56 40"/>
+    </svg>
+    <p class="rotate-title">Please rotate your device</p>
+    <p class="rotate-sub">Laser Stacks plays in portrait mode.</p>
+  </div>
+
   <!-- Room-disbanded overlay (document level, above every screen) -->
   <div class="disband-overlay" id="disband-overlay" style="display:none">
     <div class="disband-panel">
@@ -393,18 +418,18 @@
   </div>
 
   <!-- Scripts in dependency order -->
-  <script src="https://cdn.jsdelivr.net/npm/pixi.js@8/dist/pixi.min.js"></script>
-  <script src="js/sprites.js?v=10"></script>
-  <script src="js/cards.js?v=10"></script>
-  <script src="js/game.js?v=10"></script>
-  <script src="js/animations.js?v=10"></script>
-  <script src="js/textures.js?v=10"></script>
-  <script src="js/laser-pips.js?v=10"></script>
-  <script src="js/renderer.js?v=10"></script>
-  <script src="js/network.js?v=10"></script>
-  <script src="js/online.js?v=10"></script>
-  <script src="js/save.js?v=10"></script>
-  <script src="js/ui.js?v=10"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js@8.23.0/dist/pixi.min.js"></script>
+  <script src="js/sprites.js?v=11"></script>
+  <script src="js/cards.js?v=11"></script>
+  <script src="js/game.js?v=11"></script>
+  <script src="js/animations.js?v=11"></script>
+  <script src="js/textures.js?v=11"></script>
+  <script src="js/laser-pips.js?v=11"></script>
+  <script src="js/renderer.js?v=11"></script>
+  <script src="js/network.js?v=11"></script>
+  <script src="js/online.js?v=11"></script>
+  <script src="js/save.js?v=11"></script>
+  <script src="js/ui.js?v=11"></script>
 
 </body>
 </html>

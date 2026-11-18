@@ -122,7 +122,10 @@ var Online = (function () {
   function totalPlayerCount() {
     var count = 0;
     for (var i = 0; i < NUM_SEATS; i++) {
-      if (lobbyState.seats[i].occupied) count++;
+      // A just-approved guest renders the lobby header before the first
+      // lobby_state lands (seats still empty) — that used to throw out
+      // of the join-response handler.
+      if (lobbyState.seats[i] && lobbyState.seats[i].occupied) count++;
     }
     return count;
   }

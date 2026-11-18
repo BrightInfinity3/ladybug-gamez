@@ -141,26 +141,90 @@ var Textures = (function () {
     ctx.restore();
   }
 
+  // ---- Fast noise-cell rasterizer (Laser Stacks v2.8) ----
+  // DELIBERATE DIVERGENCE from soloterra's copy of this file. The old
+  // felt/wood loops parsed an rgba() string and issued one fillRect per
+  // 2x2 cell over the WHOLE canvas: ~900K draw calls at 1600x860, which
+  // took ~1.5s on Windows Chrome (the "Local Play" lag) and hammered the
+  // GPU-backed canvas. Here each cell becomes one pixel of an ImageData
+  // buffer, blitted back up by `step` with nearest-neighbour sampling, so
+  // the 2x2 grain looks the same. `region` (optional) limits work to an
+  // annulus {cx, cy, rIn, rOut} around the table instead of the full screen.
+  function blitNoiseCells(ctx, w, h, step, region, colorAt) {
+    var x0 = 0, y0 = 0, x1 = w, y1 = h;
+    if (region) {
+      x0 = Math.max(0, region.cx - region.rOut - step);
+      y0 = Math.max(0, region.cy - region.rOut - step);
+      x1 = Math.min(w, region.cx + region.rOut + step);
+      y1 = Math.min(h, region.cy + region.rOut + step);
+    }
+    // Snap to the same step grid the old loop used, so the noise samples
+    // land on identical coordinates.
+    var sx = Math.floor(x0 / step) * step;
+    var sy = Math.floor(y0 / step) * step;
+    var cols = Math.ceil((x1 - sx) / step);
+    var rows = Math.ceil((y1 - sy) / step);
+    if (cols <= 0 || rows <= 0) return;
+
+    var rInSq = -1, rOutSq = Infinity;
+    if (region) {
+      var rIn = Math.max(0, (region.rIn || 0) - step * 1.5);
+      var rOut = region.rOut + step * 1.5;
+      rInSq = region.rIn > 0 ? rIn * rIn : -1;
+      rOutSq = rOut * rOut;
+    }
+
+    var off = document.createElement('canvas');
+    off.width = cols;
+    off.height = rows;
+    var oc = off.getContext('2d');
+    var img = oc.createImageData(cols, rows);
+    var d = img.data;
+    var rgba = [0, 0, 0, 0];
+    for (var j = 0; j < rows; j++) {
+      var py = sy + j * step;
+      for (var i = 0; i < cols; i++) {
+        var px = sx + i * step;
+        if (region) {
+          var ddx = px + step / 2 - region.cx;
+          var ddy = py + step / 2 - region.cy;
+          var dsq = ddx * ddx + ddy * ddy;
+          if (dsq < rInSq || dsq > rOutSq) continue;
+        }
+        colorAt(px, py, rgba);
+        var k = (j * cols + i) * 4;
+        d[k] = rgba[0];
+        d[k + 1] = rgba[1];
+        d[k + 2] = rgba[2];
+        d[k + 3] = rgba[3];
+      }
+    }
+    oc.putImageData(img, 0, 0);
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(off, sx, sy, cols * step, rows * step);
+    ctx.restore();
+  }
+
   /**
    * Dense felt texture using Perlin noise
    * @param {CanvasRenderingContext2D} ctx
    * @param {number} w
    * @param {number} h
+   * @param {object} [region] - optional {cx, cy, rIn, rOut} annulus to fill
    */
-  function feltTexture(ctx, w, h) {
+  function feltTexture(ctx, w, h, region) {
     var step = 2;
-    for (var py = 0; py < h; py += step) {
-      for (var px = 0; px < w; px += step) {
-        var n = fbm(px * 0.03, py * 0.03, 4, 2.2, 0.45);
-        var brightness = n * 0.06;
-        if (brightness > 0) {
-          ctx.fillStyle = 'rgba(200, 255, 200, ' + brightness + ')';
-        } else {
-          ctx.fillStyle = 'rgba(0, 20, 0, ' + Math.abs(brightness) * 1.2 + ')';
-        }
-        ctx.fillRect(px, py, step, step);
+    blitNoiseCells(ctx, w, h, step, region, function (px, py, out) {
+      var brightness = fbm(px * 0.03, py * 0.03, 4, 2.2, 0.45) * 0.06;
+      if (brightness > 0) {
+        out[0] = 200; out[1] = 255; out[2] = 200;
+        out[3] = Math.round(brightness * 255);
+      } else {
+        out[0] = 0; out[1] = 20; out[2] = 0;
+        out[3] = Math.round(-brightness * 1.2 * 255);
       }
-    }
+    });
 
     // Directional fibers (slightly angled)
     ctx.save();
@@ -189,30 +253,26 @@ var Textures = (function () {
    * @param {number} h
    * @param {number} cx - center x of the wood ring pattern
    * @param {number} cy - center y
+   * @param {object} [region] - optional {cx, cy, rIn, rOut} annulus to fill
    */
-  function woodGrainTexture(ctx, w, h, cx, cy) {
+  function woodGrainTexture(ctx, w, h, cx, cy, region) {
     var step = 2;
-    for (var py = 0; py < h; py += step) {
-      for (var px = 0; px < w; px += step) {
-        // Distance from center creates ring pattern
-        var dx = (px - cx) / w;
-        var dy = (py - cy) / h;
-        var dist = Math.sqrt(dx * dx + dy * dy);
-
-        // Noise-warped rings
-        var warp = fbm(px * 0.008, py * 0.008, 3, 2.0, 0.5) * 0.15;
-        var ring = Math.sin((dist + warp) * 80);
-
-        // Convert ring to brightness variation
-        var bright = ring * 0.04;
-        if (bright > 0) {
-          ctx.fillStyle = 'rgba(180, 120, 60, ' + bright + ')';
-        } else {
-          ctx.fillStyle = 'rgba(0, 0, 0, ' + Math.abs(bright) * 0.8 + ')';
-        }
-        ctx.fillRect(px, py, step, step);
+    blitNoiseCells(ctx, w, h, step, region, function (px, py, out) {
+      // Distance from center creates ring pattern
+      var dx = (px - cx) / w;
+      var dy = (py - cy) / h;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      // Noise-warped rings → brightness variation
+      var warp = fbm(px * 0.008, py * 0.008, 3, 2.0, 0.5) * 0.15;
+      var bright = Math.sin((dist + warp) * 80) * 0.04;
+      if (bright > 0) {
+        out[0] = 180; out[1] = 120; out[2] = 60;
+        out[3] = Math.round(bright * 255);
+      } else {
+        out[0] = 0; out[1] = 0; out[2] = 0;
+        out[3] = Math.round(-bright * 0.8 * 255);
       }
-    }
+    });
 
     // Fine grain streaks
     ctx.save();

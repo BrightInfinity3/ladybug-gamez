@@ -111,6 +111,35 @@ var Renderer = (function () {
   //  CARD FACE PRE-RENDERING (Canvas 2D -> offscreen canvas)
   // ================================================================
 
+  // The linen grain is identical on every card face (deterministic noise
+  // on the same 70x100 grid), so it's rendered ONCE onto a transparent
+  // canvas and blitted per card. Source-over is associative, so this
+  // composites exactly like drawing the grain on each card did — at 1/52
+  // of the cost (~110ms → ~2ms per deck on Windows).
+  var _paperOverlay = null;
+  function getPaperOverlay() {
+    if (_paperOverlay) return _paperOverlay;
+    var off = document.createElement('canvas');
+    off.width = CARD_W * TEX_SCALE;
+    off.height = CARD_H * TEX_SCALE;
+    var c = off.getContext('2d');
+    c.scale(TEX_SCALE, TEX_SCALE);
+    Textures.paperTexture(c, CARD_W, CARD_H);
+    _paperOverlay = off;
+    return off;
+  }
+
+  // Corner side-pip size: ~7.5px for laser (the 11px rank's cap height).
+  // Animals scale by the same per-suit boost the center pips use, since
+  // their art carries more internal padding.
+  function getCornerPipSize(suit) {
+    var base = 7.5;
+    if (suitStyle === 'animals') {
+      return base * LaserPips.getCustomPipSize(suit, 5, 'animals') / 16;
+    }
+    return base;
+  }
+
   function renderCardToImage(rank, suit) {
     var scale = TEX_SCALE;
     var cw = CARD_W * scale;
@@ -133,7 +162,7 @@ var Renderer = (function () {
     c.save();
     roundRect(c, 0.5, 0.5, CARD_W - 1, CARD_H - 1, CARD_R);
     c.clip();
-    Textures.paperTexture(c, CARD_W, CARD_H);
+    c.drawImage(getPaperOverlay(), 0, 0, CARD_W, CARD_H);
     c.restore();
 
     Textures.drawGoldBorder(c, 1, 1, CARD_W - 2, CARD_H - 2, CARD_R, 0.8);
@@ -195,6 +224,34 @@ var Renderer = (function () {
       c.fillText(sym, CARD_W - cornerX, CARD_H - symY);
     }
     c.restore();
+
+    // Drawn styles (laser/animals): a mini pip BESIDE each corner rank
+    // (v2.8, MK's ask). Cards buried in the trick pile only show a sliver
+    // of edge, and the rank alone couldn't say which suit it was. The pip
+    // sits in the band above the top pip row; the bottom-right one is the
+    // same drawing rotated 180° about the card center (left of its rank).
+    if (isCustom) {
+      c.save();
+      c.font = rankFont;
+      var rankHalfW = c.measureText(rank).width / 2;
+      var sidePip = getCornerPipSize(suit);
+      var sideX = cornerX + rankHalfW + 1 + sidePip / 2;
+      var sideY = rankY + 4.6;
+      // The two-digit 10 would push its pip right over the 10 layouts'
+      // top pip pair (y 0.02, x 0.25) — every 10 layout leaves the strip
+      // UNDER the corner rank empty instead, so the 10 uses the classic
+      // index (pip below the rank).
+      if (rank === '10') {
+        sidePip *= 0.9;
+        sideX = cornerX;
+        sideY = rankY + 15;
+      }
+      LaserPips.drawPip(c, sideX, sideY, suit, sidePip, false, suitStyle);
+      c.translate(CARD_W, CARD_H);
+      c.rotate(Math.PI);
+      LaserPips.drawPip(c, sideX, sideY, suit, sidePip, false, suitStyle);
+      c.restore();
+    }
 
     // Pip area — vertically centered with equal top/bottom margins
     var pipMarginX = 14;
@@ -561,7 +618,8 @@ var Renderer = (function () {
     c.save();
     drawEllipse(c, cx, cy, rx + wood, ry + wood);
     c.clip();
-    Textures.woodGrainTexture(c, W, H, cx, cy);
+    // Only the visible wood ring gets grain — the felt covers the inside
+    Textures.woodGrainTexture(c, W, H, cx, cy, { cx: cx, cy: cy, rIn: rx, rOut: rx + wood });
     c.restore();
 
     // Inner wood edge (deeper shadow for dimension)
@@ -588,7 +646,7 @@ var Renderer = (function () {
     c.save();
     drawEllipse(c, cx, cy, rx, ry);
     c.clip();
-    Textures.feltTexture(c, W, H);
+    Textures.feltTexture(c, W, H, { cx: cx, cy: cy, rIn: 0, rOut: rx });
     c.restore();
 
     // Primary spotlight (warm, from above-center)
@@ -667,6 +725,7 @@ var Renderer = (function () {
   // on integrated GPUs, worse on Windows). Sub-textures share the
   // atlas source via frame rectangles.
   // Layout: 13 ranks x (4 suits + 1 back row); back uses cell (0, 4).
+  var _atlasSource = null;
   function buildCardTextures() {
     var suits = ['hearts', 'diamonds', 'clubs', 'spades'];
     var ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
@@ -683,11 +742,20 @@ var Renderer = (function () {
     }
     ac.drawImage(renderCardBackToImage(), 0, suits.length * cellH);
 
-    // Single GPU upload, then per-card views into it. (Old textures are
-    // not destroyed — sprites may reference them for one more frame;
-    // GC reclaims them once unreachable.)
-    var atlasTex = PIXI.Texture.from(atlasCanvas);
+    // Single GPU upload, then per-card views into it. skipCache: PIXI's
+    // Texture.from otherwise files every canvas in its global Cache
+    // forever, so each suit-style switch leaked a whole atlas. The old
+    // atlas is freed a second later — by then every pooled/flying sprite
+    // has been re-pointed at the new one (they re-texture each frame).
+    var atlasTex = PIXI.Texture.from(atlasCanvas, true);
     var src = atlasTex.source;
+    var oldAtlas = _atlasSource;
+    _atlasSource = src;
+    if (oldAtlas && oldAtlas !== src) {
+      setTimeout(function () {
+        try { oldAtlas.destroy(); } catch (e) { /* already gone */ }
+      }, 1000);
+    }
     cardTextures = {};
     for (var s2 = 0; s2 < suits.length; s2++) {
       for (var r2 = 0; r2 < ranks.length; r2++) {
@@ -724,7 +792,7 @@ var Renderer = (function () {
     roundRect(c, pad, pad, CARD_W, CARD_H, CARD_R);
     c.fill();
 
-    shadowTexture = PIXI.Texture.from(off);
+    shadowTexture = PIXI.Texture.from(off, true);
   }
 
   function buildParticleTexture() {
@@ -754,7 +822,7 @@ var Renderer = (function () {
       grad.addColorStop(1, 'rgba(' + col[0] + ',' + col[1] + ',' + col[2] + ',0)');
       c.fillStyle = grad;
       c.fillRect(0, 0, size, size);
-      particleTextures.push(PIXI.Texture.from(off));
+      particleTextures.push(PIXI.Texture.from(off, true));
     }
     particleTex = particleTextures[0]; // default fallback
   }
@@ -778,7 +846,7 @@ var Renderer = (function () {
     try {
       var tableCanvas = renderTableToCanvas();
       var oldTex = tableSprite.texture;
-      var newTex = PIXI.Texture.from(tableCanvas);
+      var newTex = PIXI.Texture.from(tableCanvas, true);
       tableSprite.texture = newTex;
       tableSprite.width = W;
       tableSprite.height = H;
@@ -793,6 +861,45 @@ var Renderer = (function () {
       _tableTexToDestroy = (oldTex !== newTex && oldTex !== PIXI.Texture.EMPTY) ? oldTex : null;
     } catch (e) {
       console && console.warn && console.warn('updateTableTexture failed:', e);
+    }
+  }
+
+  // Every GPU-side texture, rebuilt from scratch. Shared by WebGL
+  // context restore and the pixel probe below.
+  function rebuildAllGpuState() {
+    try {
+      invalidateTableTextureCache();
+      buildCardTextures();
+      buildShadowTexture();
+      buildParticleTexture();
+      updateTableTexture(true);
+      initPixiParticles();
+      markDirty();
+    } catch (err) { /* ignore — the health check will retry */ }
+  }
+
+  // Pixel probe (v2.8 white-canvas guard). Runs at UTILITY priority, i.e.
+  // right AFTER PIXI draws the frame, while the drawing buffer is still
+  // readable. Every ~2s it reads one corner pixel — always the near-black
+  // backdrop. If that ever comes back near-white, the GPU state is
+  // corrupt: rebuild every texture (capped, so a broken driver can't
+  // make us thrash). Renderer.getHealthInfo() exposes it for debugging.
+  var _probeFrames = 0;
+  var _probeHeals = 0;
+  var _probePx = new Uint8Array(4);
+  function probeCanvasHealth() {
+    if (++_probeFrames < 120) return;
+    _probeFrames = 0;
+    var gl = app && app.renderer && app.renderer.gl;
+    if (!gl || !tableSprite || !W || !H || gl.isContextLost()) return;
+    try {
+      if (gl.getParameter(gl.FRAMEBUFFER_BINDING) !== null) return; // not the screen
+      gl.readPixels(1, 1, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, _probePx);
+    } catch (e) { return; }
+    if (_probePx[0] > 200 && _probePx[1] > 200 && _probePx[2] > 200 && _probeHeals < 3) {
+      _probeHeals++;
+      console.warn('[LaserStacks] canvas probe read white — rebuilding GPU textures');
+      rebuildAllGpuState();
     }
   }
 
@@ -825,15 +932,7 @@ var Renderer = (function () {
       e.preventDefault();
     }, false);
     canvasEl.addEventListener('webglcontextrestored', function () {
-      try {
-        invalidateTableTextureCache();
-        buildCardTextures();
-        buildShadowTexture();
-        buildParticleTexture();
-        updateTableTexture(true);
-        initPixiParticles();
-        markDirty();
-      } catch (err) { /* ignore — render loop will retry */ }
+      rebuildAllGpuState();
     }, false);
 
     initPromise = app.init({
@@ -842,7 +941,16 @@ var Renderer = (function () {
       height: H,
       resolution: dpr,
       autoDensity: true,
-      backgroundAlpha: 0,
+      // White-canvas fix (v2.8). PIXI's default order is webgl → webgpu:
+      // if WebGL is momentarily unavailable at startup (e.g. Chrome's GPU
+      // process restarting), it silently picks WebGPU for the whole
+      // session — the renderer behind the known "blank white canvas on
+      // Windows Chrome" reports. Never WebGPU; Canvas 2D is the fallback.
+      preference: ['webgl', 'canvas'],
+      // Opaque: the table texture paints every pixel anyway, and an
+      // opaque layer spares the compositor the alpha blend over the page.
+      background: '#080c0a',
+      backgroundAlpha: 1,
       antialias: true,
       eventMode: 'none',
       eventFeatures: {
@@ -852,6 +960,12 @@ var Renderer = (function () {
         wheel: false
       }
     }).then(function () {
+      console.log('[LaserStacks] renderer: ' + app.renderer.name);
+      // Only draw while the game screen is up (startLoop/stopLoop) — the
+      // ticker used to repaint the hidden table behind every menu.
+      app.ticker.stop();
+      app.ticker.add(probeCanvasHealth, null, PIXI.UPDATE_PRIORITY.UTILITY);
+
       // Pre-render all textures
       buildCardTextures();
       buildShadowTexture();
@@ -894,6 +1008,7 @@ var Renderer = (function () {
     if (newW === 0 || newH === 0) return;
     W = newW;
     H = newH;
+    refreshLayoutMetrics();
     app.renderer.resize(W, H);
     updateTableTexture(); // cache-guarded — no-op when the size is unchanged
     initPixiParticles();
@@ -1178,6 +1293,7 @@ var Renderer = (function () {
       }
     };
     app.ticker.add(tickerFn);
+    app.ticker.start();
   }
 
   function stopLoop() {
@@ -1186,6 +1302,8 @@ var Renderer = (function () {
     }
     tickerFn = null;
     gameRenderCallback = null;
+    // Nothing on the menus needs the canvas — stop drawing it entirely
+    if (app && app.ticker) app.ticker.stop();
   }
 
   // ================================================================
@@ -1235,10 +1353,76 @@ var Renderer = (function () {
     return 2.5 * getVmin();
   }
 
-  function getTableCenter() {
+  // ---- Phone-portrait board (v2.8, MK's ask) ----
+  // A portrait phone has far more height than the round table needs, so
+  // the board is pinned near the top and the hand bar takes the whole
+  // bottom in two big rows. Pure function of the viewport size — ui.js
+  // asks the same question (body.phone-portrait) so CSS and canvas agree.
+  function isPhonePortrait(w, h) {
+    return w <= 500 && h >= w * 1.3;
+  }
+
+  function getRemPx() {
+    return parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  }
+
+  // env(safe-area-inset-*) isn't readable from JS directly; a hidden
+  // probe padded with those insets reports them (notch / home bar).
+  var _safeProbe = null;
+  function getSafeAreaInsets() {
+    if (!_safeProbe) {
+      _safeProbe = document.createElement('div');
+      _safeProbe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;' +
+        'visibility:hidden;pointer-events:none;' +
+        'padding-top:env(safe-area-inset-top, 0px);padding-bottom:env(safe-area-inset-bottom, 0px)';
+      document.body.appendChild(_safeProbe);
+    }
+    var cs = getComputedStyle(_safeProbe);
+    return { top: parseFloat(cs.paddingTop) || 0, bottom: parseFloat(cs.paddingBottom) || 0 };
+  }
+
+  // getTableCenter runs every animated frame — cache the DOM reads (a
+  // style recalc per frame otherwise); resize() refreshes them.
+  var _metrics = null;
+  function getLayoutMetrics() {
+    if (!_metrics) {
+      var safe = getSafeAreaInsets();
+      _metrics = { rem: getRemPx(), safeTop: safe.top, safeBottom: safe.bottom };
+    }
+    return _metrics;
+  }
+  function refreshLayoutMetrics() { _metrics = null; }
+
+  function computeTableCenter(w, h) {
+    var v = Math.min(w, h) / 100;
+    if (isPhonePortrait(w, h)) {
+      var m = getLayoutMetrics();
+      var rem = m.rem;
+      // The hand block — MIRRORS the body.phone-portrait CSS (--hc-gap,
+      // --hc-w, --hc-h, --hand-top); change both together.
+      var gap = 0.45 * rem;
+      var cardW = Math.min((w - 1.4 * rem - 4 * gap) / 5, 5.6 * rem);
+      var handTop = h - m.safeBottom - 0.7 * rem - 2 * (cardW * 1.4) - gap;
+      // Free band between the HUD row and the status pill over the hand
+      var bandTop = m.safeTop + 3.3 * rem;
+      var bandBottom = handTop - 2.6 * rem;
+      // Board extent: avatar orbit reach (34.4 + 3.9vmin) plus the setup
+      // badge / lobby name above the top avatar and the name below the
+      // bottom one
+      var topReach = 38.3 * v + 1.9 * rem;
+      var bottomReach = 38.3 * v + 1.4 * rem;
+      var slack = bandBottom - bandTop - topReach - bottomReach;
+      var centered = bandTop + slack / 2 + topReach;
+      // Never above the highest spot that still clears the HUD
+      return { x: w / 2, y: Math.max(bandTop + topReach, centered) };
+    }
     // Shifted UP (30 shifts down 1.5vmin): Laser Stacks spends its bottom
     // band on the DOM hand-bar, so the table yields space at the bottom.
-    return { x: W / 2, y: H / 2 - 4 * getVmin() };
+    return { x: w / 2, y: h / 2 - 4 * v };
+  }
+
+  function getTableCenter() {
+    return computeTableCenter(W, H);
   }
 
   // Felt radius 28vmin (30 uses 32) — the difference is the hand-bar's home.
@@ -1325,6 +1509,10 @@ var Renderer = (function () {
     animate: animate,
     easeOutCubic: easeOutCubic,
     getTableCenter: getTableCenter,
+    computeTableCenter: computeTableCenter,
+    isPhonePortrait: isPhonePortrait,
+    refreshLayoutMetrics: refreshLayoutMetrics,
+    getTableOuterRadius: getTableOuterRadius,
     getTableRadii: getTableRadii,
     getSeatPositions: getSeatPositions,
     getHandPosition: getHandPosition,
@@ -1344,6 +1532,15 @@ var Renderer = (function () {
       if (tickerFn) tickerFn();
       app.renderer.render(app.stage);
       return app.canvas.toDataURL('image/png');
+    },
+    // Console diagnostics for the white-canvas guard
+    getHealthInfo: function () {
+      return {
+        renderer: app && app.renderer ? app.renderer.name : null,
+        tickerRunning: !!(app && app.ticker && app.ticker.started),
+        lastProbeRGBA: Array.prototype.slice.call(_probePx),
+        heals: _probeHeals
+      };
     },
     CARD_W: CARD_W,
     CARD_H: CARD_H

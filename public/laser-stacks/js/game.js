@@ -307,11 +307,19 @@ var Game = (function () {
     var card = state.hands[playerId][cardIndex];
     state.hands[playerId].splice(cardIndex, 1);
     state.currentTrick.push({ playerId: playerId, card: card });
-
-    // Unlock the suit
-    state.unlockedSuits[card.suit] = true;
-
+    unlockThrough(card.suit);
     return card;
+  }
+
+  // Playing a suit unlocks it AND every lower-ranked suit (v2.8, MK's
+  // rule): a Blade or Combiner that hits the table before the lower
+  // suits have appeared opens those up for leading too.
+  function unlockThrough(suit) {
+    var rank = CardSystem.SUIT_RANK[suit];
+    for (var s = 0; s < CardSystem.SUIT_ORDER.length; s++) {
+      var name = CardSystem.SUIT_ORDER[s];
+      if (CardSystem.SUIT_RANK[name] <= rank) state.unlockedSuits[name] = true;
+    }
   }
 
   // ---- Advance to Next Player in Trick ----

@@ -243,6 +243,25 @@ html, body {
   padding: 0.6em 1.8em;
 }
 
+/* Home icon under the menu — back to the arcade's front page
+   (SoloTerra/Solitairra's dim outline style) */
+.btn-home {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.2em;
+  padding: 0.3em;
+  color: var(--text-dim);
+  opacity: 0.7;
+  transition: opacity 0.2s, color 0.2s;
+  text-decoration: none;
+}
+.btn-home:hover,
+.btn-home:focus-visible {
+  opacity: 1;
+  color: var(--gold-light);
+}
+
 /* Title card fan — centered on h1 text, behind it */
 .title-card-fan {
   position: absolute;
@@ -310,7 +329,21 @@ html, body {
   background: rgba(10, 15, 12, 0.97);
 }
 
+/* Rules + Options scroll when taller than the window (v2.8): the How to
+   Play panel is ~1000px tall, so on laptops and every phone its Back
+   button sat off-screen with no way to reach it. justify-content start +
+   the panel's auto margins = centered when it fits, scrollable when not. */
+#screen-rules,
+#screen-options {
+  justify-content: flex-start;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: calc(env(safe-area-inset-top, 0px) + 1rem) 0 calc(env(safe-area-inset-bottom, 0px) + 1rem);
+}
+
 .rules-panel {
+  margin: auto 0;
+  flex-shrink: 0;
   max-width: 90%;
   width: fit-content;
   background: var(--bg-panel);
@@ -389,7 +422,9 @@ html, body {
 .setup-deal-btn {
   position: absolute;
   left: 50%;
-  top: calc(50% - 7vmin); /* table center sits at 50% - 4vmin */
+  /* 3vmin above the table center — --table-cy is set by ui.js
+     (updateLayoutMode) since portrait phones pin the table high */
+  top: calc(var(--table-cy, calc(50% - 4vmin)) - 3vmin);
   transform: translateX(-50%);
   z-index: 30;
   /* 3.6vmin = 1.8rem on a 800px-min desktop; scales down with the table */
@@ -474,7 +509,8 @@ html, body {
   width: 100%;
   height: 100%;
   z-index: 0;
-  border-radius: 8px;
+  /* No border-radius: a full-screen canvas gains nothing from it, and a
+     rounded mask forces the compositor down a slower clipping path */
   pointer-events: none;
   touch-action: none;
 }
@@ -641,6 +677,19 @@ html, body {
   height: 100%;
   object-fit: cover;
   border-radius: 50%;
+}
+
+/* Avatar taps (v2.8): switch which local player's hand is on the bar;
+   online host: reassign a seat. ui.js decides; .tappable = it responds. */
+.game-seat-avatar { pointer-events: auto; }
+.game-seat.tappable .game-seat-avatar { cursor: pointer; }
+.game-seat.tappable .game-seat-avatar:hover { border-color: var(--gold-light); }
+
+/* The local player whose hand is on the bar (only marked when this
+   device runs several). Outline, so it coexists with the active glow. */
+.game-seat.viewing .game-seat-avatar {
+  outline: max(0.4vmin, 2px) solid #6ec6ff;
+  outline-offset: max(0.3vmin, 2px);
 }
 
 .game-seat-name {
@@ -1162,6 +1211,18 @@ html, body {
   margin: 0 0.05em;
 }
 
+/* How to Play: each drawn pip sits on a little card-face chip (v2.8) —
+   the black Blades/Combiners vanished against the dark panel. The pip
+   art already leaves a 15% margin inside its canvas, so no padding. */
+.rule-section canvas.inline-laser-pip {
+  width: 1.3em;
+  height: 1.55em;
+  margin: 0 0.15em;
+  background: #f8f6f0;
+  border-radius: 0.28em;
+  box-shadow: 0 0 0 1px rgba(201, 149, 42, 0.6), 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
 /* ---------- Trick Info (positioned dynamically above right player by JS) ---------- */
 .trick-info {
   position: absolute;
@@ -1207,9 +1268,28 @@ html, body {
   transform: translateX(-50%);
   z-index: 55; /* Above bid overlay (z-index 50) so cards visible during bidding */
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   padding: 0.4vmin 0.8vmin;
   pointer-events: none;
+}
+
+/* "Tank's hand" — only when this device runs several players. Sits to
+   the LEFT of the card row: the bar is designed to touch the bottom
+   seat's name, so a label above it would collide (phones stack it on
+   top instead — see body.phone-portrait). */
+.hand-bar-owner {
+  position: absolute;
+  right: 100%;
+  bottom: 50%;
+  transform: translateY(50%);
+  margin-right: max(1.2vmin, 6px);
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: max(1.8vmin, 0.72rem);
+  color: #6ec6ff;
+  letter-spacing: 0.06em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 
 .hand-bar-cards {
@@ -1432,6 +1512,98 @@ html, body {
 }
 
 body.pbar-active #pbar-message { display: block; }
+
+/* ============================================================
+   Phone portrait (v2.8, MK's ask) — the one deliberate exception to
+   "same layout everywhere". renderer.js pins the board near the top
+   (isPhonePortrait), and the hand takes the freed bottom as two rows
+   of five big cards. body.phone-portrait is toggled by ui.js using the
+   same rule, so canvas and CSS can't disagree.
+   ============================================================ */
+body.phone-portrait {
+  --hc-gap: 0.45rem;
+  --hc-w: min(calc((100vw - 1.4rem - 4 * var(--hc-gap)) / 5), 5.6rem);
+  --hc-h: calc(var(--hc-w) * 1.4);
+  --hand-top: calc(env(safe-area-inset-bottom, 0px) + 0.7rem + 2 * var(--hc-h) + var(--hc-gap));
+}
+
+body.phone-portrait .hand-bar {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 0.7rem);
+  padding: 0;
+}
+
+body.phone-portrait .hand-bar-cards {
+  flex-wrap: wrap;
+  align-content: flex-start; /* 5 or fewer left: one row, kept on top */
+  align-items: flex-start;
+  gap: var(--hc-gap);
+  width: calc(5 * var(--hc-w) + 4 * var(--hc-gap));
+  height: calc(2 * var(--hc-h) + var(--hc-gap));
+}
+
+body.phone-portrait .hand-card {
+  width: var(--hc-w);
+  height: var(--hc-h);
+  border-radius: calc(var(--hc-w) * 0.1);
+  border-width: 2px;
+  gap: calc(var(--hc-w) * 0.06);
+}
+body.phone-portrait .hand-card .hc-rank { font-size: calc(var(--hc-w) * 0.32); }
+body.phone-portrait .hand-card .hc-suit { font-size: calc(var(--hc-w) * 0.4); }
+
+body.phone-portrait .hand-bar-owner {
+  position: static;
+  transform: none;
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
+}
+
+/* Status pill rides just above the two card rows (and the owner label) */
+body.phone-portrait #pbar-message { bottom: calc(var(--hand-top) + 0.7rem); }
+body.phone-portrait.has-hand-owner #pbar-message { bottom: calc(var(--hand-top) + 2.1rem); }
+
+/* ============================================================
+   Rotate gate (v2.8): a phone held sideways sees ONLY this card.
+   ui.js sets body.rotate-required from the physical screen
+   orientation (an Android keyboard must not trigger it).
+   ============================================================ */
+.rotate-overlay { display: none; }
+
+body.rotate-required .rotate-overlay {
+  display: flex;
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1.5rem;
+  text-align: center;
+  background: radial-gradient(ellipse at center, #0f2a18 0%, #0a1510 50%, #050a08 100%), var(--bg-dark);
+  color: var(--gold-light);
+}
+
+.rotate-icon {
+  margin-bottom: 0.4rem;
+  animation: turnUpright 2.6s ease-in-out infinite;
+}
+
+@keyframes turnUpright {
+  0%, 15% { transform: rotate(90deg); }
+  55%, 100% { transform: rotate(0deg); }
+}
+
+.rotate-title {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.rotate-sub {
+  font-size: 1rem;
+  color: var(--text-light);
+}
 
 /* ============================================================
    ONLINE MULTIPLAYER UI (ported from 30/css/style.css)

@@ -23,6 +23,13 @@ var UI = (function () {
   // ---- Bidding State ----
   var currentBidValue = 0;
 
+  // ---- Hand-bar owner (v2.8) ----
+  // Which of THIS device's players the hand bar shows. With one local
+  // player it's automatic; with several (hot-seat, or an online host
+  // running more than one seat) it's whoever was tapped last — the bar
+  // no longer jumps to whoever's turn it is.
+  var _viewedPlayerId = null;
+
   // ---- Online State ----
   var _hostRequestSource = null;    // 'cascade' | 'voluntary' popup source
   var _waitingForRemote = false;    // host: stalled on a remote player's action
@@ -64,19 +71,58 @@ var UI = (function () {
     return 1.1 * (getVmin() * 100 / 1080);
   }
 
-  // ---- View mode (round-3 simplification) ----
-  // One proportional layout everywhere; the only responsive extra is the
-  // pbar-active class, which shows the #pbar-message pill in the thumb
-  // zone on portrait phones. The old lbar mode (shrunken felt, relocated
-  // legend/counter) is gone — MK wants every screen to look the same.
+  // ---- View mode ----
+  // One proportional layout everywhere (MK's round-3 directive), with ONE
+  // phone exception (v2.8, MK's ask): on a portrait phone the board rides
+  // high and the hand bar takes the bottom in two big rows. The rule is
+  // Renderer.isPhonePortrait so the canvas and CSS (body.phone-portrait)
+  // always agree. pbar-active additionally shows the status pill above
+  // the hand while a game is live.
+  function viewportSize() {
+    return {
+      w: document.documentElement.clientWidth || window.innerWidth,
+      h: document.documentElement.clientHeight || window.innerHeight
+    };
+  }
+
   function isMobilePortrait() {
-    return window.matchMedia('(orientation: portrait) and (max-width: 480px)').matches;
+    var v = viewportSize();
+    return Renderer.isPhonePortrait(v.w, v.h);
   }
 
   function updateLayoutMode() {
+    var v = viewportSize();
+    var phone = Renderer.isPhonePortrait(v.w, v.h);
     var inGame = gamePhase === 'playing' &&
       document.getElementById('screen-game').classList.contains('active');
-    document.body.classList.toggle('pbar-active', inGame && isMobilePortrait());
+    Renderer.refreshLayoutMetrics();
+    document.body.classList.toggle('phone-portrait', phone);
+    document.body.classList.toggle('pbar-active', inGame && phone);
+    // The Deal button and lobby text center on the table, wherever it is
+    var center = Renderer.computeTableCenter(v.w, v.h);
+    document.documentElement.style.setProperty('--table-cy', Math.round(center.y) + 'px');
+    updateRotateGate();
+  }
+
+  // ---- Portrait-only on phones (v2.8, MK's ask) ----
+  // A phone held sideways gets a full-screen "rotate to portrait" card
+  // and nothing else. Uses the PHYSICAL screen orientation, not the
+  // viewport's aspect ratio: an Android keyboard opening in portrait
+  // shrinks the viewport to landscape proportions, and that must not
+  // trigger the gate mid-typing. Tablets (short side > 500px) and mouse
+  // devices are never gated.
+  function isPhoneLandscape() {
+    if (!window.matchMedia('(pointer: coarse)').matches) return false;
+    var sw = window.screen ? Math.min(screen.width, screen.height) : 0;
+    if (!sw || sw > 500) return false;
+    var type = screen.orientation && screen.orientation.type;
+    if (type) return type.indexOf('landscape') === 0;
+    if (typeof window.orientation === 'number') return Math.abs(window.orientation) === 90;
+    return window.innerWidth > window.innerHeight;
+  }
+
+  function updateRotateGate() {
+    document.body.classList.toggle('rotate-required', isPhoneLandscape());
   }
 
   // ---- Unified viewport-change handler (ported from 30) ----
@@ -107,6 +153,16 @@ var UI = (function () {
   function installViewportHandlers() {
     if (resizeListenerAdded) return;
     resizeListenerAdded = true;
+
+    // Cheap class/var sync on EVERY screen (the rotate gate must work on
+    // the title screen too); the debounced canvas rebuild below only
+    // matters while the game screen is up.
+    var syncMode = function () { updateLayoutMode(); };
+    window.addEventListener('resize', syncMode);
+    window.addEventListener('orientationchange', syncMode);
+    if (window.screen && screen.orientation && screen.orientation.addEventListener) {
+      screen.orientation.addEventListener('change', syncMode);
+    }
 
     // Debounce: only run handleViewportChange after the dimensions have
     // been stable for ~100ms. Prevents expensive table-texture/particle
@@ -208,7 +264,7 @@ var UI = (function () {
   function init() {
     // Build stamp — matches the title-screen .build-tag; a device
     // logging an older number is running a cached build.
-    console.log('[LaserStacks] build v2.7');
+    console.log('[LaserStacks] build v2.8');
     initSetupSeats();
     bindEvents();
     bindOnlineEvents();
@@ -223,6 +279,50 @@ var UI = (function () {
     syncOptionsButtons(savedStyle);
     renderOptionButtonPips();
     showScreen('screen-title');
+
+    // Warm the renderer while the player reads the title screen, so
+    // Local/Online Play open instantly (v2.8 — see ensureRenderer)
+    var warm = function () { ensureRenderer().catch(function () {}); };
+    if (window.requestIdleCallback) window.requestIdleCallback(warm, { timeout: 2000 });
+    else setTimeout(warm, 500);
+  }
+
+  // ---- Renderer bring-up (v2.8) ----
+  // One shared promise for the PIXI app, started in idle time right
+  // after the title screen paints. Even with the cheap textures, WebGL
+  // start-up costs ~0.4s on Windows (ANGLE shader compiles) — paying it
+  // before the click is what makes "Local Play" open instantly. Card
+  // faces are baked from Cinzel, so the fonts must land first (capped
+  // wait, so an offline/slow font host can't block the game).
+  var _rendererPromise = null;
+
+  function fontsReady() {
+    if (!document.fonts || !document.fonts.load) return Promise.resolve();
+    var loads = Promise.all([
+      document.fonts.load('900 28px Cinzel'),
+      document.fonts.load('700 11px Cinzel'),
+      document.fonts.load('400 11px Cinzel')
+    ]).catch(function () {});
+    var cap = new Promise(function (resolve) { setTimeout(resolve, 2500); });
+    return Promise.race([loads, cap]);
+  }
+
+  function ensureRenderer() {
+    if (_rendererPromise) {
+      return _rendererPromise.then(function () { Renderer.resize(); });
+    }
+    _rendererPromise = fontsReady().then(function () {
+      return Renderer.init(document.getElementById('game-canvas'));
+    }).then(function () {
+      canvasReady = true;
+      var felt = document.querySelector('#screen-game .table-felt');
+      if (felt) felt.style.display = 'none';
+    }, function (err) {
+      _rendererPromise = null; // let the next screen entry retry
+      console.error('[LaserStacks] Renderer failed to start:', err);
+      throw err;
+    });
+    return _rendererPromise;
   }
 
   function initSetupSeats() {
@@ -418,15 +518,28 @@ var UI = (function () {
     var winningP = document.querySelector('[data-rules-section="winning"]');
     if (winningP) {
       winningP.innerHTML = 'a 2' + suitToken('clubs', style) + ' beats a K' + suitToken('spades', style) +
-        ', a 2' + suitToken('hearts', style) + ' beats a K' + suitToken('diamonds', style) + ', and so on.';
+        ', a 2' + suitToken('hearts', style) + ' beats a K' + suitToken('diamonds', style) +
+        ', and so on. Aces are high.';
     }
 
-    // Render any inline pip canvases that were just inserted
-    if (style !== 'classic' && typeof LaserPips !== 'undefined') {
-      var inlines = document.querySelectorAll('canvas.inline-laser-pip[data-inline-pip]');
-      for (var i = 0; i < inlines.length; i++) {
-        LaserPips.renderPipCanvas(inlines[i], inlines[i].getAttribute('data-inline-pip'), style);
+    renderRulesPips(style);
+  }
+
+  // Draw the How to Play pips at native resolution. The screen is hidden
+  // (0x0 rects) when the rules text is first built, so this re-runs each
+  // time How to Play opens — otherwise the 22x28 default bitmap gets
+  // stretched blurry over the larger card-chip box.
+  function renderRulesPips(style) {
+    if (style === 'classic' || typeof LaserPips === 'undefined') return;
+    var dpr = window.devicePixelRatio || 1;
+    var inlines = document.querySelectorAll('.rule-section canvas.inline-laser-pip[data-inline-pip]');
+    for (var i = 0; i < inlines.length; i++) {
+      var rect = inlines[i].getBoundingClientRect();
+      if (rect.width > 0) {
+        inlines[i].width = Math.round(rect.width * dpr * 2);
+        inlines[i].height = Math.round(rect.height * dpr * 2);
       }
+      LaserPips.renderPipCanvas(inlines[i], inlines[i].getAttribute('data-inline-pip'), style);
     }
   }
 
@@ -470,7 +583,9 @@ var UI = (function () {
       enterSetup();
     });
     document.getElementById('btn-how-to-play').addEventListener('click', function () {
+      document.getElementById('screen-rules').scrollTop = 0; // it scrolls now
       showScreen('screen-rules');
+      renderRulesPips(SaveSystem.getSuitStyle());
     });
     document.getElementById('btn-rules-back').addEventListener('click', function () {
       showScreen('screen-title');
@@ -580,26 +695,15 @@ var UI = (function () {
     document.getElementById('hand-bar').style.display = 'none';
     document.getElementById('bid-overlay').style.display = 'none';
 
-    var canvasEl = document.getElementById('game-canvas');
-    var ready;
-    if (!canvasReady) {
-      ready = Renderer.init(canvasEl).then(function () {
-        canvasReady = true;
-      });
-    } else {
-      Renderer.resize();
-      ready = Promise.resolve();
-    }
-
-    ready.then(function () {
-      var felt = document.querySelector('#screen-game .table-felt');
-      if (felt) felt.style.display = 'none';
-
-      // Keep the loop running for particles/flying cards even with no game callback
+    // Seats go up immediately (DOM fallback geometry if the renderer is
+    // still warming); the table fades in under them once it's ready.
+    prepareSetupScreen();
+    ensureRenderer().then(function () {
+      if (gamePhase !== 'setup') return; // left before the table was ready
+      // Keep the loop running for particles even with no game callback
       Renderer.startLoop(function () {});
-
-      prepareSetupScreen();
-    });
+      renderSetupSeats();
+    }).catch(function () { /* logged in ensureRenderer */ });
   }
 
   function prepareSetupScreen() {
@@ -679,17 +783,18 @@ var UI = (function () {
     if (canvasReady) {
       positions = Renderer.getSeatPositions(NUM_TABLE_SEATS); // setup ring (bigger avatars)
     } else {
-      // Pre-canvas fallback: identical tangent-orbit math, DOM-side
+      // Pre-canvas fallback (renderer still warming): the renderer's own
+      // center rule on the DOM box, same tangent orbit
       var table = ring.parentElement;
       var w = table.offsetWidth || window.innerWidth;
       var h = table.offsetHeight || window.innerHeight;
       var vm = Math.min(w, h) / 100;
       var orbit = (28 + 2.5 + 3.9) * vm; // felt + wood + avatar radius
-      var cx = w / 2, cy = h / 2 - 4 * vm;
+      var center = Renderer.computeTableCenter(w, h);
       positions = [];
       for (var s = 0; s < NUM_TABLE_SEATS; s++) {
         var ang = (Math.PI / 2) + (s * 2 * Math.PI / NUM_TABLE_SEATS);
-        positions.push({ x: cx + orbit * Math.cos(ang), y: cy + orbit * Math.sin(ang), angle: ang });
+        positions.push({ x: center.x + orbit * Math.cos(ang), y: center.y + orbit * Math.sin(ang), angle: ang });
       }
     }
 
@@ -794,21 +899,22 @@ var UI = (function () {
   // ---- Character Picker ----
   function openPicker(seatIdx) {
     pickerTargetSeat = seatIdx;
-    var picker = document.getElementById('character-picker');
-    var grid = document.getElementById('picker-grid');
-    grid.innerHTML = '';
-
-    var animals = SpriteEngine.getAnimalList();
     var usedAnimals = [];
     for (var i = 0; i < setupSeats.length; i++) {
       if (setupSeats[i].occupied && i !== seatIdx && setupSeats[i].animal) {
         usedAnimals.push(setupSeats[i].animal);
       }
     }
+    showAnimalPicker(usedAnimals, selectAnimal);
+  }
 
-    for (var j = 0; j < animals.length; j++) {
-      var animalId = animals[j];
-      var taken = usedAnimals.indexOf(animalId) !== -1;
+  // The 24-animal grid, shared by the local setup and online lobby
+  // pickers. Animals in `takenAnimals` are greyed out and inert.
+  function showAnimalPicker(takenAnimals, onPick) {
+    var grid = document.getElementById('picker-grid');
+    grid.innerHTML = '';
+    SpriteEngine.getAnimalList().forEach(function (animalId) {
+      var taken = takenAnimals.indexOf(animalId) !== -1;
 
       var wrapper = document.createElement('div');
       wrapper.style.textAlign = 'center';
@@ -816,13 +922,9 @@ var UI = (function () {
       var btn = document.createElement('div');
       btn.className = 'picker-animal' + (taken ? ' taken' : '');
       btn.appendChild(SpriteEngine.createSpriteImg(animalId));
-
       if (!taken) {
-        btn.addEventListener('click', (function (aid) {
-          return function () { selectAnimal(aid); };
-        })(animalId));
+        btn.addEventListener('click', function () { onPick(animalId); });
       }
-
       wrapper.appendChild(btn);
 
       var label = document.createElement('div');
@@ -831,9 +933,8 @@ var UI = (function () {
       wrapper.appendChild(label);
 
       grid.appendChild(wrapper);
-    }
-
-    picker.style.display = 'flex';
+    });
+    document.getElementById('character-picker').style.display = 'flex';
   }
 
   function selectAnimal(animalId) {
@@ -882,6 +983,7 @@ var UI = (function () {
     // Remember the table for next time
     SaveSystem.saveSetup(setupToSave);
 
+    _viewedPlayerId = null; // first local player to act gets the bar
     Game.setupGame(players);
     beginNewRound();
   }
@@ -1006,15 +1108,10 @@ var UI = (function () {
         setMessage(bidder.name + ' is bidding...');
         gameFlowLocked = true;
         _waitingForRemote = true;
+        applyParkedAction(bidder.id);
         return;
       }
-      var humanCount = Game.getState().players.filter(function (p) { return p.isHuman; }).length;
-      renderHandBar(bidder.id);
-      // Show bid overlay
-      currentBidValue = 0;
-      document.getElementById('bid-value').textContent = '0';
-      document.getElementById('bid-overlay').style.display = 'flex';
-      setMessage(humanCount > 1 ? bidder.name + ' — place your bid!' : 'Place your bid!');
+      promptLocalBid(bidder, hasMultipleLocalPlayers());
     } else {
       // AI bids
       setMessage(bidder.name + ' is thinking...');
@@ -1027,7 +1124,7 @@ var UI = (function () {
         if (Online.isActive() && Online.isHost()) {
           Online.broadcastGameAction({ type: 'action_bid', playerId: bidder.id, value: bid });
         }
-        updateBidDisplay(bidder.id, bid);
+        updateStatLine(bidder.id);
         setMessage(bidder.name + ' bids ' + bid);
 
         return Animations.delay(600);
@@ -1065,7 +1162,7 @@ var UI = (function () {
     if (Online.isActive() && Online.isHost()) {
       Online.broadcastGameAction({ type: 'action_bid', playerId: playerId, value: value });
     }
-    updateBidDisplay(playerId, value);
+    updateStatLine(playerId);
     var bidPlayer = Game.getPlayerById(playerId);
     var mine = !Online.isActive() || Online.isMyPlayer(playerId);
     setMessage(mine ? 'You bid ' + value : bidPlayer.name + ' bids ' + value);
@@ -1152,6 +1249,20 @@ var UI = (function () {
     });
   }
 
+  // Drop a just-played card from the canvas fan (matched by value: state
+  // syncs replace card objects, so identity alone isn't reliable)
+  function removeFromHandDisplay(playerId, card) {
+    var fan = handDisplay[playerId];
+    if (!fan) return;
+    for (var i = 0; i < fan.length; i++) {
+      if (fan[i].card === card ||
+          (fan[i].card.rank === card.rank && fan[i].card.suit === card.suit)) {
+        fan.splice(i, 1);
+        return;
+      }
+    }
+  }
+
   // ---- Play Card Animation ----
   function animatePlayCard(card, playerId, seatIndex) {
     return new Promise(function (resolve) {
@@ -1219,12 +1330,13 @@ var UI = (function () {
         setMessage(player.name + '\'s turn!');
         enableHandBar(false);
         gameFlowLocked = true;
-        if (Online.isHost()) _waitingForRemote = true;
+        if (Online.isHost()) {
+          _waitingForRemote = true;
+          applyParkedAction(player.id);
+        }
         return;
       }
-      var humanCount = Game.getState().players.filter(function (p) { return p.isHuman; }).length;
-      setMessage(humanCount > 1 ? player.name + '\'s turn!' : 'Your turn!');
-      renderHandBar(player.id);
+      promptLocalPlay(player, hasMultipleLocalPlayers());
     } else {
       // Online guest: the AI runs on the host — we just watch
       if (Online.isActive() && !Online.isHost()) {
@@ -1245,6 +1357,12 @@ var UI = (function () {
     }
   }
 
+  // The last stack plays itself: a human's single remaining card, or the
+  // AI's pick (one card left either way, but the AI path stays general)
+  function autoCardFor(player) {
+    return player.isHuman ? Game.getLegalPlays(player.id)[0] : Game.aiPlayCard(player.id);
+  }
+
   // ---- Auto-play last stack ----
   function autoPlayLastTrick(firstPlayer) {
     var ep = _flowEpoch;
@@ -1260,14 +1378,7 @@ var UI = (function () {
       }
 
       highlightActivePlayer(player.id);
-      var cardIndex;
-      if (player.isHuman) {
-        // Auto-select the only legal play (or best one)
-        var legalPlays = Game.getLegalPlays(player.id);
-        cardIndex = legalPlays[0]; // Only legal cards available
-      } else {
-        cardIndex = Game.aiPlayCard(player.id);
-      }
+      var cardIndex = autoCardFor(player);
 
       Animations.delay(800).then(function () {
         if (flowStale(ep)) return;
@@ -1281,8 +1392,9 @@ var UI = (function () {
   function humanPlayCard(cardIndex) {
     if (gameFlowLocked) return;
     var player = Game.getCurrentPlayer();
-    if (!player || !player.isHuman) return;
-    if (Online.isActive() && !Online.isMyPlayer(player.id)) return;
+    if (!isLocalPlayer(player)) return;
+    // The tapped card belongs to the bar's hand — it must be the mover's
+    if (!isViewing(player.id)) return;
 
     var legalPlays = Game.getLegalPlays(player.id);
     if (legalPlays.indexOf(cardIndex) === -1) return;
@@ -1311,26 +1423,14 @@ var UI = (function () {
       });
     }
 
-    // Update hand display
-    if (handDisplay[playerId]) {
-      // Find and remove the card from hand display
-      for (var i = 0; i < handDisplay[playerId].length; i++) {
-        if (handDisplay[playerId][i].card === card ||
-            (handDisplay[playerId][i].card.rank === card.rank &&
-             handDisplay[playerId][i].card.suit === card.suit)) {
-          handDisplay[playerId].splice(i, 1);
-          break;
-        }
-      }
-    }
-
+    removeFromHandDisplay(playerId, card);
     setMessage(player.name + ' plays ' + card.rank + card.symbol);
 
     return animatePlayCard(card, playerId, player.seatIndex).then(function () {
       if (flowStale(ep)) return;
-      // Refresh the bar with the player's own remaining hand (multi-human:
-      // never flash another human's cards here)
-      if (player.isHuman) renderHandBar(playerId);
+      // Refresh the bar (it shows the viewed local hand — never the mover's
+      // unless that's who is being viewed)
+      if (isLocalPlayer(player)) renderHandBar();
 
       // Update tricks won display
       updateAllTrickDisplays();
@@ -1392,13 +1492,7 @@ var UI = (function () {
             // Continue auto-playing last trick
             var nextPlayer = Game.getCurrentPlayer();
             highlightActivePlayer(nextPlayer.id);
-            var ci;
-            if (nextPlayer.isHuman) {
-              var lp = Game.getLegalPlays(nextPlayer.id);
-              ci = lp[0];
-            } else {
-              ci = Game.aiPlayCard(nextPlayer.id);
-            }
+            var ci = autoCardFor(nextPlayer);
             Animations.delay(800).then(function () {
               if (flowStale(ep)) return;
               executePlay(nextPlayer.id, ci);
@@ -1439,35 +1533,147 @@ var UI = (function () {
   //  HAND BAR (Human Player's Clickable Cards)
   // ================================================================
 
-  function renderHandBar(targetPlayerId) {
+  // ---- Local players & the viewed hand (v2.8) ----
+
+  // A player THIS device controls: any human seat offline; online, only
+  // human seats bound to this device (hands are synced to every device,
+  // so this check is what keeps other players' cards private).
+  function isLocalPlayer(p) {
+    if (!p || !p.isHuman) return false;
+    return !Online.isActive() || Online.isMyPlayer(p.id);
+  }
+
+  function getLocalPlayers() {
+    var gs = Game.getState();
+    // Turn order once the round is set up, so the default pick is the
+    // local player who acts first
+    var order = (gs.turnOrder && gs.turnOrder.length) ? gs.turnOrder
+      : gs.players.map(function (p) { return p.id; });
+    var out = [];
+    for (var i = 0; i < order.length; i++) {
+      var p = Game.getPlayerById(order[i]);
+      if (isLocalPlayer(p)) out.push(p);
+    }
+    return out;
+  }
+
+  function hasMultipleLocalPlayers() {
+    return getLocalPlayers().length > 1;
+  }
+
+  // The player whose hand the bar shows: the last one tapped. Until
+  // someone taps (or if that seat stopped being local), it's the first
+  // local player to act this round — not pinned, so a fresh game's
+  // first bidder gets the bar once the deal has set the turn order.
+  function getViewedPlayer() {
+    var locals = getLocalPlayers();
+    for (var i = 0; i < locals.length; i++) {
+      if (locals[i].id === _viewedPlayerId) return locals[i];
+    }
+    return locals[0] || null;
+  }
+
+  function isViewing(playerId) {
+    var v = getViewedPlayer();
+    return !!v && v.id === playerId;
+  }
+
+  // Tap on a seat avatar mid-game. A local player that isn't the one on
+  // the bar → switch the bar to them. Otherwise the online host's
+  // existing recovery hatch (reassign a seat) still applies.
+  function onSeatAvatarTap(playerId, seatIdx) {
+    if (gamePhase !== 'playing') return;
+    var p = Game.getPlayerById(playerId);
+    if (isLocalPlayer(p) && hasMultipleLocalPlayers() && !isViewing(playerId)) {
+      selectViewedPlayer(playerId);
+      return;
+    }
+    if (Online.isActive() && Online.isHost()) openReassignPopup(seatIdx);
+  }
+
+  function selectViewedPlayer(playerId) {
+    _viewedPlayerId = playerId;
+    renderHandBar();
+    refreshSeatAffordances();
+    resumeLocalPrompt();
+  }
+
+  // After a switch: if the newly viewed player is the one the game is
+  // waiting on, hand them the controls (bid overlay / playable cards).
+  function resumeLocalPrompt() {
+    var gs = Game.getState();
+    var multi = hasMultipleLocalPlayers();
+    if (gs.roundPhase === 'bidding') {
+      var bidder = Game.getCurrentBidder();
+      if (bidder && isLocalPlayer(bidder) && gs.bids[bidder.id] === undefined) {
+        promptLocalBid(bidder, multi);
+      }
+    } else if (gs.roundPhase === 'playing' && !gameFlowLocked) {
+      var current = Game.getCurrentPlayer();
+      if (current && isLocalPlayer(current)) promptLocalPlay(current, multi);
+    }
+  }
+
+  // Bid prompt for a local bidder: the overlay only opens over the
+  // bidder's OWN hand; otherwise ask for a tap on their character.
+  function promptLocalBid(bidder, multi) {
+    if (!isViewing(bidder.id)) {
+      document.getElementById('bid-overlay').style.display = 'none';
+      setMessage('Tap ' + bidder.name + ' to bid');
+      return;
+    }
+    renderHandBar();
+    currentBidValue = 0;
+    document.getElementById('bid-value').textContent = '0';
+    document.getElementById('bid-overlay').style.display = 'flex';
+    setMessage(multi ? bidder.name + ' — place your bid!' : 'Place your bid!');
+  }
+
+  // Play prompt for a local player: cards light up only on their own
+  // hand; otherwise ask for a tap on their character.
+  function promptLocalPlay(player, multi) {
+    renderHandBar();
+    if (!isViewing(player.id)) {
+      setMessage('Tap ' + player.name + ' to play');
+      return;
+    }
+    setMessage(multi ? player.name + '\'s turn!' : 'Your turn!');
+  }
+
+  // Seat affordances: which avatars can be tapped, and which local
+  // player's hand is on the bar (only marked when there's a choice).
+  function refreshSeatAffordances() {
+    var multi = hasMultipleLocalPlayers();
+    var host = Online.isActive() && Online.isHost();
+    var viewed = getViewedPlayer();
+    var seats = document.querySelectorAll('.game-seat');
+    for (var i = 0; i < seats.length; i++) {
+      var p = Game.getPlayerById(+seats[i].dataset.player);
+      var local = isLocalPlayer(p);
+      seats[i].classList.toggle('tappable', !!p && ((local && multi) || host));
+      seats[i].classList.toggle('viewing', !!p && multi && !!viewed && viewed.id === p.id);
+    }
+    var owner = document.getElementById('hand-bar-owner');
+    var showOwner = multi && !!viewed;
+    if (owner) {
+      // The default first-human name is "You" → "Your hand", not "You's"
+      owner.textContent = showOwner
+        ? (viewed.name === 'You' ? 'Your hand' : viewed.name + '\'s hand') : '';
+      owner.style.display = showOwner ? '' : 'none';
+    }
+    document.body.classList.toggle('has-hand-owner', showOwner);
+  }
+
+  // Renders the VIEWED local player's hand. Never anyone else's: the bar
+  // is this device's private surface (two past online leaks came from
+  // callers passing another seat's id — there is no parameter anymore).
+  function renderHandBar() {
     var container = document.getElementById('hand-bar-cards');
     container.innerHTML = '';
 
     var gs = Game.getState();
-    // Find the target player (or first human)
-    var humanPlayer = null;
-    if (targetPlayerId !== undefined) {
-      humanPlayer = Game.getPlayerById(targetPlayerId);
-    } else {
-      for (var i = 0; i < gs.players.length; i++) {
-        if (gs.players[i].isHuman) {
-          humanPlayer = gs.players[i];
-          break;
-        }
-      }
-    }
-    // ONLINE: this bar is THIS device's private surface. Hands are
-    // full-state-synced to every device, so rendering any other seat's
-    // hand here leaks their cards — override whatever the caller asked
-    // for with the local device's own player (bar stays empty for
-    // unseated observers).
-    if (Online.isActive()) {
-      var myDevId = Online.getMyDeviceId();
-      humanPlayer = null;
-      for (var d = 0; d < gs.players.length; d++) {
-        if (gs.players[d].deviceId === myDevId) { humanPlayer = gs.players[d]; break; }
-      }
-    }
+    var humanPlayer = getViewedPlayer();
+    refreshSeatAffordances();
     if (!humanPlayer) return;
 
     var hand = Game.getHand(humanPlayer.id);
@@ -1558,22 +1764,7 @@ var UI = (function () {
   // ================================================================
 
   function renderGameTable() {
-    var canvasEl = document.getElementById('game-canvas');
-
-    var ready;
-    if (!canvasReady) {
-      ready = Renderer.init(canvasEl).then(function () {
-        canvasReady = true;
-      });
-    } else {
-      Renderer.resize();
-      ready = Promise.resolve();
-    }
-
-    return ready.then(function () {
-      var felt = document.querySelector('#screen-game .table-felt');
-      if (felt) felt.style.display = 'none';
-
+    return ensureRenderer().then(function () {
       // Game phase is live now — apply the portrait message mode
       updateLayoutMode();
 
@@ -1607,18 +1798,14 @@ var UI = (function () {
         var avatarWrap = document.createElement('div');
         avatarWrap.className = 'game-seat-avatar';
         avatarWrap.appendChild(SpriteEngine.createSpriteImg(p.animal));
-        // Host recovery hatch: mid-game, the host can tap a seat to
-        // reassign it (AI / host / unseated joiner). openReassignPopup
-        // refuses seats held by connected guests, so this only ever
-        // touches AI seats, the host's own, or orphaned seats whose
-        // device dropped (page refresh) — no kicking live players.
-        if (Online.isActive() && Online.isHost()) {
-          avatarWrap.style.pointerEvents = 'auto';
-          avatarWrap.style.cursor = 'pointer';
-          avatarWrap.addEventListener('click', (function (seatIdx) {
-            return function () { openReassignPopup(seatIdx); };
-          })(p.seatIndex));
-        }
+        // Avatar taps (onSeatAvatarTap): switch the hand bar between this
+        // device's players, or — online host only — the recovery hatch
+        // that reassigns a seat (AI / host / unseated joiner; refuses
+        // seats held by connected guests, so no kicking live players).
+        // .tappable (refreshSeatAffordances) shows which avatars respond.
+        avatarWrap.addEventListener('click', (function (pid, seatIdx) {
+          return function () { onSeatAvatarTap(pid, seatIdx); };
+        })(p.id, p.seatIndex));
         topRow.appendChild(avatarWrap);
 
         seat.appendChild(topRow);
@@ -1642,6 +1829,7 @@ var UI = (function () {
 
         handDisplay[p.id] = [];
       }
+      refreshSeatAffordances();
 
       // Start render loop
       Renderer.startLoop(drawGameFrame);
@@ -1779,8 +1967,11 @@ var UI = (function () {
       if (wasHidden) suitStack.style.visibility = '';
 
       var leftSeat = seatPositions[2];
-      suitStack.style.left = (leftSeat.x - ssW / 2) + 'px';
-      suitStack.style.top = Math.max(minTop, leftSeat.y - avatarHalf - breathingRoom - ssH) + 'px';
+      var ssLeft = leftSeat.x - ssW / 2;
+      var ssTop = Math.max(minTop, leftSeat.y - avatarHalf - breathingRoom - ssH);
+      ssLeft += tangentShiftX({ left: ssLeft, right: ssLeft + ssW, top: ssTop, bottom: ssTop + ssH }, -1);
+      suitStack.style.left = ssLeft + 'px';
+      suitStack.style.top = ssTop + 'px';
     }
 
     // Stack counter mirrors it above the RIGHT player's avatar (seat 6),
@@ -1795,8 +1986,49 @@ var UI = (function () {
       if (wasHidden2) trickInfo.style.visibility = '';
 
       var rightSeat = seatPositions[6];
-      trickInfo.style.left = (rightSeat.x - tiW / 2) + 'px';
-      trickInfo.style.top = Math.max(minTop, rightSeat.y - avatarHalf - breathingRoom - tiH) + 'px';
+      var tiLeft = rightSeat.x - tiW / 2;
+      var tiTop = Math.max(minTop, rightSeat.y - avatarHalf - breathingRoom - tiH);
+      tiLeft += tangentShiftX({ left: tiLeft, right: tiLeft + tiW, top: tiTop, bottom: tiTop + tiH }, 1);
+      trickInfo.style.left = tiLeft + 'px';
+      trickInfo.style.top = tiTop + 'px';
+    }
+
+    fitSeatTextToTable();
+  }
+
+  // ---- Tangent fit (v2.8, MK's ask) ----
+  // Avatars touch the table's outer wood edge exactly. The Stack box,
+  // the legend, and the left/right seats' name + Bid lines are WIDER than
+  // an avatar, so centered on one they cut into the circle. Each is
+  // nudged straight outward until it just touches the circle; anything
+  // already clear stays put (never pulled inward).
+  // side: -1 = element is left of the table, +1 = right of it.
+  function tangentShiftX(rect, side) {
+    var c = Renderer.getTableCenter();
+    var R = Renderer.getTableOuterRadius();
+    var dy = Math.max(rect.top - c.y, 0, c.y - rect.bottom);
+    if (dy >= R) return 0;
+    var reach = Math.sqrt(R * R - dy * dy);
+    return side < 0 ? Math.min(0, (c.x - reach) - rect.right)
+                    : Math.max(0, (c.x + reach) - rect.left);
+  }
+
+  // Left (seat 2) and right (seat 6) players' name + statline. Uses the
+  // CSS `translate` property so the seats' own transforms are untouched.
+  // Re-run whenever their text changes width (updateStatLine).
+  function fitSeatTextToTable() {
+    if (!canvasReady) return;
+    var seats = document.querySelectorAll('.game-seat');
+    for (var i = 0; i < seats.length; i++) {
+      var p = Game.getPlayerById(+seats[i].dataset.player);
+      if (!p || (p.seatIndex !== 2 && p.seatIndex !== 6)) continue;
+      var side = p.seatIndex === 2 ? -1 : 1;
+      var parts = seats[i].querySelectorAll('.game-seat-name, .game-seat-statline');
+      for (var j = 0; j < parts.length; j++) {
+        parts[j].style.translate = '';
+        var shift = tangentShiftX(parts[j].getBoundingClientRect(), side);
+        if (shift) parts[j].style.translate = shift + 'px 0';
+      }
     }
   }
 
@@ -1810,19 +2042,11 @@ var UI = (function () {
     }
   }
 
-  function updateBidDisplay(playerId, bid) {
-    updateStatLine(playerId);
-  }
-
   function updateAllBidDisplays() {
     var gs = Game.getState();
     for (var i = 0; i < gs.players.length; i++) {
       updateStatLine(gs.players[i].id);
     }
-  }
-
-  function updateTrickDisplay(playerId) {
-    updateStatLine(playerId);
   }
 
   function updateAllTrickDisplays() {
@@ -1853,11 +2077,26 @@ var UI = (function () {
     } else {
       el.innerHTML = 'Bid: <span class="stat-number">' + bid + '</span> \u00a0 <span class="stat-number">' + won + '</span>/' + bid;
     }
+    scheduleSeatFit(); // the line's width just changed
+  }
+
+  // Batch the re-fit: updateAll* touches four statlines in a row, and
+  // one measure pass after all of them beats four interleaved ones.
+  var _seatFitQueued = false;
+  function scheduleSeatFit() {
+    if (_seatFitQueued) return;
+    _seatFitQueued = true;
+    Promise.resolve().then(function () {
+      _seatFitQueued = false;
+      fitSeatTextToTable();
+    });
   }
 
   function updateTrickInfo() {
     var el = document.getElementById('hud-trick');
     if (el) el.textContent = Game.getTrickNumber() + 1;
+    // "10" is wider than "9" \u2014 keep the box tangent to the table
+    if (canvasReady && gamePhase === 'playing') positionSuitStackAndTrickInfo();
   }
 
   function updateSuitDiagram() {
@@ -2143,6 +2382,7 @@ var UI = (function () {
     _waitingForRemote = false;
     _dealLock = false;
     _onlineQueue = [];
+    _earlyRemoteAction = null;
     if (canvasReady) Renderer.clearFlyingCards();
     document.getElementById('hand-bar').style.display = 'none';
     document.getElementById('bid-overlay').style.display = 'none';
@@ -2154,6 +2394,7 @@ var UI = (function () {
     if (roomRow) roomRow.style.display = 'none';
     var ring = document.getElementById('seats-ring');
     if (ring) ring.innerHTML = '';
+    document.body.classList.remove('has-hand-owner');
   }
 
   function hideLobbyChrome() {
@@ -2192,23 +2433,11 @@ var UI = (function () {
       document.getElementById('lobby-waiting').style.display = '';
     }
 
-    var canvasEl = document.getElementById('game-canvas');
-    var ready;
-    if (!canvasReady) {
-      ready = Renderer.init(canvasEl).then(function () {
-        canvasReady = true;
-      });
-    } else {
-      Renderer.resize();
-      ready = Promise.resolve();
-    }
-
-    ready.then(function () {
-      var felt = document.querySelector('#screen-game .table-felt');
-      if (felt) felt.style.display = 'none';
+    ensureRenderer().then(function () {
+      if (gamePhase !== 'online-lobby') return;
       Renderer.startLoop(function () {});
       renderOnlineLobbySeats();
-    });
+    }).catch(function () { /* logged in ensureRenderer */ });
   }
 
   function renderOnlineLobbySeats() {
@@ -2448,49 +2677,16 @@ var UI = (function () {
 
   // Animal picker for an online lobby seat (reuses the local picker DOM)
   function openOnlineAnimalPicker(seatIdx) {
-    var picker = document.getElementById('character-picker');
-    var grid = document.getElementById('picker-grid');
-    grid.innerHTML = '';
-
     var lobbyState = Online.getLobbyState();
-    var animals = SpriteEngine.getAnimalList();
     var usedAnimals = [];
     for (var i = 0; i < lobbyState.seats.length; i++) {
       var st = lobbyState.seats[i];
-      if (st.occupied && i !== seatIdx && st.animal) usedAnimals.push(st.animal);
+      if (st && st.occupied && i !== seatIdx && st.animal) usedAnimals.push(st.animal);
     }
-
-    for (var j = 0; j < animals.length; j++) {
-      var animalId = animals[j];
-      var taken = usedAnimals.indexOf(animalId) !== -1;
-
-      var wrapper = document.createElement('div');
-      wrapper.style.textAlign = 'center';
-
-      var btn = document.createElement('div');
-      btn.className = 'picker-animal' + (taken ? ' taken' : '');
-      btn.appendChild(SpriteEngine.createSpriteImg(animalId));
-
-      if (!taken) {
-        btn.addEventListener('click', (function (aid) {
-          return function () {
-            Online.sendChangeAnimal(seatIdx, aid);
-            closePicker();
-          };
-        })(animalId));
-      }
-
-      wrapper.appendChild(btn);
-
-      var label = document.createElement('div');
-      label.className = 'picker-animal-name';
-      label.textContent = SpriteEngine.getAnimalName(animalId);
-      wrapper.appendChild(label);
-
-      grid.appendChild(wrapper);
-    }
-
-    picker.style.display = 'flex';
+    showAnimalPicker(usedAnimals, function (animalId) {
+      Online.sendChangeAnimal(seatIdx, animalId);
+      closePicker();
+    });
   }
 
   // ---- Online game flow ----
@@ -2498,6 +2694,7 @@ var UI = (function () {
   // Fired on every device when the host clicks Deal (game_starting)
   function onlineBeginGame(players) {
     gamePhase = 'playing';
+    _viewedPlayerId = null;
     hideLobbyChrome();
     onlineBeginRound();
   }
@@ -2534,12 +2731,8 @@ var UI = (function () {
       return; // the host's game_state_sync flips us to playing
     }
     highlightActivePlayer(bidder.id);
-    if (Online.isMyPlayer(bidder.id)) {
-      renderHandBar(bidder.id);
-      currentBidValue = 0;
-      document.getElementById('bid-value').textContent = '0';
-      document.getElementById('bid-overlay').style.display = 'flex';
-      setMessage('Place your bid!');
+    if (isLocalPlayer(bidder)) {
+      promptLocalBid(bidder, hasMultipleLocalPlayers());
     } else {
       setMessage(bidder.name + ' is bidding...');
     }
@@ -2564,22 +2757,11 @@ var UI = (function () {
     var player = Game.getPlayerById(playerId);
     if (!player) return;
     var card = Game.playCard(playerId, cardIndex);
-
-    if (handDisplay[playerId]) {
-      for (var i = 0; i < handDisplay[playerId].length; i++) {
-        if (handDisplay[playerId][i].card === card ||
-            (handDisplay[playerId][i].card.rank === card.rank &&
-             handDisplay[playerId][i].card.suit === card.suit)) {
-          handDisplay[playerId].splice(i, 1);
-          break;
-        }
-      }
-    }
-
+    removeFromHandDisplay(playerId, card);
     setMessage(player.name + ' plays ' + card.rank + card.symbol);
 
     animatePlayCard(card, playerId, player.seatIndex).then(function () {
-      if (Online.isMyPlayer(playerId)) renderHandBar(playerId);
+      if (isLocalPlayer(player)) renderHandBar();
       updateAllTrickDisplays();
 
       var trick = Game.getCurrentTrick();
@@ -2593,6 +2775,40 @@ var UI = (function () {
     });
   }
 
+  // Host: a guest move that arrived BEFORE our own replay reached that
+  // guest's turn — their device finished the previous card's animation
+  // first (no 300ms post-play pause on guests). It used to be dropped,
+  // which froze the guest for good (their hand was already locked). It's
+  // parked instead and applied when the turn comes — only within the
+  // same stack / bidding round, so a stale move can never replay later.
+  var _earlyRemoteAction = null;
+
+  function parkEarlyAction(data) {
+    _earlyRemoteAction = {
+      data: data,
+      round: Game.getRoundNumber(),
+      phase: Game.getState().roundPhase,
+      trick: Game.getTrickNumber()
+    };
+  }
+
+  function takeEarlyAction(playerId) {
+    var early = _earlyRemoteAction;
+    if (!early || early.data.playerId !== playerId) return null;
+    _earlyRemoteAction = null;
+    var gs = Game.getState();
+    if (early.round !== Game.getRoundNumber() || early.phase !== gs.roundPhase) return null;
+    if (gs.roundPhase === 'playing' && early.trick !== Game.getTrickNumber()) return null;
+    return early.data;
+  }
+
+  // Host: our turn loop just started waiting on a remote player — apply
+  // their move if it already arrived
+  function applyParkedAction(playerId) {
+    var early = takeEarlyAction(playerId);
+    if (early) onlineHandleRemoteAction(early);
+  }
+
   // Host: a guest's action arrived (player_action)
   function onlineHandleRemoteAction(data) {
     if (!Online.isHost() || !data || !data.action) return;
@@ -2600,7 +2816,8 @@ var UI = (function () {
 
     if (action.type === 'bid') {
       var bidder = Game.getCurrentBidder();
-      if (!bidder || bidder.id !== data.playerId) return; // stale/out of turn
+      if (!bidder) return;
+      if (bidder.id !== data.playerId) { parkEarlyAction(data); return; }
       _waitingForRemote = false;
       gameFlowLocked = false;
       hostApplyBid(data.playerId, action.value);
@@ -2609,7 +2826,8 @@ var UI = (function () {
 
     if (action.type === 'playCard') {
       var current = Game.getCurrentPlayer();
-      if (!current || current.id !== data.playerId) return;
+      if (!current) return;
+      if (current.id !== data.playerId) { parkEarlyAction(data); return; }
       var legal = Game.getLegalPlays(data.playerId);
       if (legal.indexOf(action.cardIndex) === -1) return;
       _waitingForRemote = false;
