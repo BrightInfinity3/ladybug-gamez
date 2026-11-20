@@ -58,12 +58,15 @@ var UI = (function () {
     var vh = document.documentElement.clientHeight || window.innerHeight;
     return Math.min(vw, vh) / 100;
   }
-  function getSetupAvatarSize() {
-    return 7.8 * getVmin(); // matches .seat-avatar CSS (in-game size)
+  // Avatar diameter (px) — the renderer's rule: 7.8vmin, or 7.8vmin x k
+  // on portrait phones (published to CSS as --avatar-d). Setup, lobby
+  // and game avatars are the same size (MK's v2.5 consistency ask).
+  function getAvatarSize() {
+    var v = viewportSize();
+    return Renderer.getAvatarDiameter(v.w, v.h);
   }
-  function getGameAvatarSize() {
-    return 7.8 * getVmin(); // matches .game-seat-avatar CSS
-  }
+  function getSetupAvatarSize() { return getAvatarSize(); }
+  function getGameAvatarSize() { return getAvatarSize(); }
   // Card scale for flying/deal animations — same formula AND basis as
   // drawGameFrame (layout viewport, not window.inner*) so cards never
   // change size mid-flight. Reference: 1080p desktop.
@@ -98,10 +101,48 @@ var UI = (function () {
     Renderer.refreshLayoutMetrics();
     document.body.classList.toggle('phone-portrait', phone);
     document.body.classList.toggle('pbar-active', inGame && phone);
+    var rootStyle = document.documentElement.style;
     // The Deal button and lobby text center on the table, wherever it is
     var center = Renderer.computeTableCenter(v.w, v.h);
-    document.documentElement.style.setProperty('--table-cy', Math.round(center.y) + 'px');
+    rootStyle.setProperty('--table-cy', Math.round(center.y) + 'px');
+    // Phone sizes (v2.9): avatars / names / legend scale by k (2 when the
+    // board fits) — the CSS reads these so it matches the canvas exactly
+    if (phone) {
+      var pl = Renderer.computePhoneLayout(v.w, v.h);
+      rootStyle.setProperty('--ui-k', pl.k.toFixed(3));
+      rootStyle.setProperty('--legend-k', pl.legendK.toFixed(3));
+      rootStyle.setProperty('--avatar-d', pl.avatarD.toFixed(2) + 'px');
+    } else {
+      rootStyle.removeProperty('--ui-k');
+      rootStyle.removeProperty('--legend-k');
+      rootStyle.removeProperty('--avatar-d');
+    }
     updateRotateGate();
+  }
+
+  // ---- Phone board reserve (v2.9) ----
+  // Tell the renderer which mode-dependent space the phone board must
+  // leave free — the raised hot-seat status pill, the online room-code
+  // row — and re-lay out the current screen if that moved the board.
+  // Setup reserves for the table it is about to deal (its Human count),
+  // so the board doesn't jump at Deal.
+  function syncPhoneReserve() {
+    var ownerLabel = false;
+    if (gamePhase === 'setup') {
+      ownerLabel = setupSeats.filter(function (s) { return s.occupied && s.isHuman; }).length > 1;
+    } else if (gamePhase === 'playing') {
+      ownerLabel = hasMultipleLocalPlayers();
+    }
+    var changed = Renderer.setPhoneReserve({ ownerLabel: ownerLabel, roomRow: Online.isActive() });
+    if (!changed) return;
+    updateLayoutMode();
+    // re-centers the table texture (its key includes the center)
+    if (canvasReady) Renderer.resize();
+    // Seats re-place even while the renderer warms (setup has a DOM
+    // fallback; the lobby renderer bails on its own without a canvas)
+    if (gamePhase === 'setup') renderSetupSeats();
+    else if (gamePhase === 'online-lobby') renderOnlineLobbySeats();
+    else if (gamePhase === 'playing') positionGameOverlays();
   }
 
   // ---- Portrait-only on phones (v2.8, MK's ask) ----
@@ -264,7 +305,7 @@ var UI = (function () {
   function init() {
     // Build stamp — matches the title-screen .build-tag; a device
     // logging an older number is running a cached build.
-    console.log('[LaserStacks] build v2.8');
+    console.log('[LaserStacks] build v2.9');
     initSetupSeats();
     bindEvents();
     bindOnlineEvents();
@@ -698,6 +739,7 @@ var UI = (function () {
     // Seats go up immediately (DOM fallback geometry if the renderer is
     // still warming); the table fades in under them once it's ready.
     prepareSetupScreen();
+    syncPhoneReserve(); // leaving online / restored hot-seat table
     ensureRenderer().then(function () {
       if (gamePhase !== 'setup') return; // left before the table was ready
       // Keep the loop running for particles even with no game callback
@@ -789,7 +831,8 @@ var UI = (function () {
       var w = table.offsetWidth || window.innerWidth;
       var h = table.offsetHeight || window.innerHeight;
       var vm = Math.min(w, h) / 100;
-      var orbit = (28 + 2.5 + 3.9) * vm; // felt + wood + avatar radius
+      // felt + wood + avatar radius (avatars are 2x on phones)
+      var orbit = (28 + 2.5) * vm + Renderer.getAvatarDiameter(w, h) / 2;
       var center = Renderer.computeTableCenter(w, h);
       positions = [];
       for (var s = 0; s < NUM_TABLE_SEATS; s++) {
@@ -853,6 +896,7 @@ var UI = (function () {
 
       ring.appendChild(el);
     }
+    fitSeatTextToTable(); // side names: off the table, on the screen
   }
 
   function startNameEdit(seatIdx) {
@@ -867,6 +911,7 @@ var UI = (function () {
 
     var parent = nameEl.parentElement;
     parent.replaceChild(input, nameEl);
+    keepInputOnScreen(input);
     input.focus();
     input.select();
 
@@ -886,6 +931,7 @@ var UI = (function () {
   function toggleHumanAI(seatIdx) {
     setupSeats[seatIdx].isHuman = !setupSeats[seatIdx].isHuman;
     renderSetupSeats();
+    syncPhoneReserve(); // a 2nd Human = hot-seat reserve on phones
     updateDealButton();
   }
 
@@ -1271,10 +1317,11 @@ var UI = (function () {
       var seatPos = seatPositions[seatIndex];
       var handPos = Renderer.getHandPosition(seatPos, tableCenter);
 
-      // Trick card position (2vmin ring — matches drawGameFrame)
-      var trickOffset = 2 * getVmin();
-      var trickX = tableCenter.x + Math.cos(seatPos.angle) * trickOffset;
-      var trickY = tableCenter.y + Math.sin(seatPos.angle) * trickOffset;
+      // Trick card position + size — matches drawGameFrame (2x on phones)
+      var trick = Renderer.getTrickLayout();
+      var trickX = tableCenter.x + Math.cos(seatPos.angle) * trick.offset;
+      var trickY = tableCenter.y + Math.sin(seatPos.angle) * trick.offset;
+      var fromScale = getCardScale();
 
       var fc = Renderer.addFlyingCard({
         card: card,
@@ -1282,13 +1329,15 @@ var UI = (function () {
         flipProgress: 0,
         x: handPos.x,
         y: handPos.y,
-        scale: getCardScale()
+        scale: fromScale
       });
 
       Renderer.animate(400, function (t) {
         var e = Renderer.easeOutCubic(t);
         fc.x = handPos.x + (trickX - handPos.x) * e;
         fc.y = handPos.y + (trickY - handPos.y) * e;
+        // Grows from hand size to the (2x on phones) trick size in flight
+        fc.scale = fromScale + (trick.scale - fromScale) * e;
         fc.flipProgress = Math.min(t * 2, 1);
       }, function () {
         Renderer.removeFlyingCard(fc);
@@ -1655,6 +1704,12 @@ var UI = (function () {
     }
     var owner = document.getElementById('hand-bar-owner');
     var showOwner = multi && !!viewed;
+    // Mid-round, this device can gain a 2nd seat (online device-leave
+    // modal: "Host (you)") — the raised pill then needs its board reserve
+    // NOW, not at the next deal. No-op when the reserve already matches.
+    if (gamePhase === 'playing' && showOwner !== document.body.classList.contains('has-hand-owner')) {
+      syncPhoneReserve();
+    }
     if (owner) {
       // The default first-human name is "You" → "Your hand", not "You's"
       owner.textContent = showOwner
@@ -1728,20 +1783,27 @@ var UI = (function () {
       container.appendChild(cardEl);
     }
 
-    // Hydrate pip canvases at native resolution: backing store = displayed
-    // rect x devicePixelRatio x2 (supersampled like the legend), so the
-    // bar's pips are as crisp as the pre-rendered card faces.
-    if (drawnStyle) {
-      var dpr = window.devicePixelRatio || 1;
-      var pips = container.querySelectorAll('canvas.inline-laser-pip[data-inline-pip]');
-      for (var q = 0; q < pips.length; q++) {
-        var rect = pips[q].getBoundingClientRect();
-        if (rect.width > 0) {
-          pips[q].width = Math.round(rect.width * dpr * 2);
-          pips[q].height = Math.round(rect.height * dpr * 2);
-        }
-        LaserPips.renderPipCanvas(pips[q], pips[q].getAttribute('data-inline-pip'), barSuitStyle);
+    hydrateHandPips();
+  }
+
+  // Draw the hand bar's pip canvases at native resolution: backing store
+  // = displayed rect x devicePixelRatio x2 (supersampled like the legend),
+  // so they're as crisp as the card faces. Also re-run on layout changes
+  // (positionGameOverlays): the phone box is a square and the desktop box
+  // is 1.1:1.4, so a bitmap drawn for one would be STRETCHED in the other
+  // (e.g. a hand rendered behind the rotate gate, then turned back).
+  function hydrateHandPips() {
+    var style = SaveSystem.getSuitStyle();
+    if (style === 'classic') return;
+    var dpr = window.devicePixelRatio || 1;
+    var pips = document.querySelectorAll('#hand-bar-cards canvas.inline-laser-pip[data-inline-pip]');
+    for (var q = 0; q < pips.length; q++) {
+      var rect = pips[q].getBoundingClientRect();
+      if (rect.width > 0) {
+        pips[q].width = Math.round(rect.width * dpr * 2);
+        pips[q].height = Math.round(rect.height * dpr * 2);
       }
+      LaserPips.renderPipCanvas(pips[q], pips[q].getAttribute('data-inline-pip'), style);
     }
   }
 
@@ -1765,6 +1827,8 @@ var UI = (function () {
 
   function renderGameTable() {
     return ensureRenderer().then(function () {
+      // Settle the phone board's reserve BEFORE seats are placed
+      syncPhoneReserve();
       // Game phase is live now — apply the portrait message mode
       updateLayoutMode();
 
@@ -1843,7 +1907,6 @@ var UI = (function () {
 
     var tableCenter = Renderer.getTableCenter();
     var seatPositions = Renderer.getSeatOverlayPositions(NUM_TABLE_SEATS);
-    var vminPx = Math.min(W, H) / 100;
     // Proportional card sizing (30's system): same fraction of the table
     // on every device instead of huge cards on phones.
     var viewScale = Math.min(W, H) / 1080;
@@ -1851,6 +1914,10 @@ var UI = (function () {
     var cardSpacing = 28.6 * viewScale;
     var CARDS_PER_ROW = 5;
     var ROW_INSET = 26.4 * viewScale;
+    // Phones (v2.9): each hand is one face-down stack and the played
+    // cards are 2x (MK's readability ask)
+    var stackMode = Renderer.isStackMode();
+    var trick = Renderer.getTrickLayout();
 
     // Draw deck pile at table center (only during dealing)
     if (gs.roundPhase === 'dealing') {
@@ -1873,6 +1940,13 @@ var UI = (function () {
       var dist = Math.sqrt(towardCenterDx * towardCenterDx + towardCenterDy * towardCenterDy);
       var nDx = dist > 0 ? towardCenterDx / dist : 0;
       var nDy = dist > 0 ? towardCenterDy / dist : 0;
+
+      if (stackMode) {
+        // Thickness grows away from the center (-n), never into the trick
+        Renderer.drawStack(handPos.x, handPos.y, numCards,
+          seatPos.angle - Math.PI / 2, cardScale, -nDx, -nDy);
+        continue;
+      }
 
       var perpAngle = seatPos.angle + Math.PI / 2;
       var dx = Math.cos(perpAngle);
@@ -1897,17 +1971,16 @@ var UI = (function () {
       }
     }
 
-    // Draw trick cards in center (2vmin ring keeps the pile compact and
-    // clear of every hand fan)
+    // Draw trick cards in center (2vmin ring — 4vmin with 2x phone cards —
+    // keeps the pile compact and clear of every hand)
     for (var t = 0; t < trickDisplay.length; t++) {
       var td = trickDisplay[t];
       var tdSeatPos = seatPositions[td.seatIndex];
-      var trickOffset = 2 * vminPx;
-      var trickX = tableCenter.x + Math.cos(tdSeatPos.angle) * trickOffset;
-      var trickY = tableCenter.y + Math.sin(tdSeatPos.angle) * trickOffset;
+      var trickX = tableCenter.x + Math.cos(tdSeatPos.angle) * trick.offset;
+      var trickY = tableCenter.y + Math.sin(tdSeatPos.angle) * trick.offset;
       var trickRotation = tdSeatPos.angle - Math.PI / 2;
 
-      Renderer.drawCard(trickX, trickY, td.card, true, trickRotation, cardScale, 0.3);
+      Renderer.drawCard(trickX, trickY, td.card, true, trickRotation, trick.scale, 0.3);
     }
   }
 
@@ -1929,10 +2002,11 @@ var UI = (function () {
     // Reposition suit diagram and trick counter above their respective players
     positionSuitStackAndTrickInfo();
 
-    // Legend pip canvases render at their CSS pixel size — refresh them
-    // so a resize doesn't leave them blurry (they're vmin-sized).
+    // Legend + hand-bar pip canvases render at their CSS pixel size —
+    // refresh them so a resize doesn't leave them blurry or stretched
     if (gamePhase === 'playing') {
       updateSuitStackLegend(SaveSystem.getSuitStyle());
+      hydrateHandPips();
     }
   }
 
@@ -1954,6 +2028,13 @@ var UI = (function () {
     var hud = document.querySelector('.game-hud');
     var hudBottom = hud ? hud.getBoundingClientRect().bottom : 0;
     var minTop = Math.max(0.8 * vmin, hudBottom + 0.5 * vmin);
+    // Phones: the online room-code row hangs under the HUD's LEFT end —
+    // the legend (also on the left) must clear it too (desktop unchanged)
+    var roomRow = document.getElementById('hud-room-row');
+    var minTopLeft = minTop;
+    if (isPhoneLayout() && roomRow && roomRow.style.display !== 'none') {
+      minTopLeft = Math.max(minTop, roomRow.getBoundingClientRect().bottom + 0.5 * vmin);
+    }
 
     // Suit hierarchy legend sits directly above the LEFT player's avatar
     // (seat 2 of the 8-slot ring; the 4-player layout uses slots 0/2/4/6)
@@ -1968,8 +2049,8 @@ var UI = (function () {
 
       var leftSeat = seatPositions[2];
       var ssLeft = leftSeat.x - ssW / 2;
-      var ssTop = Math.max(minTop, leftSeat.y - avatarHalf - breathingRoom - ssH);
-      ssLeft += tangentShiftX({ left: ssLeft, right: ssLeft + ssW, top: ssTop, bottom: ssTop + ssH }, -1);
+      var ssTop = Math.max(minTopLeft, leftSeat.y - avatarHalf - breathingRoom - ssH);
+      ssLeft += besideTableShift({ left: ssLeft, right: ssLeft + ssW, top: ssTop, bottom: ssTop + ssH }, -1);
       suitStack.style.left = ssLeft + 'px';
       suitStack.style.top = ssTop + 'px';
     }
@@ -1988,7 +2069,7 @@ var UI = (function () {
       var rightSeat = seatPositions[6];
       var tiLeft = rightSeat.x - tiW / 2;
       var tiTop = Math.max(minTop, rightSeat.y - avatarHalf - breathingRoom - tiH);
-      tiLeft += tangentShiftX({ left: tiLeft, right: tiLeft + tiW, top: tiTop, bottom: tiTop + tiH }, 1);
+      tiLeft += besideTableShift({ left: tiLeft, right: tiLeft + tiW, top: tiTop, bottom: tiTop + tiH }, 1);
       trickInfo.style.left = tiLeft + 'px';
       trickInfo.style.top = tiTop + 'px';
     }
@@ -1996,39 +2077,108 @@ var UI = (function () {
     fitSeatTextToTable();
   }
 
-  // ---- Tangent fit (v2.8, MK's ask) ----
+  // ---- Beside the table: tangent AND on screen (v2.8, widened v2.9) ----
   // Avatars touch the table's outer wood edge exactly. The Stack box,
   // the legend, and the left/right seats' name + Bid lines are WIDER than
-  // an avatar, so centered on one they cut into the circle. Each is
-  // nudged straight outward until it just touches the circle; anything
-  // already clear stays put (never pulled inward).
-  // side: -1 = element is left of the table, +1 = right of it.
-  function tangentShiftX(rect, side) {
-    var c = Renderer.getTableCenter();
-    var R = Renderer.getTableOuterRadius();
-    var dy = Math.max(rect.top - c.y, 0, c.y - rect.bottom);
-    if (dy >= R) return 0;
-    var reach = Math.sqrt(R * R - dy * dy);
-    return side < 0 ? Math.min(0, (c.x - reach) - rect.right)
-                    : Math.max(0, (c.x + reach) - rect.left);
+  // an avatar, so centered on one they cut into the circle — and with
+  // 2x phone sizes they can also run off the screen edge. Each box keeps
+  // its centered spot when it can, else slides just far enough to sit
+  // between the screen edge and the circle (tangent to it). If even that
+  // gap is too narrow, staying visible wins over touching the wood.
+  var SCREEN_EDGE_PAD = 4;
+
+  function isPhoneLayout() {
+    return document.body.classList.contains('phone-portrait');
   }
 
-  // Left (seat 2) and right (seat 6) players' name + statline. Uses the
-  // CSS `translate` property so the seats' own transforms are untouched.
-  // Re-run whenever their text changes width (updateStatLine).
+  // The free span beside the table for a box covering rows top..bottom:
+  // from the screen edge to the table's outer circle. side: -1 = left.
+  // The screen-edge limit is PHONE-ONLY: off-phone this reproduces v2.8's
+  // outward-only tangent push exactly (MK: no PC changes in v2.9).
+  function besideTableRoom(top, bottom, side) {
+    var c = Renderer.getTableCenter();
+    var R = Renderer.getTableOuterRadius();
+    var dy = Math.max(top - c.y, 0, c.y - bottom);
+    var reach = dy >= R ? 0 : Math.sqrt(R * R - dy * dy);
+    var phone = isPhoneLayout();
+    return side < 0
+      ? { lo: phone ? SCREEN_EDGE_PAD : -Infinity, hi: c.x - reach }
+      : { lo: c.x + reach, hi: phone ? viewportSize().w - SCREEN_EDGE_PAD : Infinity };
+  }
+
+  function besideTableShift(rect, side) {
+    var room = besideTableRoom(rect.top, rect.bottom, side);
+    var w = rect.right - rect.left;
+    var cx = (rect.left + rect.right) / 2;
+    var target = (room.hi - room.lo >= w)
+      ? Math.min(Math.max(cx, room.lo + w / 2), room.hi - w / 2)
+      : (side < 0 ? room.lo + w / 2 : room.hi - w / 2);
+    return target - cx;
+  }
+
+  // One text line beside the table. `scalable` lines (names, which are
+  // 2x on phones) may first shrink to fit the gap — never below their
+  // 1x size, since only the phone boost is optional.
+  function fitBesideTable(el, side, scalable) {
+    el.style.translate = '';
+    el.style.fontSize = '';
+    var r = el.getBoundingClientRect();
+    if (!r.width) return;
+    if (scalable) {
+      var room = besideTableRoom(r.top, r.bottom, side);
+      var avail = room.hi - room.lo;
+      var k = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui-k')) || 1;
+      if (r.width > avail && k > 1) {
+        var fs = parseFloat(getComputedStyle(el).fontSize);
+        el.style.fontSize = (fs * Math.max(avail / r.width, 1 / k)) + 'px';
+        r = el.getBoundingClientRect();
+      }
+    }
+    var shift = besideTableShift(r, side);
+    if (Math.abs(shift) > 0.5) el.style.translate = shift + 'px 0';
+  }
+
+  // Phones: the rename box replaces a (fitted) side name and starts out
+  // centered on the 2x avatar — on the left/right seats that ran ~40px
+  // off the screen. Slide it fully on screen; covering a bit of wood
+  // while typing is fine (nothing is in play during setup / lobby).
+  function keepInputOnScreen(input) {
+    if (!isPhoneLayout()) return;
+    var r = input.getBoundingClientRect();
+    var vw = viewportSize().w;
+    var shift = 0;
+    if (r.left < SCREEN_EDGE_PAD) shift = SCREEN_EDGE_PAD - r.left;
+    else if (r.right > vw - SCREEN_EDGE_PAD) shift = (vw - SCREEN_EDGE_PAD) - r.right;
+    if (shift) input.style.translate = shift + 'px 0';
+  }
+
+  // Left (seat 2) and right (seat 6) players' text, on the game table AND
+  // the setup/lobby ring. CSS `translate` leaves the seats' own transforms
+  // alone. Re-run whenever that text changes width (updateStatLine).
   function fitSeatTextToTable() {
     if (!canvasReady) return;
-    var seats = document.querySelectorAll('.game-seat');
-    for (var i = 0; i < seats.length; i++) {
-      var p = Game.getPlayerById(+seats[i].dataset.player);
+    var gameSeats = document.querySelectorAll('.game-seat');
+    for (var i = 0; i < gameSeats.length; i++) {
+      var p = Game.getPlayerById(+gameSeats[i].dataset.player);
       if (!p || (p.seatIndex !== 2 && p.seatIndex !== 6)) continue;
       var side = p.seatIndex === 2 ? -1 : 1;
-      var parts = seats[i].querySelectorAll('.game-seat-name, .game-seat-statline');
-      for (var j = 0; j < parts.length; j++) {
-        parts[j].style.translate = '';
-        var shift = tangentShiftX(parts[j].getBoundingClientRect(), side);
-        if (shift) parts[j].style.translate = shift + 'px 0';
-      }
+      var gName = gameSeats[i].querySelector('.game-seat-name');
+      var gStat = gameSeats[i].querySelector('.game-seat-statline');
+      if (gName) fitBesideTable(gName, side, true);
+      if (gStat) fitBesideTable(gStat, side, false);
+    }
+    // Setup / lobby ring: phones only — v2.8 never moved these on PC, and
+    // the ring is rebuilt from scratch on every render, so nothing lingers
+    if (!isPhoneLayout()) return;
+    var ringSeats = document.querySelectorAll('#seats-ring .seat');
+    for (var s = 0; s < ringSeats.length; s++) {
+      var idx = +ringSeats[s].dataset.seat;
+      if (idx !== 2 && idx !== 6) continue;
+      var rSide = idx === 2 ? -1 : 1;
+      var rName = ringSeats[s].querySelector('.seat-name');
+      var rBadge = ringSeats[s].querySelector('.lobby-controller-badge');
+      if (rName) fitBesideTable(rName, rSide, true);
+      if (rBadge) fitBesideTable(rBadge, rSide, false);
     }
   }
 
@@ -2117,7 +2267,8 @@ var UI = (function () {
 
   function updateHUD() {
     document.getElementById('hud-round').textContent = Game.getRoundNumber();
-    updateTrickInfo();
+    // Room row FIRST: updateTrickInfo re-places the legend, which must see
+    // whether the row is showing (round 1 used to place it as if not)
     var roomRow = document.getElementById('hud-room-row');
     if (roomRow) {
       if (Online.isActive() && gamePhase === 'playing') {
@@ -2128,6 +2279,7 @@ var UI = (function () {
         roomRow.style.display = 'none';
       }
     }
+    updateTrickInfo();
   }
 
   function setMessage(msg) {
@@ -2433,6 +2585,7 @@ var UI = (function () {
       document.getElementById('lobby-waiting').style.display = '';
     }
 
+    syncPhoneReserve(); // online: room-code row reserve (lobby = game board)
     ensureRenderer().then(function () {
       if (gamePhase !== 'online-lobby') return;
       Renderer.startLoop(function () {});
@@ -2561,6 +2714,7 @@ var UI = (function () {
       // point regardless of how tall the name row rendered.
       el.style.top = (pos.y - avatar.offsetTop - getSetupAvatarSize() / 2) + 'px';
     }
+    fitSeatTextToTable(); // side names/badges: off the table, on the screen
   }
 
   function startOnlineLobbyNameEdit(seatIdx) {
@@ -2575,6 +2729,7 @@ var UI = (function () {
 
     var parent = nameEl.parentElement;
     parent.replaceChild(input, nameEl);
+    keepInputOnScreen(input);
     input.focus();
     input.select();
 

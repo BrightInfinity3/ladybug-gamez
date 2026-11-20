@@ -835,7 +835,9 @@ var Renderer = (function () {
   var _cachedTableTexKey = null;
   var _tableTexToDestroy = null; // destroy one frame late (see below)
   function _tableTexKey() {
-    return W + 'x' + H + '@' + dpr.toFixed(2);
+    // The center is part of the key: on phones it moves with the board's
+    // reserved space (hot-seat / online), not only with the size
+    return W + 'x' + H + '@' + dpr.toFixed(2) + '|' + getTableCenter().y.toFixed(1);
   }
   function invalidateTableTextureCache() { _cachedTableTexKey = null; }
 
@@ -1088,6 +1090,19 @@ var Renderer = (function () {
       s.texture = backTexture;
       s.position.set(x - offset, y - offset);
       s.scale.set(texScale);
+    }
+  }
+
+  // One player's unplayed cards as a single face-down pile (phones, v2.9).
+  // Each card adds a sliver of thickness pushed AWAY from the table center
+  // (outX/outY = unit vector), so a full pile never creeps toward the
+  // trick cards. Only the bottom layer casts a shadow.
+  function drawStack(x, y, count, rotation, scale, outX, outY) {
+    var layers = Math.min(count, 10);
+    var step = 0.55 * scale / 0.4; // ~0.55px per card on a typical phone
+    for (var i = 0; i < layers; i++) {
+      drawCard(x + outX * i * step, y + outY * i * step, null, false,
+        rotation, scale, i === 0 ? 0.3 : 0);
     }
   }
 
@@ -1371,6 +1386,7 @@ var Renderer = (function () {
   var _safeProbe = null;
   function getSafeAreaInsets() {
     if (!_safeProbe) {
+      if (!document.body) return { top: 0, bottom: 0 };
       _safeProbe = document.createElement('div');
       _safeProbe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;' +
         'visibility:hidden;pointer-events:none;' +
@@ -1393,32 +1409,145 @@ var Renderer = (function () {
   }
   function refreshLayoutMetrics() { _metrics = null; }
 
-  function computeTableCenter(w, h) {
+  // ---- Phone-portrait layout model (v2.8 placement, v2.9 sizes) ----
+  // MK's v2.9 mobile notes: avatars, names and the suit legend at 2x;
+  // played cards at 2x; each hand drawn as ONE face-down stack. Every
+  // phone-specific number is derived here from the viewport size, and
+  // ui.js publishes `k`/`avatarD` as CSS vars (--ui-k, --avatar-d), so
+  // the canvas and the DOM can't disagree.
+  //
+  //   k       UI scale for avatars / names / legend. 2 whenever the 2x
+  //           board fits; on short phones it steps down by 0.05 (floor 1)
+  //           until the board and the legend fit above the hand.
+  //   center  the board is centered in the band between the HUD row and
+  //           the status pill over the two-row hand.
+  //   avatarD avatar diameter in px (7.8vmin x k).
+  var PHONE_UI_SCALE = 2;       // MK: icons, names, legend 2x
+  var PHONE_TRICK_SCALE = 2;    // MK: played cards 2x
+  // Hand stacks sit 21vmin from the center: clear of the 2x trick pile
+  // (offset 4vmin + half a 2x card = 14.2vmin) and inside the 28vmin felt
+  // (stack half-height 5.1vmin) with ~1.8vmin of air on each side.
+  var PHONE_STACK_DIST_VMIN = 21;
+
+  // These rem sizes MIRROR the body.phone-portrait CSS — change together:
+  //   hand block   --hc-gap / --hc-w / --hc-h / --hand-top
+  //   status pill  #pbar-message: --hand-top + 0.7rem (+1.4rem raised in
+  //                hot-seat), ~1.9rem tall → 4.0rem reserved
+  //   HUD row      .btn-action-menu phone size (~1.85rem tall + air);
+  //                #hud-message held to one line (ellipsis)
+  //   room row     .hud-room-row phone top (+1.95rem), ~0.85rem tall
+  //   legend       .suit-stack at 1x is ~7rem tall (4 items + arrows)
+  //   names        max(1.9vmin, 0.6rem) x k, ~1.3 line height
+  var _phoneLayoutCache = { key: '', value: null };
+
+  // Mode-dependent space the phone board must leave free (set by ui.js):
+  //   ownerLabel  hot-seat: the "<name>'s hand" label raises the status
+  //               pill by 1.4rem — reserve it so the pill can't cover the
+  //               bottom player's name
+  //   roomRow     online: the room-code row under the HUD's left end —
+  //               the legend's ceiling drops below it
+  // Reserved only when in use, so single-player boards on short phones
+  // keep their full size. Returns true when something changed (the
+  // caller re-lays out; the table texture key includes the center).
+  var _phoneReserve = { ownerLabel: false, roomRow: false };
+  function setPhoneReserve(r) {
+    var next = { ownerLabel: !!(r && r.ownerLabel), roomRow: !!(r && r.roomRow) };
+    var changed = next.ownerLabel !== _phoneReserve.ownerLabel || next.roomRow !== _phoneReserve.roomRow;
+    _phoneReserve = next;
+    return changed;
+  }
+
+  function computePhoneLayout(w, h) {
+    var m = getLayoutMetrics();
+    var key = w + 'x' + h + '|' + m.rem + '|' + m.safeTop + '|' + m.safeBottom +
+      '|' + _phoneReserve.ownerLabel + '|' + _phoneReserve.roomRow;
+    if (_phoneLayoutCache.key === key) return _phoneLayoutCache.value;
+
+    var rem = m.rem;
     var v = Math.min(w, h) / 100;
-    if (isPhonePortrait(w, h)) {
-      var m = getLayoutMetrics();
-      var rem = m.rem;
-      // The hand block — MIRRORS the body.phone-portrait CSS (--hc-gap,
-      // --hc-w, --hc-h, --hand-top); change both together.
-      var gap = 0.45 * rem;
-      var cardW = Math.min((w - 1.4 * rem - 4 * gap) / 5, 5.6 * rem);
-      var handTop = h - m.safeBottom - 0.7 * rem - 2 * (cardW * 1.4) - gap;
-      // Free band between the HUD row and the status pill over the hand
-      var bandTop = m.safeTop + 3.3 * rem;
-      var bandBottom = handTop - 2.6 * rem;
-      // Board extent: avatar orbit reach (34.4 + 3.9vmin) plus the setup
-      // badge / lobby name above the top avatar and the name below the
-      // bottom one
-      var topReach = 38.3 * v + 1.9 * rem;
-      var bottomReach = 38.3 * v + 1.4 * rem;
-      var slack = bandBottom - bandTop - topReach - bottomReach;
-      var centered = bandTop + slack / 2 + topReach;
-      // Never above the highest spot that still clears the HUD
-      return { x: w / 2, y: Math.max(bandTop + topReach, centered) };
+    var outerR = 30.5 * v;
+
+    // Hand block and the free band above it
+    var gap = 0.45 * rem;
+    var cardW = Math.min((w - 1.4 * rem - 4 * gap) / 5, 5.6 * rem);
+    var handTop = h - m.safeBottom - 0.7 * rem - 2 * (cardW * 1.4) - gap;
+    var bandTop = m.safeTop + 2.25 * rem;     // compact phone HUD row
+    // Status pill (~1.9rem) + air; +1.4rem in hot-seat (raised pill)
+    var bandBottom = handTop - (_phoneReserve.ownerLabel ? 4.0 : 2.6) * rem;
+    // Online, the legend's ceiling clears the room-code row (top
+    // max(0.8vmin, safe) + 1.95rem, ~0.85rem tall, + 0.5vmin air)
+    var legendTop = _phoneReserve.roomRow
+      ? Math.max(bandTop, Math.max(0.8 * v, m.safeTop) + 2.8 * rem + 0.5 * v)
+      : bandTop;
+
+    // Vertical reach of the board above / below its center at scale k:
+    // above the top avatar sits the setup badge (~1.75rem) or the lobby /
+    // in-game name (font 0.6rem x k); below the bottom one, its name/badge
+    function reaches(k) {
+      var avatarD = 7.8 * v * k;
+      return {
+        avatarD: avatarD,
+        top: outerR + avatarD + Math.max(1.9, 0.8 * k + 0.35) * rem,
+        bottom: outerR + avatarD + (0.8 * k + 0.3) * rem
+      };
     }
+
+    // 1) Avatars + names: the largest k (<= 2) whose board fits the band
+    var k = 0, r = null;
+    for (var i = 0; i <= 20; i++) {
+      var kk = PHONE_UI_SCALE - i * 0.05;
+      var rr = reaches(kk);
+      if (bandBottom - bandTop >= rr.top + rr.bottom) { k = kk; r = rr; break; }
+    }
+    if (!k) { k = 1; r = reaches(1); } // too short even at 1x
+    var slack = Math.max(0, bandBottom - bandTop - r.top - r.bottom);
+    var cy = bandTop + slack / 2 + r.top;
+    var cyMax = Math.max(cy, bandBottom - r.bottom);
+
+    // 2) Legend: stands above the LEFT avatar (center at cy) and must
+    //    clear the HUD. As big as fits (<= k): slide the board down into
+    //    its slack first, then shrink the legend (16:9 phones) — it gets
+    //    its own scale so it never drags the avatars down with it.
+    var legendK = 1;
+    for (var j = 0; j <= 20; j++) {
+      var kl = k - j * 0.05;
+      if (kl < 1) break;
+      var need = legendTop + 7 * rem * kl + 1.5 * v + r.avatarD / 2;
+      if (need <= cyMax) { legendK = kl; cy = Math.max(cy, need); break; }
+    }
+
+    var result = { k: k, legendK: legendK, avatarD: r.avatarD, center: { x: w / 2, y: cy } };
+    _phoneLayoutCache = { key: key, value: result };
+    return result;
+  }
+
+  function computeTableCenter(w, h) {
+    if (isPhonePortrait(w, h)) return computePhoneLayout(w, h).center;
     // Shifted UP (30 shifts down 1.5vmin): Laser Stacks spends its bottom
     // band on the DOM hand-bar, so the table yields space at the bottom.
+    var v = Math.min(w, h) / 100;
     return { x: w / 2, y: h / 2 - 4 * v };
+  }
+
+  // Avatar diameter in px for a viewport — setup, lobby and game share it
+  // (MK's v2.5 consistency rule). 7.8vmin, or 7.8vmin x k on phones.
+  function getAvatarDiameter(w, h) {
+    if (isPhonePortrait(w, h)) return computePhoneLayout(w, h).avatarD;
+    return 7.8 * Math.min(w, h) / 100;
+  }
+
+  // Phones draw each hand as one face-down stack, freeing the felt for
+  // 2x played cards
+  function isStackMode() {
+    return isPhonePortrait(W, H);
+  }
+
+  // Played-card size and how far each sits from the center toward its
+  // player (the overlap ratio stays the same at 2x)
+  function getTrickLayout() {
+    var base = 1.1 * Math.min(W, H) / 1080;
+    var k = isStackMode() ? PHONE_TRICK_SCALE : 1;
+    return { scale: base * k, offset: 2 * getVmin() * k };
   }
 
   function getTableCenter() {
@@ -1439,14 +1568,14 @@ var Renderer = (function () {
 
   // Setup/lobby avatar radius (matches .seat-avatar CSS: 7.8vmin
   // diameter — same as in-game per MK's v2.5 consistency ask; both
-  // screens now share the 34.4vmin tangent orbit)
+  // screens share the tangent orbit). Phones: --avatar-d (x k).
   function getSetupAvatarRadius() {
-    return 3.9 * getVmin();
+    return getAvatarDiameter(W, H) / 2;
   }
 
-  // Game avatar radius (matches .game-seat-avatar CSS: 7.8vmin diameter)
+  // Game avatar radius (matches .game-seat-avatar CSS)
   function getGameAvatarRadius() {
-    return 3.9 * getVmin();
+    return getAvatarDiameter(W, H) / 2;
   }
 
   // Setup seats — avatar's inner edge exactly tangent to the table's
@@ -1467,6 +1596,14 @@ var Renderer = (function () {
   }
 
   function getHandPosition(seatPos, tableCenter) {
+    if (isStackMode()) {
+      // Phone: the single stack sits a fixed 21vmin out toward its seat
+      var dx = seatPos.x - tableCenter.x;
+      var dy = seatPos.y - tableCenter.y;
+      var d = Math.sqrt(dx * dx + dy * dy) || 1;
+      var r = PHONE_STACK_DIST_VMIN * getVmin();
+      return { x: tableCenter.x + dx / d * r, y: tableCenter.y + dy / d * r };
+    }
     // 38% of the way from the seat toward the center (30 uses 34%) —
     // keeps the 5-wide fan's outer row clear of the seat statline while
     // leaving the trick pile room in the middle.
@@ -1501,6 +1638,12 @@ var Renderer = (function () {
     resize: resize,
     drawCard: drawCard,
     drawDeck: drawDeck,
+    drawStack: drawStack,
+    isStackMode: isStackMode,
+    getTrickLayout: getTrickLayout,
+    computePhoneLayout: computePhoneLayout,
+    setPhoneReserve: setPhoneReserve,
+    getAvatarDiameter: getAvatarDiameter,
     startLoop: startLoop,
     stopLoop: stopLoop,
     addFlyingCard: addFlyingCard,

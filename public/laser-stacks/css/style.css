@@ -1091,7 +1091,10 @@ html, body {
   font-size: max(3.2vmin, 0.82rem);
   line-height: 1.1;
   text-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
-  transition: all 0.3s ease;
+  /* Lock/unlock fades only — animating SIZE (the old `all`) meant a
+     layout change got measured mid-transition and the legend landed on
+     the left avatar */
+  transition: opacity 0.3s ease, border-color 0.3s ease, color 0.3s ease, filter 0.3s ease;
   width: 1.5em;
   height: 1.5em;
   display: flex;
@@ -1548,8 +1551,25 @@ body.phone-portrait .hand-card {
   border-width: 2px;
   gap: calc(var(--hc-w) * 0.06);
 }
-body.phone-portrait .hand-card .hc-rank { font-size: calc(var(--hc-w) * 0.32); }
-body.phone-portrait .hand-card .hc-suit { font-size: calc(var(--hc-w) * 0.4); }
+body.phone-portrait .hand-card .hc-rank { font-size: calc(var(--hc-w) * 0.28); }
+
+/* v2.9: suit pips at 2x (MK). v2.8 drew the pip at 70% of a
+   1.1em-wide canvas on a 0.4w font = 0.308w; now a 0.88w square canvas
+   draws it at 0.616w. The classic Unicode glyph doubles too (0.4w ->
+   0.8w font). Rank 0.28w + pip 0.88w + gap still fits the 1.4w card. */
+body.phone-portrait .hand-card .hc-suit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(var(--hc-w) * 0.8);
+  line-height: 1;
+}
+body.phone-portrait .hand-card .hc-suit canvas.inline-laser-pip {
+  display: block;
+  width: calc(var(--hc-w) * 0.88);
+  height: calc(var(--hc-w) * 0.88);
+  margin: 0;
+}
 
 body.phone-portrait .hand-bar-owner {
   position: static;
@@ -1561,6 +1581,108 @@ body.phone-portrait .hand-bar-owner {
 /* Status pill rides just above the two card rows (and the owner label) */
 body.phone-portrait #pbar-message { bottom: calc(var(--hand-top) + 0.7rem); }
 body.phone-portrait.has-hand-owner #pbar-message { bottom: calc(var(--hand-top) + 2.1rem); }
+
+/* ---- v2.9 phone sizes (MK's mobile notes) ----
+   --ui-k (2, or a bit less on short phones) and --avatar-d (px) come
+   from Renderer.computePhoneLayout via ui.js updateLayoutMode, so the
+   CSS avatars land exactly on the canvas's tangent orbit. */
+
+/* Main Menu (and Leave Room): same type size as "Round: X" and the turn
+   message, with a border that hugs the word — it used to take almost
+   half the top row */
+body.phone-portrait .btn-action-menu {
+  font-size: max(2.3vmin, 0.78rem);
+  padding: 0.3em 0.5em 0.26em;
+  border-width: 1px;
+  border-radius: 0.4em;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+}
+body.phone-portrait .game-hud,
+body.phone-portrait .setup-header {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+/* The HUD message stays ONE line (ellipsis): the layout model reserves a
+   one-row HUD, and a wrapped message on a 320px phone used to grow the
+   HUD over the top player's name. The status pill above the hand carries
+   the full text. The middle track shrinks only when the message is long,
+   so short messages stay screen-centered. */
+body.phone-portrait .game-hud {
+  grid-template-columns: 1fr minmax(0, max-content) 1fr;
+}
+body.phone-portrait .hud-left {
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Room code sits right under the now-shorter HUD row, aligned with the
+   Round label (the HUD box is capped at max(60vmin, 24rem) and centered) */
+body.phone-portrait .hud-room-row {
+  top: calc(max(0.8vmin, env(safe-area-inset-top, 0px)) + 1.95rem);
+  left: calc(50% - min(50%, max(30vmin, 12rem)) + 0.75rem);
+}
+
+/* Player icons 2x — setup, lobby and in-game (one size, MK's v2.5 rule) */
+body.phone-portrait .seat-avatar,
+body.phone-portrait .game-seat-avatar {
+  width: var(--avatar-d, 7.8vmin);
+  height: var(--avatar-d, 7.8vmin);
+  border-width: calc(0.3vmin * var(--ui-k, 1));
+}
+
+/* Names 2x. No max-width/ellipsis: the side seats' names are fitted by
+   ui.js (fitBesideTable), shrinking toward 1x only if the gap between
+   the screen edge and the table is too narrow. */
+body.phone-portrait .seat-name,
+body.phone-portrait .seat-name-input,
+body.phone-portrait .game-seat-name {
+  font-size: calc(max(1.9vmin, 0.6rem) * var(--ui-k, 1));
+  max-width: none;
+}
+body.phone-portrait .seat-name-input { width: calc(max(20vmin, 9rem) * 1.2); }
+
+/* The ring's name ROW keeps its 2x height even when fitBesideTable
+   shrinks a long side name: in the lobby the name sits ABOVE the avatar,
+   so a shorter row would lift that avatar off its orbit point (the v2.3
+   measured placement reads avatar.offsetTop before the fit runs). */
+body.phone-portrait #seats-ring .seat-name {
+  line-height: calc(max(1.9vmin, 0.6rem) * var(--ui-k, 1) * 1.3);
+}
+
+/* In-game, the TOP player's name moves above their avatar: a 2x name
+   under it would sit on the felt over that player's card stack. The
+   seat box starts at the avatar's top edge, so bottom:100% = just above. */
+body.phone-portrait .game-seat.seat-top .game-seat-name {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0 0 0.4vmin;
+}
+
+/* Bid line beside the top/bottom avatars tracks the bigger avatar */
+body.phone-portrait .game-seat.seat-sidestat .game-seat-statline {
+  left: calc(50% + var(--avatar-d, 7.8vmin) / 2 + 1.1vmin);
+  top: calc(var(--avatar-d, 7.8vmin) / 2);
+}
+
+/* Card hierarchy box 2x — its own --legend-k: on 16:9 phones it may run
+   a little smaller than the avatars rather than push the board down */
+body.phone-portrait .suit-stack {
+  gap: calc(0.4vmin * var(--legend-k, 1));
+  padding: calc(1vmin * var(--legend-k, 1)) calc(1.4vmin * var(--legend-k, 1));
+  border-radius: calc(1.2vmin * var(--legend-k, 1));
+}
+body.phone-portrait .suit-stack-item {
+  font-size: calc(max(3.2vmin, 0.82rem) * var(--legend-k, 1));
+  border-radius: calc(6px * var(--legend-k, 1));
+}
+body.phone-portrait .suit-stack-arrow {
+  font-size: calc(max(1.5vmin, 0.5rem) * var(--legend-k, 1));
+}
 
 /* ============================================================
    Rotate gate (v2.8): a phone held sideways sees ONLY this card.
